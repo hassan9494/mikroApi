@@ -1,0 +1,8 @@
+{
+    "Admin": true,
+    "Auth": true,
+    "Common": true,
+    "Shop": true,
+    "Website": true,
+    "Blog": true
+}
