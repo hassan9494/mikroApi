@@ -59,7 +59,6 @@ class WebsiteController extends Controller
                 'image' => $image,
             ];
         }
-//        dd('test');
         return $this->success($data);
     }
 

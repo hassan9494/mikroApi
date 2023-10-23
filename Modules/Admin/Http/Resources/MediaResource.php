@@ -13,6 +13,7 @@ class MediaResource extends JsonResource
      */
     public function toArray($request): array
     {
+
         return [
             'id' => $this->id,
             'url' => $this->getFullUrl(),

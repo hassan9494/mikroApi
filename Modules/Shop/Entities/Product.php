@@ -35,11 +35,12 @@ class Product extends Model implements HasMedia
         'id',
         'sku',
         'name',
-
+        'source_sku',
         'short_description',
         'description',
         'documents',
         'features',
+        'min_qty',
 
         'code',
         'price',
