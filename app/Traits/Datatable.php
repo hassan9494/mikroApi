@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use JetBrains\PhpStorm\ArrayShape;
 
 class Datatable
@@ -43,7 +44,11 @@ class Datatable
         foreach ($this->request['conditions'] as $key => $value) {
             if (is_array($value)) {
                 $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
-            } else {
+            }elseif ($value == "need"){
+                $where[0] = ['stock','<',DB::raw('min_qty')];
+                $where[1] = ['min_qty','>',0];
+            }
+            else {
                 $where[] = [$key, '=', $value];
             }
         }

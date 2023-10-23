@@ -94,6 +94,7 @@ Route::prefix('admin')
         Route::get('product/datatable', [ProductController::class, 'datatable']);
         Route::get('product/autocomplete', [ProductController::class, 'autocomplete']);
         Route::post('product/stock', [ProductController::class, 'stock']);
+        Route::post('product/sku', [ProductController::class, 'sku']);
         Route::resource('product', 'ProductController');
 
         // Order Routes.
@@ -105,7 +106,11 @@ Route::prefix('admin')
         // Stats Routes.
         Route::get('stats/sales', [StatsController::class, 'sales']);
         Route::get('report/product-sales', [ReportController::class, 'productSales']);
+        Route::get('report/product-stock', [ReportController::class, 'productStock']);
+        Route::get('report/product-need', [ReportController::class, 'productNeed']);
         Route::get('report/order', [ReportController::class, 'order']);
+        Route::get('report/outlays', [ReportController::class, 'outlays']);
+        Route::get('report/purchases', [ReportController::class, 'purchases']);
 
         // Slide Routes.
         Route::get('slide/datatable', [SlideController::class, 'datatable']);

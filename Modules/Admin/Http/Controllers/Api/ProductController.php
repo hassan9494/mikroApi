@@ -5,6 +5,7 @@ namespace Modules\Admin\Http\Controllers\Api;
 use App\Models\OldProduct;
 use App\Traits\ApiResponser;
 use App\Traits\Datatable;
+use http\Env\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Modules\Admin\Http\Resources\DatatableProductResource;
@@ -82,9 +83,7 @@ class ProductController extends Controller
      */
     public function storeFromDataBase()
     {
-//        dd('agagj');
         $product = Product::find(88);
-//        dd($oldProducts);
 //        foreach ($oldProducts as $product){
 
             $media = [];
@@ -113,11 +112,8 @@ class ProductController extends Controller
                 ];
 
 //            }
-//            dd($media);
 //            $x['media'] = $media;
-//dd($x);
             $data = $this->validate();
-//            dd($data);
             $this->repository->update($product->id, $data);
         }
     }
@@ -194,6 +190,32 @@ class ProductController extends Controller
         return $this->success();
     }
 
+    public function sku(): JsonResponse
+    {
+        $data = request()->validate([
+            'products.*.id' => 'exists:products,id',
+            'products.*.stock' => 'numeric|min:0',
+            'products.*.min_qty' => 'numeric|min:0',
+            'products.*.sku' => 'sometimes|string|nullable',
+            'products.*.source_sku' => 'sometimes|string|nullable',
+
+        ]);
+
+        foreach ($data['products'] as $item) {
+            if ($item['source_sku'] == null){
+                $item['source_sku'] = "";
+            }
+            if ($item['sku'] == null){
+                $item['sku'] = "";
+            }
+            $this->repository->update(
+                $item['id'],
+                \Arr::only($item, ['stock', 'min_qty', 'sku', 'source_sku']))
+            ;
+        }
+        return $this->success();
+    }
+
 
 
 //    /**
@@ -247,6 +269,9 @@ class ProductController extends Controller
             'options.kit' => 'required|boolean',
             'media' => 'nullable|array',
             'kit' => 'nullable|array',
+            'source_sku' => 'required|max:255',
+            'min_qty' => 'required',
+
         ]);
     }
 

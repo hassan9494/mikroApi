@@ -13,10 +13,10 @@ class CreateOldProductsTable extends Migration
      */
     public function up()
     {
-        Schema::create('old_products', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-        });
+//        Schema::create('old_products', function (Blueprint $table) {
+//            $table->id();
+//            $table->timestamps();
+//        });
     }
 
     /**
@@ -26,6 +26,6 @@ class CreateOldProductsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('old_products');
+//        Schema::dropIfExists('old_products');
     }
 }

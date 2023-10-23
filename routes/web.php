@@ -17,14 +17,13 @@ use Modules\Shop\Entities\Category;
 */
 
 Route::get('/', function () {
-    $models = \Modules\Shop\Entities\Product::all();
-//    dd($model);
-    foreach ($models as $model){
-        $model->save();
-    }
+//    $models = \Modules\Shop\Entities\Product::all();
+//    foreach ($models as $model){
+//        $model->save();
+//    }
 
 
-//    dd($model->media->first()->getUrl());
+
 //    $url = 'https://image.shutterstock.com/image-vector/sample-stamp-grunge-texture-vector-260nw-1389188336.jpg';
 //    $model
 //        ->addMediaFromUrl($url)
@@ -46,11 +45,9 @@ Route::get('/', function () {
 //            ];
 //
 //        }
-////            dd($media);
 //        $x['media'] = $media;
 //
 //        $data = $this->validate();
-////            dd($data);
 //        $this->repository->update($product->id, $data);
 //    }
 //
@@ -61,7 +58,6 @@ Route::get('/', function () {
 //    foreach ($products as $product){
 //        array_push($x,$product->id);
 //    }
-//    dd($x);
 
     return 'Hi';
 });
