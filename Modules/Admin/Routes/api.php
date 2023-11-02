@@ -109,8 +109,10 @@ Route::prefix('admin')
         Route::get('report/product-stock', [ReportController::class, 'productStock']);
         Route::get('report/product-need', [ReportController::class, 'productNeed']);
         Route::get('report/order', [ReportController::class, 'order']);
+        Route::get('report/zemam', [ReportController::class, 'zemam']);
         Route::get('report/outlays', [ReportController::class, 'outlays']);
         Route::get('report/purchases', [ReportController::class, 'purchases']);
+        Route::get('report/depts', [ReportController::class, 'depts']);
 
         // Slide Routes.
         Route::get('slide/datatable', [SlideController::class, 'datatable']);

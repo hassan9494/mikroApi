@@ -47,10 +47,17 @@ class Datatable
             }elseif ($value == "need"){
                 $where[0] = ['stock','<',DB::raw('min_qty')];
                 $where[1] = ['min_qty','>',0];
+            }elseif ($value == "stock"){
+                $where = [];
             }
             else {
                 $where[] = [$key, '=', $value];
             }
+        }
+        if (isset($this->request['needConditionReport'])){
+            dd($this->request);
+            $where[0] = ['stock','<',DB::raw('min_qty')];
+            $where[1] = ['min_qty','>',0];
         }
         $this->query = $this->model->where($where);
     }
