@@ -15,13 +15,17 @@ class NeedStocksReportResource extends JsonResource
      */
     public function toArray($request): array
     {
+        $priceAll = $this->stock * $this->price->normal_price;
             return [
                 'id' => $this->id,
                 'name' => $this->name,
                 'stock' => $this->stock,
-                'price' => $this->price,
+                'price' => $this->price->normal_price,
                 'image' => $this->getFirstMediaUrl(),
-                'min_qty' => $this->min_qty
+                'min_qty' => $this->min_qty,
+                'sku'  => $this->sku,
+                'sales' => $this->sales(null, null),
+                'priceAll' => $priceAll,
             ];
 
 

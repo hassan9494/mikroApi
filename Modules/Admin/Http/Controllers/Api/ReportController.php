@@ -6,11 +6,14 @@ use App\Traits\ApiResponser;
 use App\Traits\Datatable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
+use Modules\Admin\Http\Resources\DeptResource;
 use Modules\Admin\Http\Resources\NeedStocksReportResource;
 use Modules\Admin\Http\Resources\OrderResource;
 use Modules\Admin\Http\Resources\OutlayResource;
 use Modules\Admin\Http\Resources\ProductSalesReportResource;
 use Modules\Admin\Http\Resources\ProductStocksReportResource;
+use Modules\Common\Repositories\Dept\DeptRepositoryInterface;
 use Modules\Common\Repositories\Outlay\OutlayRepositoryInterface;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Repositories\Product\ProductRepository;
@@ -24,11 +27,15 @@ class ReportController extends Controller
     /**
      * @var ProductRepositoryInterface
      */
-    private ProductRepositoryInterface $ProductRepositoryInterface;
+    private ProductRepositoryInterface $productRepositoryInterface;
     /**
      * @var OutlayRepositoryInterface
      */
     private OutlayRepositoryInterface $outlayRepositoryInterface;
+    /**
+     * @var OutlayRepositoryInterface
+     */
+    private DeptRepositoryInterface $deptRepositoryInterface;
 
     /**
      * @var OrderRepositoryInterface
@@ -38,20 +45,23 @@ class ReportController extends Controller
 
     /**
      * ReportController constructor.
-     * @param ProductRepositoryInterface $ProductRepositoryInterface
+     * @param ProductRepositoryInterface $productRepositoryInterface
      * @param OrderRepositoryInterface $orderRepository
      * @param OutlayRepositoryInterface $outlayRepositoryInterface
+     * @param OutlayRepositoryInterface $deptRepositoryInterface
      */
     public function __construct(
-        ProductRepositoryInterface $ProductRepositoryInterface,
+        ProductRepositoryInterface $productRepositoryInterface,
         OrderRepositoryInterface $orderRepository,
         OutlayRepositoryInterface $outlayRepositoryInterface,
+        DeptRepositoryInterface $deptRepositoryInterface,
         ProductRepository $pr
     )
     {
-        $this->ProductRepositoryInterface = $ProductRepositoryInterface;
+        $this->productRepositoryInterface = $productRepositoryInterface;
         $this->orderRepository = $orderRepository;
         $this->outlayRepositoryInterface = $outlayRepositoryInterface;
+        $this->deptRepositoryInterface = $deptRepositoryInterface;
         $this->pr=$pr;
     }
 
@@ -74,6 +84,32 @@ class ReportController extends Controller
         ];
         if ($exempt = request('exempt')) {
             $where[] = ['options->tax_exempt', $exempt];
+        }
+        if ($status = request('status')) {
+            $where[] = ['status', $status];
+        }
+        $data = $this->orderRepository->get($where, ['products'])->sortBy('tax_number');
+        return OrderResource::collection($data);
+    }
+
+
+    /**
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     */
+    public function zemam()
+    {
+        $where = [
+            [
+                'created_at', '>=', request('from', now()->startOfMonth())
+            ],
+            [
+                'created_at', '<=', request('to', now()->endOfMonth())
+            ]
+        ];
+        if ($dept = request('dept')) {
+            $where[] = ['options->dept', $dept];
+        }else{
+            $where[] = ['options->dept', true];
         }
         if ($status = request('status')) {
             $where[] = ['status', $status];
@@ -130,25 +166,56 @@ class ReportController extends Controller
     }
 
     /**
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     */
+    public function depts()
+    {
+        $where = [
+            [
+                'date', '>=', request('from', now()->startOfMonth())
+            ],
+            [
+                'date', '<=', request('to', now()->endOfMonth())
+            ],
+            [
+                'paid', request('paid')
+            ]
+        ];
+        $data = $this->deptRepositoryInterface->get($where)->sortBy('date');
+        return DeptResource::collection($data);
+    }
+
+    /**
      * @return JsonResponse
      */
     public function productSales(): JsonResponse
     {
-        return Datatable::make($this->ProductRepositoryInterface->model())
+        return Datatable::make($this->productRepositoryInterface->model())
             ->search(['id', 'name->en', 'sku'])
             ->resource(ProductSalesReportResource::class)
             ->json();
     }
 
     /**
-     * @return JsonResponse
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
-    public function productStock(): JsonResponse
+    public function productStock(): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
-        return Datatable::make($this->ProductRepositoryInterface->model())
-            ->search(['id', 'name', 'sku'])
-            ->resource(ProductStocksReportResource::class)
-            ->json();
+        if (request('needConditionReport') != null && request('needConditionReport') == 'need'){
+            $where = [
+                [
+                    'min_qty','>',0
+                ],
+                [
+                    'stock','<',DB::raw('min_qty')
+                ]
+            ];
+        }else{
+            $where = [];
+        }
+
+        $data = $this->productRepositoryInterface->get($where)->sortBy('date');
+        return NeedStocksReportResource::collection($data);
     }
 
     /**
@@ -156,15 +223,18 @@ class ReportController extends Controller
      */
     public function productNeed(): JsonResponse
     {
-        $where = [
-            [
-                'min_qty', '>',0
-            ],
-            [
-                'stock', '<', "min_qty"
-            ]
-        ];
-        return Datatable::make($this->ProductRepositoryInterface->model())
+        if (request('conditions') != null && request('conditions')[1] == 'nawakes'){
+            $where = [
+                [
+                    'min_qty', '>',0
+                ],
+                [
+                    'stock', '<', "min_qty"
+                ]
+            ];
+        }
+
+        return Datatable::make($this->productRepositoryInterface->model())
             ->search(['id', 'name', 'sku','stock','min_qty'])
             ->resource(NeedStocksReportResource::class)
             ->json();
