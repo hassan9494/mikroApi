@@ -23,7 +23,7 @@ use App\Traits\Media;
 class Product extends Model implements HasMedia
 {
     use HasFactory;
-//    use Searchable;
+    use Searchable;
     use Stock;
     use Finance;
     use Media;
