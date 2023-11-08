@@ -49,6 +49,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $kit[$item['id']] = Arr::only($item, 'quantity');
             }
         }
+        if (count($kit) != 0)
         $model->kit()->sync($kit);
         $model->syncMedia($data['media'] ?? []);
     }

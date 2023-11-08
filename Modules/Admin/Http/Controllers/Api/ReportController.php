@@ -7,12 +7,14 @@ use App\Traits\Datatable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Modules\Admin\Http\Resources\CustomsStatementResource;
 use Modules\Admin\Http\Resources\DeptResource;
 use Modules\Admin\Http\Resources\NeedStocksReportResource;
 use Modules\Admin\Http\Resources\OrderResource;
 use Modules\Admin\Http\Resources\OutlayResource;
 use Modules\Admin\Http\Resources\ProductSalesReportResource;
 use Modules\Admin\Http\Resources\ProductStocksReportResource;
+use Modules\Common\Repositories\CustomsStatement\CustomsStatementRepositoryInterface;
 use Modules\Common\Repositories\Dept\DeptRepositoryInterface;
 use Modules\Common\Repositories\Outlay\OutlayRepositoryInterface;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
@@ -32,8 +34,17 @@ class ReportController extends Controller
      * @var OutlayRepositoryInterface
      */
     private OutlayRepositoryInterface $outlayRepositoryInterface;
+
+
+
     /**
-     * @var OutlayRepositoryInterface
+     * @var CustomsStatementRepositoryInterface
+     */
+    private CustomsStatementRepositoryInterface $customsStatementRepositoryInterface;
+
+
+    /**
+     * @var DeptRepositoryInterface
      */
     private DeptRepositoryInterface $deptRepositoryInterface;
 
@@ -48,13 +59,15 @@ class ReportController extends Controller
      * @param ProductRepositoryInterface $productRepositoryInterface
      * @param OrderRepositoryInterface $orderRepository
      * @param OutlayRepositoryInterface $outlayRepositoryInterface
-     * @param OutlayRepositoryInterface $deptRepositoryInterface
+     * @param DeptRepositoryInterface $deptRepositoryInterface
+     * @param CustomsStatementRepositoryInterface $customsStatementRepositoryInterface
      */
     public function __construct(
         ProductRepositoryInterface $productRepositoryInterface,
         OrderRepositoryInterface $orderRepository,
         OutlayRepositoryInterface $outlayRepositoryInterface,
         DeptRepositoryInterface $deptRepositoryInterface,
+        CustomsStatementRepositoryInterface $customsStatementRepositoryInterface,
         ProductRepository $pr
     )
     {
@@ -62,6 +75,7 @@ class ReportController extends Controller
         $this->orderRepository = $orderRepository;
         $this->outlayRepositoryInterface = $outlayRepositoryInterface;
         $this->deptRepositoryInterface = $deptRepositoryInterface;
+        $this->customsStatementRepositoryInterface = $customsStatementRepositoryInterface;
         $this->pr=$pr;
     }
 
@@ -84,6 +98,10 @@ class ReportController extends Controller
         ];
         if ($exempt = request('exempt')) {
             $where[] = ['options->tax_exempt', $exempt];
+        }
+        if ($zero = request('zero')) {
+            $where[] = ['options->tax_exempt', true];
+            $where[] = ['options->tax_zero', $zero];
         }
         if ($status = request('status')) {
             $where[] = ['status', $status];
@@ -163,6 +181,23 @@ class ReportController extends Controller
         }
         $data = $this->outlayRepositoryInterface->get($where)->sortBy('date');
         return OutlayResource::collection($data);
+    }
+
+    /**
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     */
+    public function customs_statement()
+    {
+        $where = [
+            [
+                'date', '>=', request('from', now()->startOfMonth())
+            ],
+            [
+                'date', '<=', request('to', now()->endOfMonth())
+            ]
+        ];
+        $data = $this->customsStatementRepositoryInterface->get($where)->sortBy('date');
+        return CustomsStatementResource::collection($data);
     }
 
     /**

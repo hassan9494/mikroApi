@@ -125,6 +125,7 @@ class OrderController extends ApiAdminController
             'options.dept' => 'required|boolean',
             'options.price_offer' => 'required|boolean',
             'options.pricing' => 'nullable|string',
+            'options.tax_zero' => 'nullable|boolean',
 
             'coupon_id' => 'nullable|exists:coupons,id',
             'discount' => 'required|numeric',
