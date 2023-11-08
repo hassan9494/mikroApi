@@ -88,7 +88,7 @@ class Order extends Model implements HasMedia
     ];
 
     protected $attributes = [
-        'options' => '{"taxed": false, "tax_exempt": false, "dept": false, "price_offer": false}'
+        'options' => '{"taxed": false, "tax_exempt": false, "dept": false, "price_offer": false, "tax_zero": false}'
     ];
 
     /**

@@ -6,14 +6,14 @@ use App\Repositories\Base\EloquentRepository;
 use Modules\Common\Entities\Outlay;
 
 /**
- * Class OutlayRepository
+ * Class CustomsStatementRepository
  * @package Modules\Shop\Repositories\Category
  */
 class OutlayRepository extends EloquentRepository implements OutlayRepositoryInterface
 {
 
     /**
-     * OutlayRepository constructor.
+     * CustomsStatementRepository constructor.
      * @param Outlay $model
      */
     public function __construct(Outlay $model)

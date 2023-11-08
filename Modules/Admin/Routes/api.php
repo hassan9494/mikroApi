@@ -5,6 +5,7 @@ use Modules\Admin\Http\Controllers\Api\AuthController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\CouponController;
 use Modules\Admin\Http\Controllers\Api\CourseController;
+use Modules\Admin\Http\Controllers\Api\CustomsStatementController;
 use Modules\Admin\Http\Controllers\Api\DeptController;
 use Modules\Admin\Http\Controllers\Api\FileController;
 use Modules\Admin\Http\Controllers\Api\GraduationProjectController;
@@ -68,6 +69,10 @@ Route::prefix('admin')
         Route::get('outlay/datatable', [OutlayController::class, 'datatable']);
         Route::resource('outlay', 'OutlayController');
 
+        // customsStatements Routes.
+        Route::get('customs-statement/datatable', [CustomsStatementController::class, 'datatable']);
+        Route::resource('customs-statement', 'CustomsStatementController');
+
         // Receipt Routes.
         Route::get('receipt/datatable', [ReceiptController::class, 'datatable']);
         Route::resource('receipt', 'ReceiptController');
@@ -111,6 +116,7 @@ Route::prefix('admin')
         Route::get('report/order', [ReportController::class, 'order']);
         Route::get('report/zemam', [ReportController::class, 'zemam']);
         Route::get('report/outlays', [ReportController::class, 'outlays']);
+        Route::get('report/customs-statement', [ReportController::class, 'customs_statement']);
         Route::get('report/purchases', [ReportController::class, 'purchases']);
         Route::get('report/depts', [ReportController::class, 'depts']);
 
