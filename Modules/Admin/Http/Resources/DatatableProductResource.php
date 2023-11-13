@@ -25,6 +25,7 @@ class DatatableProductResource extends JsonResource
             'slug' => $this->sku,
             'price' => $this->price,
             'image' => $this->getFirstMediaUrl(),
+            'sales' => $this->completedOrders
         ];
 
     }

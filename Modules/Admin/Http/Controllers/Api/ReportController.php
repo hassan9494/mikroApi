@@ -36,7 +36,6 @@ class ReportController extends Controller
     private OutlayRepositoryInterface $outlayRepositoryInterface;
 
 
-
     /**
      * @var CustomsStatementRepositoryInterface
      */
@@ -76,7 +75,7 @@ class ReportController extends Controller
         $this->outlayRepositoryInterface = $outlayRepositoryInterface;
         $this->deptRepositoryInterface = $deptRepositoryInterface;
         $this->customsStatementRepositoryInterface = $customsStatementRepositoryInterface;
-        $this->pr=$pr;
+        $this->pr = $pr;
     }
 
 
@@ -114,6 +113,36 @@ class ReportController extends Controller
     /**
      * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
+    public function products_order()
+    {
+        $order_where = [
+            [
+                'taxed_at', '>=', request('from', now()->startOfMonth())
+            ],
+            [
+                'taxed_at', '<=', request('to', now()->endOfMonth())
+            ],
+            [
+                'status', 'COMPLETED'
+            ]
+        ];
+
+        $where = [
+            [
+                'id', request('id')
+            ]
+        ];
+        $data = $this->productRepositoryInterface->get($where, ['orders'])->first();
+        $orders = $data->orders->where('status', 'COMPLETED')
+            ->where('taxed_at','>=',request('from', now()->startOfMonth()))
+            ->where('taxed_at','<=',request('to', now()->startOfMonth()));
+        return OrderResource::collection($orders);
+    }
+
+
+    /**
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     */
     public function zemam()
     {
         $where = [
@@ -126,7 +155,7 @@ class ReportController extends Controller
         ];
         if ($dept = request('dept')) {
             $where[] = ['options->dept', $dept];
-        }else{
+        } else {
             $where[] = ['options->dept', true];
         }
         if ($status = request('status')) {
@@ -236,16 +265,16 @@ class ReportController extends Controller
      */
     public function productStock(): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
-        if (request('needConditionReport') != null && request('needConditionReport') == 'need'){
+        if (request('needConditionReport') != null && request('needConditionReport') == 'need') {
             $where = [
                 [
-                    'min_qty','>',0
+                    'min_qty', '>', 0
                 ],
                 [
-                    'stock','<',DB::raw('min_qty')
+                    'stock', '<', DB::raw('min_qty')
                 ]
             ];
-        }else{
+        } else {
             $where = [];
         }
 
@@ -258,10 +287,10 @@ class ReportController extends Controller
      */
     public function productNeed(): JsonResponse
     {
-        if (request('conditions') != null && request('conditions')[1] == 'nawakes'){
+        if (request('conditions') != null && request('conditions')[1] == 'nawakes') {
             $where = [
                 [
-                    'min_qty', '>',0
+                    'min_qty', '>', 0
                 ],
                 [
                     'stock', '<', "min_qty"
@@ -270,8 +299,27 @@ class ReportController extends Controller
         }
 
         return Datatable::make($this->productRepositoryInterface->model())
-            ->search(['id', 'name', 'sku','stock','min_qty'])
+            ->search(['id', 'name', 'sku', 'stock', 'min_qty'])
             ->resource(NeedStocksReportResource::class)
+            ->json();
+    }
+
+    /**
+     * @return JsonResponse
+     */
+    public function productSale(): JsonResponse
+    {
+        $from = request('from');
+        $to = request('to');
+        $whereHas['completedOrders'] = function ($q) use ($from, $to) {
+            if ($from) $q->whereDate('inspection_date', '>=', $from);
+            if ($to) $q->whereDate('inspection_date', '<=', $to);
+        };
+        $data = $this->productRepositoryInterface->model();
+        return Datatable::make($data)
+            ->whereHas($whereHas)
+            ->search(['id', 'name', 'sku', 'stock', 'min_qty'])
+            ->resource(ProductSalesReportResource::class)
             ->json();
     }
 }
