@@ -97,6 +97,7 @@ Route::prefix('admin')
 
         // Product Routes.
         Route::get('product/datatable', [ProductController::class, 'datatable']);
+        Route::get('product/sales', [OrderController::class, 'sales']);
         Route::get('product/autocomplete', [ProductController::class, 'autocomplete']);
         Route::post('product/stock', [ProductController::class, 'stock']);
         Route::post('product/sku', [ProductController::class, 'sku']);
@@ -111,9 +112,11 @@ Route::prefix('admin')
         // Stats Routes.
         Route::get('stats/sales', [StatsController::class, 'sales']);
         Route::get('report/product-sales', [ReportController::class, 'productSales']);
+        Route::get('report/product-sale', [ReportController::class, 'productSale']);
         Route::get('report/product-stock', [ReportController::class, 'productStock']);
         Route::get('report/product-need', [ReportController::class, 'productNeed']);
         Route::get('report/order', [ReportController::class, 'order']);
+        Route::get('report/product-orders', [ReportController::class, 'products_order']);
         Route::get('report/zemam', [ReportController::class, 'zemam']);
         Route::get('report/outlays', [ReportController::class, 'outlays']);
         Route::get('report/customs-statement', [ReportController::class, 'customs_statement']);

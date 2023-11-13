@@ -19,7 +19,7 @@ class ProductSalesReportResource extends JsonResource
             'id' => $this->id,
             'sku' => $this->sku,
             'name' => $this->name,
-            'quantity' => $this->quantity,
+            'quantity' => $this->stock,
             'slug' => $this->sku,
             'price' => $this->price,
             'image' => $this->getFirstMediaUrl(),

@@ -40,14 +40,18 @@ class Datatable
 
     private function where()
     {
+
         $where = [];
         foreach ($this->request['conditions'] as $key => $value) {
             if (is_array($value)) {
+                if (isset($value['col']))
                 $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
             }elseif ($value == "need"){
                 $where[0] = ['stock','<',DB::raw('min_qty')];
                 $where[1] = ['min_qty','>',0];
             }elseif ($value == "stock"){
+                $where = [];
+            }elseif ($value == "sales"){
                 $where = [];
             }
             else {

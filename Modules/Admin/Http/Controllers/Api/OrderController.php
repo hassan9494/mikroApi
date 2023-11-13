@@ -2,7 +2,9 @@
 
 namespace Modules\Admin\Http\Controllers\Api;
 
+use App\Traits\Datatable;
 use Illuminate\Http\JsonResponse;
+use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\OrderResource;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
@@ -32,16 +34,35 @@ class OrderController extends ApiAdminController
     /**
      * @return JsonResponse
      */
+    public function sales(): JsonResponse
+    {
+        $from = request('from');
+        $to = request('to');
+        $id = json_decode(request('conditions'))[0]->id;
+        $whereHas['Products'] =  function ($q) use ($id) {
+            if ($id) $q->where('products.id',  $id);
+        };
+        return Datatable::make($this->repository->model())
+            ->with(['products'])
+            ->whereHas($whereHas)
+            ->search('id', 'name', 'sku')
+            ->resource(OrderResource::class)
+            ->json();
+    }
+
+    /**
+     * @return JsonResponse
+     */
     public function store(): JsonResponse
     {
         $data = $this->validate();
-        if ($data['shipping']['status'] == null){
+        if ($data['shipping']['status'] == null) {
             $data['shipping']['status'] = "WAITING";
         }
 
         $order = $this->repository->make($data);
 
-        if (!\Arr::get($data, 'options.price_offer', false)){
+        if (!\Arr::get($data, 'options.price_offer', false)) {
             // Mark as processing
             $this->repository->status($order->id, OrderStatus::PROCESSING()->value);
         } else {
@@ -62,7 +83,7 @@ class OrderController extends ApiAdminController
     public function update($id): JsonResponse
     {
         $data = $this->validate();
-        if ($data['shipping']['status'] == null){
+        if ($data['shipping']['status'] == null) {
             $data['shipping']['status'] = "WAITING";
         }
         $order = $this->repository->saveOrder($id, $data);
