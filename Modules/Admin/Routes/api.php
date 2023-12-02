@@ -46,7 +46,7 @@ Route::prefix('admin')
     });
 
 Route::prefix('admin')
-    ->middleware(['auth:sanctum' ,'role:admin'])
+    ->middleware(['auth:sanctum' ,'role:admin|super|Manager|Cashier|Product Manager|Admin cash'])
     ->namespace('Api')
     ->group(function () {
 
@@ -150,7 +150,7 @@ Route::prefix('admin')
 
 
 Route::prefix('admin')
-    ->middleware(['auth:sanctum' ,'role:super'])
+    ->middleware(['auth:sanctum' ,'role:super|admin|Manager'])
     ->namespace('Api')
     ->group(function () {
         Route::resource('user', 'UserController');

@@ -40,18 +40,18 @@ class Datatable
 
     private function where()
     {
-
+//        dd($this->request['conditions']);
         $where = [];
         foreach ($this->request['conditions'] as $key => $value) {
             if (is_array($value)) {
                 if (isset($value['col']))
                 $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
-            }elseif ($value == "need"){
+            }elseif ($value === "need"){
                 $where[0] = ['stock','<',DB::raw('min_qty')];
                 $where[1] = ['min_qty','>',0];
-            }elseif ($value == "stock"){
+            }elseif ($value === "stock"){
                 $where = [];
-            }elseif ($value == "sales"){
+            }elseif ($value === "sales"){
                 $where = [];
             }
             else {
@@ -59,7 +59,6 @@ class Datatable
             }
         }
         if (isset($this->request['needConditionReport'])){
-            dd($this->request);
             $where[0] = ['stock','<',DB::raw('min_qty')];
             $where[1] = ['min_qty','>',0];
         }
@@ -111,6 +110,18 @@ class Datatable
     public function with(array $with = []): Datatable
     {
         $this->query->with($with);
+        return $this;
+    }
+
+    /**
+     * @param array $whereDoesntHave
+     * @return $this
+     */
+    public function whereDosentHave(array $whereDoesntHave = []): Datatable
+    {
+        $this->query->whereDoesntHave('roles', function ($query) use ($whereDoesntHave) {
+            $query->whereIn('name', $whereDoesntHave);
+        });
         return $this;
     }
 

@@ -4,6 +4,7 @@ namespace App\Repositories\User;
 
 use App\Models\User;
 use App\Repositories\Base\EloquentRepository;
+use App\Traits\Datatable;
 
 /**
  * Class EloquentRepository
@@ -50,6 +51,22 @@ class UserRepository extends EloquentRepository implements UserRepositoryInterfa
         return $model;
     }
 
+
+    /**
+     * @param $data
+     * @return \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Builder[]|\Illuminate\Database\Eloquent\Collection|\Illuminate\Database\Eloquent\Model
+     */
+    public function create( $data)
+    {
+        $model = parent::create( $data);
+
+        if ($data['roles'] ?? false) {
+            $model->syncRoles($data['roles']);
+        }
+
+        return $model;
+    }
+
     /**
      * @param $email
      * @param array $with
@@ -73,6 +90,13 @@ class UserRepository extends EloquentRepository implements UserRepositoryInterfa
 //        if ($role) $query->role($role);
 
         return $query->get();
+    }
+
+    public function datatable($searchColumns = [], $with = [], $whereHas = [])
+    {
+        $roles = ['super'];
+//        $x =  $this->mode;
+        return Datatable::make($this->model)->search(...$searchColumns)->whereDosentHave($whereHas)->with($with)->get();
     }
 
 }
