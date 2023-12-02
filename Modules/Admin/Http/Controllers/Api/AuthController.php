@@ -54,7 +54,8 @@ class AuthController extends Controller
             return $this->error('Credentials not match', 401);
         }
 
-        if (!\Auth::user()->hasRole('admin'))
+
+        if (!\Auth::user()->hasRole('admin|super|Manager|Cashier|Product Manager|Admin cash'))
         {
             return $this->error('You dont have the right permissions', 401);
         }
@@ -62,7 +63,8 @@ class AuthController extends Controller
         $token = \Auth::user()->createToken('web')->plainTextToken;
 
         return $this->success([
-            'token' => $token
+            'token' => $token,
+            'user' => new AuthResource(\Auth::user())
         ]);
     }
 

@@ -62,6 +62,10 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(Address::class)->where(['is_primary' => true]);
     }
 
+    public function getUserByRole($roles = []){
+        return $this->hasAnyRole($roles);
+    }
+
     protected static function boot()
     {
         parent::boot();

@@ -5,6 +5,7 @@ namespace Modules\Admin\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use App\Repositories\User\UserRepositoryInterface;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class UserController extends ApiAdminController
@@ -24,8 +25,19 @@ class UserController extends ApiAdminController
     public function datatable(): JsonResponse
     {
         $search = $this->datatableSearchFields();
+        $user = Auth::user();
+
+        if ($user->hasRole(['super'])){
+            $whereHas = [];
+        }elseif($user->hasRole(['admin']))
+        {
+            $whereHas =  ['super'];
+        }else{
+            $whereHas =  ['super','admin','Admin cash'];
+        }
+
         return $this->success(
-            $this->repository->datatable($search, ['roles'])
+            $this->repository->datatable($search, ['roles'],$whereHas)
         );
     }
 
@@ -34,7 +46,29 @@ class UserController extends ApiAdminController
      */
     public function datatableSearchFields(): array
     {
-        return ['id', 'name', 'email', 'phone'];
+        return ['id', 'name', 'email', 'phone','role'];
+    }
+
+
+    /**
+     * @return JsonResponse
+     */
+    public function store(): JsonResponse
+    {
+        $data = $this->validate();
+        request()->validate([
+            'password' => 'required|min:8|max:32|confirmed',
+            'password_confirmation' => 'required',
+        ]);
+        if (request('password') == request('password_confirmation') ){
+            $data['password'] = Hash::make(request('password'));
+            return $this->success(
+                $this->repository->create($data)
+            );
+        }else{
+            abort(500, 'The password does not match the password confirm');
+        }
+
     }
 
 
