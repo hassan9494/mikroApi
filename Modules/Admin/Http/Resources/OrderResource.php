@@ -33,6 +33,7 @@ class OrderResource extends JsonResource
             'created_at' => $this->created_at,
             'completed_at' => $this->completed_at,
             'taxed_at' => $this->taxed_at,
+            'updated_at' => $this->updated_at,
 
             'subtotal' => $this->subtotal,
             'discount' => $this->discount,

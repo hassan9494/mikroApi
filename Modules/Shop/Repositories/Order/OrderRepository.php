@@ -299,4 +299,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             ($order->status == OrderStatus::COMPLETED()->value || $order->status == OrderStatus::PROCESSING()->value);
     }
 
+    public function get($wheres = [], $with = [],$orWhere = [])
+    {
+        return $this->model->latest()->with($with)->where($wheres)->orWhere($orWhere)->get();
+    }
+
 }

@@ -84,6 +84,7 @@ class ReportController extends Controller
      */
     public function order()
     {
+//        dd('kdjkdj');
         $where = [
             [
                 'taxed_at', '>=', request('from', now()->startOfMonth())
@@ -95,17 +96,33 @@ class ReportController extends Controller
                 'options->taxed', true
             ]
         ];
+        $orWhere = [
+            [
+                'updated_at', '>=', request('from', now()->startOfMonth())
+            ],
+            [
+                'updated_at', '<=', request('to', now()->endOfMonth())
+            ],
+            [
+                'options->taxed', true
+            ]
+        ];
         if ($exempt = request('exempt')) {
             $where[] = ['options->tax_exempt', $exempt];
+            $orWhere[] = ['options->tax_exempt', $exempt];
         }
         if ($zero = request('zero')) {
             $where[] = ['options->tax_exempt', true];
             $where[] = ['options->tax_zero', $zero];
+            $orWhere[] = ['options->tax_exempt', true];
+            $orWhere[] = ['options->tax_zero', $zero];
         }
         if ($status = request('status')) {
             $where[] = ['status', $status];
+            $orWhere[] = ['status', $status];
         }
-        $data = $this->orderRepository->get($where, ['products'])->sortBy('tax_number');
+//        dd($orWhere);
+        $data = $this->orderRepository->get($where, ['products'],$orWhere)->sortBy('tax_number');
         return OrderResource::collection($data);
     }
 
@@ -145,23 +162,35 @@ class ReportController extends Controller
      */
     public function zemam()
     {
+
         $where = [
             [
-                'created_at', '>=', request('from', now()->startOfMonth())
+                'taxed_at', '>=', request('from', now()->startOfMonth())
             ],
             [
-                'created_at', '<=', request('to', now()->endOfMonth())
+                'taxed_at', '<=', request('to', now()->endOfMonth())
+            ]
+        ];
+        $orWhere = [
+            [
+                'updated_at', '>=', request('from', now()->startOfMonth())
+            ],
+            [
+                'updated_at', '<=', request('to', now()->endOfMonth())
             ]
         ];
         if ($dept = request('dept')) {
             $where[] = ['options->dept', $dept];
+            $orWhere[] = ['options->dept', $dept];
         } else {
             $where[] = ['options->dept', true];
+            $orWhere[] = ['options->dept', true];
         }
         if ($status = request('status')) {
             $where[] = ['status', $status];
+            $orWhere[] = ['status', $status];
         }
-        $data = $this->orderRepository->get($where, ['products'])->sortBy('tax_number');
+        $data = $this->orderRepository->get($where, ['products'],$orWhere)->sortBy('tax_number');
         return OrderResource::collection($data);
     }
 

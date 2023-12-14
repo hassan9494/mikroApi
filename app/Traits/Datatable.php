@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use JetBrains\PhpStorm\ArrayShape;
+use function PHPUnit\Framework\isFalse;
 
 class Datatable
 {
@@ -42,10 +43,18 @@ class Datatable
     {
 //        dd($this->request['conditions']);
         $where = [];
+        $orWhere = [];
         foreach ($this->request['conditions'] as $key => $value) {
             if (is_array($value)) {
                 if (isset($value['col']))
-                $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
+                    if(str_contains($value['col'], '|')){
+                       $column = explode('|',$value['col']) ;
+                        $where[] = [$column[0], $value['op'] ?? '=', $value['val']];
+                        $orWhere[] = [$column[1], $value['op']?? '=', $value['val']];
+                    }else{
+                        $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
+                    }
+
             }elseif ($value === "need"){
                 $where[0] = ['stock','<',DB::raw('min_qty')];
                 $where[1] = ['min_qty','>',0];
@@ -62,7 +71,7 @@ class Datatable
             $where[0] = ['stock','<',DB::raw('min_qty')];
             $where[1] = ['min_qty','>',0];
         }
-        $this->query = $this->model->where($where);
+        $this->query = $this->model->where($where)->orWhere($orWhere);
     }
 
     private function order()
