@@ -60,6 +60,8 @@ interface OrderRepositoryInterface extends BaseRepository
      */
     public function sales();
 
+    public function get($wheres = [], $with = [],$orWhere = []);
+
 
 
 }

@@ -104,7 +104,7 @@ class UserController extends ApiAdminController
         return request()->validate([
             'name' => 'required|max:255',
             'email' => 'required|unique:users,email,'.$id,
-            'phone' => 'required|unique:users,phone,'.$id,
+            'phone' => 'required',
             'status' => 'required|numeric',
             'roles' => 'required',
             'roles.*' => 'required|exists:roles,name',
