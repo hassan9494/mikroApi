@@ -1,9 +1,12 @@
 <?php
 
 
-
+use App\Http\Controllers\ImportController;
+use App\Models\OldCategory;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Modules\Shop\Entities\Category;
+use Modules\Shop\Entities\Product;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,6 +20,12 @@ use Modules\Shop\Entities\Category;
 */
 
 Route::get('/', function () {
+    $products = Product::all();
+    foreach ($products as $product) {
+        $product->slug = Str::slug($product->name, '-');
+        $product->save();
+    }
+    dd('saflasssssssddddddddddddddddddddddssssf');
 //    $models = \Modules\Shop\Entities\Product::all();
 //    foreach ($models as $model){
 //        $model->save();
@@ -58,9 +67,29 @@ Route::get('/', function () {
 //    foreach ($products as $product){
 //        array_push($x,$product->id);
 //    }
+//    dd(\App\Models\OldCategory::all());
 
     return 'Hi';
 });
+
+Route::get('/migrate', function () {
+    \Artisan::call('migrate');
+    dd('Migrating');
+    return 'Test email sent.';
+});
+Route::get('import_category',[ImportController::class,'category']);
+Route::get('import_product',[ImportController::class,'product']);
+Route::get('import_product_image',[ImportController::class,'importProductImages']);
+Route::get('import_product_category',[ImportController::class,'productCategory']);
+Route::get('import_product_related',[ImportController::class,'productRelated']);
+Route::get('import_product_kit',[ImportController::class,'kitInclude']);
+Route::get('import_courses',[ImportController::class,'courses']);
+Route::get('import_graduationProject',[ImportController::class,'graduationProject']);
+Route::get('import_outlay',[ImportController::class,'outlay']);
+Route::get('import_supplier',[ImportController::class,'supplier']);
+Route::get('import_user',[ImportController::class,'user']);
+Route::get('import_order',[ImportController::class,'order']);
+
 
 Route::get('/welcome', function () {
     return view('welcome');

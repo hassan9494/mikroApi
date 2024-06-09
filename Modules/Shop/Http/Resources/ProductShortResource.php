@@ -3,6 +3,7 @@
 namespace Modules\Shop\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Str;
 
 class ProductShortResource extends JsonResource
 {
@@ -21,7 +22,7 @@ class ProductShortResource extends JsonResource
             'id' => $this->id,
             'sku' => $this->sku,
             'title' => $this->name,
-            'slug' => $this->sku,
+            'slug' => $this->slug,
             'availableQty' => $this->stock,
             'price' => $this->price->normal_price,
             'sale_price' => $this->price->sale_price ?: null,
