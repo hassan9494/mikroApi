@@ -23,7 +23,7 @@ use App\Traits\Media;
 class Product extends Model implements HasMedia
 {
     use HasFactory;
-    use Searchable;
+//    use Searchable;
     use Stock;
     use Finance;
     use Media;
@@ -41,13 +41,20 @@ class Product extends Model implements HasMedia
         'documents',
         'features',
         'min_qty',
-
         'code',
         'price',
         'stock',
+        'packageInclude',
         'datasheets',
         'meta',
         'options',
+        'is_retired',
+        'source',
+        'barcode',
+        'location',
+        'listPriority',
+        'maxCartAmount',
+        'slug',
     ];
 
     protected $attributes = [

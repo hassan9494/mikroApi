@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Kit extends Model
 {
 
+    protected $table = 'product_kit';
+
     /**
      * @var array $fillable
      */
@@ -19,6 +21,9 @@ class Kit extends Model
         'product_id',
         'quantity',
     ];
+
+    public $timestamps = false;
+
 
     /**
      * @return BelongsToMany

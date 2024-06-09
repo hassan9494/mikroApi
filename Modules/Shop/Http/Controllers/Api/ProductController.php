@@ -54,7 +54,7 @@ class ProductController extends Controller
      */
     public function show($sku): ProductResource
     {
-        $item = $this->repository->get(['sku' => $sku])->first();
+        $item = $this->repository->get(['slug' => $sku])->first();
         return new ProductResource($item);
     }
 
