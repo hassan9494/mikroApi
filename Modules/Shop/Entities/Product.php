@@ -55,6 +55,8 @@ class Product extends Model implements HasMedia
         'listPriority',
         'maxCartAmount',
         'slug',
+        'brand_id',
+        'source_id',
     ];
 
     protected $attributes = [
@@ -161,6 +163,16 @@ class Product extends Model implements HasMedia
     public function sales($from, $to): mixed
     {
         return OrderProduct::sales($this->id, $from, $to);
+    }
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class,'brand_id');
+    }
+
+    public function source()
+    {
+        return $this->belongsTo(Source::class,'source_id');
     }
 
 }

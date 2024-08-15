@@ -56,6 +56,7 @@ class OrderController extends ApiAdminController
      */
     public function store(): JsonResponse
     {
+
         $data = $this->validate();
         if ($data['shipping']['status'] == null) {
             $data['shipping']['status'] = "WAITING";

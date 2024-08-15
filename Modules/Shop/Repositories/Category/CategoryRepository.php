@@ -6,7 +6,7 @@ use App\Repositories\Base\EloquentRepository;
 use Modules\Shop\Entities\Category;
 
 /**
- * Class CategoryRepository
+ * Class BrandRepository
  * @package Modules\Shop\Repositories\Category
  */
 class CategoryRepository extends EloquentRepository implements CategoryRepositoryInterface
@@ -18,7 +18,7 @@ class CategoryRepository extends EloquentRepository implements CategoryRepositor
     protected $model;
 
     /**
-     * CategoryRepository constructor.
+     * BrandRepository constructor.
      * @param Category $model
      */
     public function __construct(Category $model)

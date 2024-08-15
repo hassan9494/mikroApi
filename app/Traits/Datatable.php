@@ -41,14 +41,16 @@ class Datatable
 
     private function where()
     {
-//        dd($this->request['conditions']);
+//        dd($this->request);
         $where = [];
         $orWhere = [];
         foreach ($this->request['conditions'] as $key => $value) {
+
             if (is_array($value)) {
+
                 if (isset($value['col']))
                     if(str_contains($value['col'], '|')){
-                       $column = explode('|',$value['col']) ;
+                        $column = explode('|',$value['col']) ;
                         $where[] = [$column[0], $value['op'] ?? '=', $value['val']];
                         $orWhere[] = [$column[1], $value['op']?? '=', $value['val']];
                     }else{
@@ -58,8 +60,10 @@ class Datatable
             }elseif ($value === "need"){
                 $where[0] = ['stock','<',DB::raw('min_qty')];
                 $where[1] = ['min_qty','>',0];
+//                $where[2] = [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
             }elseif ($value === "stock"){
                 $where = [];
+                $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
             }elseif ($value === "sales"){
                 $where = [];
             }
@@ -71,6 +75,7 @@ class Datatable
             $where[0] = ['stock','<',DB::raw('min_qty')];
             $where[1] = ['min_qty','>',0];
         }
+//        dd($where);
         $this->query = $this->model->where($where)->orWhere($orWhere);
     }
 

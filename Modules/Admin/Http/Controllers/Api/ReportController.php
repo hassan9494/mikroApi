@@ -316,6 +316,7 @@ class ReportController extends Controller
      */
     public function productNeed(): JsonResponse
     {
+//        dd(request('conditions'));
         if (request('conditions') != null && request('conditions')[1] == 'nawakes') {
             $where = [
                 [

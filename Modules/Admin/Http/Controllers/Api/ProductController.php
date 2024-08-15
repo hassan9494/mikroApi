@@ -207,6 +207,8 @@ class ProductController extends Controller
         $data = request()->validate([
             'products.*.id' => 'exists:products,id',
             'products.*.stock' => 'numeric|min:0',
+            'products.*.brand_id' => 'nullable|numeric|min:0',
+            'products.*.source_id' => 'nullable|numeric|min:0',
             'products.*.min_qty' => 'numeric|min:0',
             'products.*.sku' => 'sometimes|string|nullable',
             'products.*.source_sku' => 'sometimes|string|nullable',
@@ -222,7 +224,7 @@ class ProductController extends Controller
             }
             $this->repository->update(
                 $item['id'],
-                \Arr::only($item, ['stock', 'min_qty', 'sku', 'source_sku']))
+                \Arr::only($item, ['stock', 'min_qty', 'sku', 'source_sku','brand_id','source_id']))
             ;
         }
         return $this->success();
@@ -283,6 +285,9 @@ class ProductController extends Controller
             'kit' => 'nullable|array',
             'source_sku' => 'required|max:255',
             'min_qty' => 'required',
+            'maxCartAmount' => 'required',
+            'brand_id' => 'integer',
+            'source_id' => 'integer'
 
         ]);
     }
