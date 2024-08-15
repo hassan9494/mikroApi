@@ -34,6 +34,7 @@ use Modules\Shop\Entities\ProductRelated;
 use Modules\Shop\Entities\ShippingProvider;
 use Modules\Shop\Entities\Supplier;
 use Modules\Shop\Http\Resources\ProductResource;
+
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
 
 class ImportController extends Controller
@@ -59,7 +60,7 @@ class ImportController extends Controller
             $category = new Category();
             $category->id = $item->id;
             $category->title = $item->name;
-            $category->order = $item->order;
+            $category->order = $item->order == -1 ? null : $item->order;
             $category->slug = $item->link;
             $category->icon = 'test';
             $category->save();
@@ -68,7 +69,7 @@ class ImportController extends Controller
 
     public function product()
     {
-        $oldProducts = OldProduct::where('id', '<', 10000)->where('id','>=',9000)->get();
+        $oldProducts = OldProduct::where('id','>',12161)->get();
 //        dd($oldProducts);
         foreach ($oldProducts as $key => $product) {
             $newProduct = Product::find($product->id);
@@ -78,6 +79,7 @@ class ImportController extends Controller
             }
 
             $newProduct->name = $product->name;
+            $newProduct->slug = Str::slug($product->name, '-');
             $newProduct->sku = 'me-' . $product->id;
             $newProduct->source_sku = '';
             $newProduct->gallery = $product->images;
@@ -118,7 +120,7 @@ class ImportController extends Controller
     public function importProductImages()
     {
 
-        $oldProducts = Product::where('id','<', 10000)->where('id','>=',9500)->get();
+        $oldProducts = Product::where('id','>',12161)->get();
 //        dd($oldProducts);
         foreach ($oldProducts as $product) {
 
@@ -148,6 +150,33 @@ class ImportController extends Controller
             foreach ($media as $file) {
                 if (Storage::exists($file['key'])) {
                     $product->syncMedia([$file]);
+                }
+            }
+        }
+        return 'hi';
+    }
+
+    public function updateProductsQty()
+    {
+// Assuming you have uploaded the file and it's now in the 'public' disk
+        $filePath = 'qty.csv';
+
+// Read the file content
+        $fileContent = Storage::disk('public')->get($filePath);
+
+// Convert content into an array based on new lines
+        $lines = explode(PHP_EOL, $fileContent);
+        foreach ($lines as $line) {
+            // Skip the header line or empty lines
+            if (!empty($line) && !str_contains($line, 'id,qty')) {
+                // Convert each line into an array based on commas
+                $data = str_getcsv($line);
+
+                // Find the product by ID and update the qty
+                $product = Product::find($data[0]);
+                if ($product) {
+                    $product->stock = $data[1];
+                    $product->save();
                 }
             }
         }

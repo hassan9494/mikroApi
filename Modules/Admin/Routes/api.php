@@ -3,6 +3,7 @@
 use Modules\Admin\Http\Controllers\Api\ArticleController;
 use Modules\Admin\Http\Controllers\Api\AuthController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
+use Modules\Admin\Http\Controllers\Api\BrandController;
 use Modules\Admin\Http\Controllers\Api\CouponController;
 use Modules\Admin\Http\Controllers\Api\CourseController;
 use Modules\Admin\Http\Controllers\Api\CustomsStatementController;
@@ -18,6 +19,7 @@ use Modules\Admin\Http\Controllers\Api\ReportController;
 use Modules\Admin\Http\Controllers\Api\CityController;
 use Modules\Admin\Http\Controllers\Api\RoleController;
 use Modules\Admin\Http\Controllers\Api\ShippingProviderController;
+use Modules\Admin\Http\Controllers\Api\SourceController;
 use Modules\Admin\Http\Controllers\Api\StatsController;
 use Modules\Admin\Http\Controllers\Api\UserController;
 use Modules\Admin\Http\Controllers\Api\PromotionController;
@@ -55,7 +57,16 @@ Route::prefix('admin')
 
         // Category Routes.
         Route::get('category/datatable', [CategoryController::class, 'datatable']);
+        Route::get('sub-category/datatable', [CategoryController::class, 'subCategory']);
         Route::resource('category', 'CategoryController');
+
+        // Brand Routes.
+        Route::get('brand/datatable', [BrandController::class, 'datatable']);
+        Route::resource('brand', 'BrandController');
+
+        // Brand Routes.
+        Route::get('source/datatable', [SourceController::class, 'datatable']);
+        Route::resource('source', 'SourceController');
 
         // Shipping Location Routes.
         Route::get('city/datatable', [CityController::class, 'datatable']);

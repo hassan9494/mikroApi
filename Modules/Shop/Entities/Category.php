@@ -34,7 +34,7 @@ class Category extends Model
     /**
      * @return BelongsTo
      */
-    public function parent(): BelongsTo
+    public function parentCategory(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent');
     }

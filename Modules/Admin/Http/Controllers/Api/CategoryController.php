@@ -3,8 +3,11 @@
 
 namespace Modules\Admin\Http\Controllers\Api;
 
+use App\Traits\Datatable;
 use Illuminate\Http\JsonResponse;
-use Modules\Shop\Repositories\Category\CategoryRepositoryInterface;
+use Modules\Shop\Http\Resources\CategoryResource;
+use Modules\Shop\Http\Resources\SubCategoryResource;
+use Modules\Shop\Repositories\Category\CategoryRepositoryInterface;;
 
 class CategoryController extends ApiAdminController
 {
@@ -28,6 +31,22 @@ class CategoryController extends ApiAdminController
             'data' => $data
         ]);
     }
+
+    /**
+     * @return JsonResponse
+     */
+    public function subCategory(): JsonResponse
+    {
+        $whereHas['parentCategory'] = function ($q) {
+
+        };
+        $data = $this->repository->model();
+        return Datatable::make($data)
+            ->whereHas($whereHas)
+            ->resource(SubCategoryResource::class)
+            ->json();
+    }
+
 
     /**
      * @return string[]

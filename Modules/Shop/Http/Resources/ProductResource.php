@@ -39,6 +39,8 @@ class ProductResource extends JsonResource
                     'slug' => $e->slug,
                 ];
             }),
+            'brand'=>$this->brand != null ? $this->brand : null,
+            'source'=>$this->source != null ? $this->source : null,
         ];
     }
 }

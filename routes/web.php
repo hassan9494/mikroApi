@@ -6,6 +6,7 @@ use App\Models\OldCategory;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Modules\Shop\Entities\Category;
+use Modules\Shop\Entities\Order;
 use Modules\Shop\Entities\Product;
 
 /*
@@ -20,12 +21,13 @@ use Modules\Shop\Entities\Product;
 */
 
 Route::get('/', function () {
-    $products = Product::all();
-    foreach ($products as $product) {
-        $product->slug = Str::slug($product->name, '-');
-        $product->save();
-    }
-    dd('saflasssssssddddddddddddddddddddddssssf');
+    $nextTaxNumber = Order::whereNotNull('tax_number')->max('tax_number') + 1;
+    return $nextTaxNumber;
+//    $products = Product::where('id','<=',9848)->get();
+//    foreach ($products as $product) {
+//        $product->delete();
+//    }
+//    dd('saflasssssssddddddddddddddddddddddssssf');
 //    $models = \Modules\Shop\Entities\Product::all();
 //    foreach ($models as $model){
 //        $model->save();
@@ -89,6 +91,7 @@ Route::get('import_outlay',[ImportController::class,'outlay']);
 Route::get('import_supplier',[ImportController::class,'supplier']);
 Route::get('import_user',[ImportController::class,'user']);
 Route::get('import_order',[ImportController::class,'order']);
+Route::get('update-products-qty',[ImportController::class,'updateProductsQty']);
 
 
 Route::get('/welcome', function () {

@@ -11,7 +11,7 @@ class ProductResource extends JsonResource
     /**
      * Transform the resource into an array.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param \Illuminate\Http\Request $request
      * @return array
      */
     public function toArray($request): array
@@ -19,6 +19,7 @@ class ProductResource extends JsonResource
         return [
             'id' => $this->id,
             'sku' => $this->sku,
+            'source_sku' => $this->source_sku,
             'name' => $this->name,
             'stock' => $this->stock,
             'price' => $this->price,
@@ -29,7 +30,7 @@ class ProductResource extends JsonResource
             'documents' => $this->documents,
             'min_qty' => $this->min_qty,
 
-            'kit' => $this->kit()->get()->map(function($e) {
+            'kit' => $this->kit()->get()->map(function ($e) {
                 return [
                     'id' => $e->id,
                     'name' => $e->name,
@@ -38,7 +39,7 @@ class ProductResource extends JsonResource
                 ];
             }),
 
-            'categories' => $this->categories()->get()->map(function($e) {
+            'categories' => $this->categories()->get()->map(function ($e) {
                 return $e->id;
             }),
 
@@ -48,10 +49,12 @@ class ProductResource extends JsonResource
             'meta' => $this->meta,
             'options' => $this->options,
             'datasheets' => $this->datasheets,
+            'maxCartAmount' => $this->maxCartAmount,
+            'brand_id' => $this->brand_id != null ? $this->brand_id : null,
+            'source_id' => $this->source_id != null ? $this->source_id : null,
 
         ];
     }
-
 
 
 }

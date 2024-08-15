@@ -27,6 +27,7 @@ class ProductShortResource extends JsonResource
             'price' => $this->price->normal_price,
             'sale_price' => $this->price->sale_price ?: null,
             'image' => $image,
+
         ];
     }
 }
