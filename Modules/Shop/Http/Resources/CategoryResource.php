@@ -14,13 +14,17 @@ class CategoryResource extends JsonResource
      */
     public function toArray($request): array
     {
+        $media = $this->getMedia();
+        $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
         return [
             'id' => $this->id,
             'title' => $this->title,
             'slug' => $this->slug,
             'icon' => $this->icon,
             'parent' => $this->parent,
-            'children' => CategoryResource::collection($this->children)
+            'order' => $this->order,
+            'children' => CategoryResource::collection($this->children),
+            'image' => $image
         ];
     }
 }
