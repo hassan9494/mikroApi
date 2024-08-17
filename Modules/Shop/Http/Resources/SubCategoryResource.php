@@ -14,6 +14,8 @@ class SubCategoryResource extends JsonResource
      */
     public function toArray($request): array
     {
+        $media = $this->getMedia();
+        $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
         return [
             'id' => $this->id,
             'title' => $this->title,
@@ -21,7 +23,8 @@ class SubCategoryResource extends JsonResource
             'icon' => $this->icon,
             'order' => $this->order,
             'parent' => $this->parentCategory,
-            'children' => CategoryResource::collection($this->children)
+            'children' => CategoryResource::collection($this->children),
+            'image' => $image
         ];
     }
 }
