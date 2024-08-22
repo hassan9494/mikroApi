@@ -44,7 +44,10 @@ class ProductController extends Controller
     {
         $search = request()->get('search', false);
         $category = request()->get('category', false);
-        $items = $this->repository->search($search, $category);
+        $limit = request()->get('limit',false);
+        $filter = request()->get('filter',false);
+        $inStock = request()->get('inStock',false);
+        $items = $this->repository->search($search, $category, $limit, $filter,$inStock);
         return ProductShortResource::collection($items);
     }
 

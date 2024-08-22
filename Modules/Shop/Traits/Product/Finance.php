@@ -9,9 +9,14 @@ trait Finance {
      * @param null $price
      * @return float|int
      */
-    public function calcPrice(int $quantity = 1, $price = null)
+    public function calcPrice(int $quantity = 1, $price = null,$user = null)
     {
-        $salePrice = $this->price?->sale_price > 0 ? $this->price?->sale_price : null;
+        if (isset($user) && $user->hasRole(['Distributer'])) {
+            $salePrice = $this->price?->distributor_price > 0 ? $this->price?->distributor_price : null;
+        }else {
+            $salePrice = $this->price?->sale_price > 0 ? $this->price?->sale_price : null;
+        }
+
         return ($price ?? $salePrice ?? $this->price->normal_price) * $quantity;
     }
 

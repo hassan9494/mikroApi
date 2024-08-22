@@ -10,6 +10,7 @@ use Modules\Admin\Http\Controllers\Api\CustomsStatementController;
 use Modules\Admin\Http\Controllers\Api\DeptController;
 use Modules\Admin\Http\Controllers\Api\FileController;
 use Modules\Admin\Http\Controllers\Api\GraduationProjectController;
+use Modules\Admin\Http\Controllers\Api\InvoiceController;
 use Modules\Admin\Http\Controllers\Api\MediaController;
 use Modules\Admin\Http\Controllers\Api\OrderController;
 use Modules\Admin\Http\Controllers\Api\OutlayController;
@@ -45,6 +46,7 @@ Route::prefix('admin')
         Route::post('media', [MediaController::class, 'store']);
         Route::post('media/content', [MediaController::class, 'content']);
         Route::post('media/order', [MediaController::class, 'order']);
+        Route::post('media/invoice', [MediaController::class, 'invoice']);
     });
 
 Route::prefix('admin')
@@ -119,6 +121,11 @@ Route::prefix('admin')
         Route::post('order/{id}/status', [OrderController::class, 'status']);
         Route::post('order/{id}/shipping-status', [OrderController::class, 'shippingStatus']);
         Route::resource('order', 'OrderController');
+
+        // Invoice Routes.
+        Route::get('invoice/datatable', [InvoiceController::class, 'datatable']);
+        Route::post('invoice/{id}/status', [InvoiceController::class, 'status']);
+        Route::resource('invoice', 'InvoiceController');
 
         // Stats Routes.
         Route::get('stats/sales', [StatsController::class, 'sales']);

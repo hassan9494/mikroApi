@@ -77,5 +77,26 @@ class MediaController extends Controller
         );
     }
 
+    /**
+     * @return JsonResponse
+     */
+    public function invoice(): JsonResponse
+    {
+        request()->validate([
+            'file' => 'required|file'
+        ]);
+        $file = request()->file('file');
+        $key = $file->store('temp');
+        return response()->json(
+            [
+                'id' => request()->get('id'),
+                'key' => $key,
+                'name' => basename($key),
+                'url' => \Storage::url($key),
+                'uploaded' => true,
+            ]
+        );
+    }
+
 
 }

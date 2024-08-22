@@ -2,6 +2,7 @@
 
 namespace Modules\Shop\Repositories\Order;
 
+use App\Models\User;
 use App\Repositories\Base\EloquentRepository;
 use Modules\Shop\Entities\Address;
 use Modules\Shop\Entities\Order;
@@ -77,15 +78,17 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     /**
      * @param array $data
      * @param Address $address
+     * @param User $user
      * @return Order
      */
-    public function makeByUser(array $data, Address $address): Order
+    public function makeByUser(array $data, Address $address,$user): Order
     {
+
         $data['customer'] = $address->customer;
         $data['shipping'] = $address->shipping;
         $data['city_id'] = $address->city_id;
 
-        $cart = $this->prepareUserProducts($data['products']);
+        $cart = $this->prepareUserProducts($data['products'],$user);
 
         $order = $this->model->create($data);
 
@@ -198,7 +201,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
      * @param array $items
      * @return array
      */
-    private function prepareUserProducts(array $items = []): array
+    private function prepareUserProducts(array $items = [],$user = null): array
     {
         $products = [];
         $subtotal = 0;
@@ -214,10 +217,10 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
             $products[$id] = [
                 'quantity' => $quantity,
-                'price' => $product->calcPrice(),
+                'price' => $product->calcPrice(1,null,$user),
                 'real_price' => $product->price->real_price,
             ];
-            $subtotal += $product->calcPrice($quantity);
+            $subtotal += $product->calcPrice($quantity,null,$user);
 
         }
         return compact('products', 'subtotal');

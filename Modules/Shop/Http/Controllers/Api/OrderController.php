@@ -64,6 +64,7 @@ class OrderController extends Controller
      */
     public function user(Request $request): OrderResource
     {
+
         $data = $request->validate([
             'products.*.id' => 'exists:products',
             'products.*.quantity' => 'numeric|min:1',
@@ -75,7 +76,8 @@ class OrderController extends Controller
         {
             abort(400, 'Please the delivery address.');
         }
-        $order = $this->repository->makeByUser($data, Auth::user()->primaryAddress);
+        $user=Auth::user();
+        $order = $this->repository->makeByUser($data, Auth::user()->primaryAddress,$user);
         return new OrderResource($order);
     }
 

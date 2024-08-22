@@ -58,11 +58,14 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
      * @param $searchWord
      * @param $category
      * @param int $limit
+     * @param $filter
+     * @param $inStock
      * @return LengthAwarePaginator
      */
-    public function search($searchWord, $category, $limit = 20)
+    public function search($searchWord, $category, $limit = 20, $filter,$inStock = false)
     {
         $query = Product::query();
+
         if ($searchWord) {
             return Product::search($searchWord)->paginate($limit);
         } else if ($category) {
@@ -72,8 +75,55 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         } else {
             $query->where(['options->featured' => true]);
         }
+
+        // Apply filter based on the selected option
+        switch ($filter) {
+            case 'top-sale':
+                $query->withCount(['completedOrders as sales_count' => function ($query) {
+                    $query->select(\DB::raw('SUM(order_products.quantity)'));
+                }])->orderBy('sales_count', 'desc');
+                break;
+            case 'new-item':
+                $query->orderBy('id', 'desc');
+                break;
+            case 'old-item':
+                $query->orderBy('id', 'asc');
+                break;
+            case 'sale':
+                $query->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) > 0');
+                break;
+            case 'price-high':
+                $query->orderByRaw('
+                CASE
+                    WHEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) = "0"
+                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+                END DESC
+            ');
+                break;
+            case 'price-low':
+                $query->orderByRaw('
+                CASE
+                    WHEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) = "0"
+                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+                END ASC
+            ');
+                break;
+            default:
+                // No filter applied
+                break;
+        }
+
+        if ($inStock == 'true'){
+            $query->where('stock','>',0);
+        }else{
+            $query->where('stock','>=',0);
+        }
         return $query->paginate($limit);
     }
+
+
 
     public function autocomplete($searchWord, $limit = 20)
     {
