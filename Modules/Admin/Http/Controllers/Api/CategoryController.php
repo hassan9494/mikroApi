@@ -31,6 +31,7 @@ class CategoryController extends ApiAdminController
     {
         return Datatable::make($this->repository->model())
             ->search('id', 'title', 'slug')
+
             ->resource(CategoryResource::class)
             ->json();
     }

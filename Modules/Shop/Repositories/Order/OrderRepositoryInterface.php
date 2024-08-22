@@ -2,6 +2,7 @@
 
 namespace Modules\Shop\Repositories\Order;
 
+use App\Models\User;
 use App\Repositories\Base\BaseRepository;
 use Modules\Shop\Entities\Address;
 use Modules\Shop\Entities\Order;
@@ -25,7 +26,7 @@ interface OrderRepositoryInterface extends BaseRepository
      * @param Address $address
      * @return Order
      */
-    public function makeByUser(array $data, Address $address): Order;
+    public function makeByUser(array $data, Address $address,User $user): Order;
 
     /**
      * @param array $data

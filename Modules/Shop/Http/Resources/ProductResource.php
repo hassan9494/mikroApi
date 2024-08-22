@@ -3,6 +3,8 @@
 namespace Modules\Shop\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\PersonalAccessToken;
 use Modules\Admin\Http\Resources\MediaResource;
 
 class ProductResource extends JsonResource
@@ -16,31 +18,70 @@ class ProductResource extends JsonResource
      */
     public function toArray($request): array
     {
+        $token = $request->bearerToken();
+
+        if ($token) {
+            // Find the token and authenticate the user
+            $accessToken = PersonalAccessToken::findToken($token);
+            if ($accessToken) {
+                $user = $accessToken->tokenable;
+                Auth::login($user);
+            }
+        }
+        $user = auth()->user();
         $media = $this->getMedia();
         $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
-        return [
-            'id' => $this->id,
-            'sku' => $this->sku,
-            'title' => $this->name,
-            'slug' => $this->slug,
-            'availableQty' => $this->stock,
-            'price' => $this->price->normal_price,
-            'sale_price' => $this->price->sale_price ?: null,
-            'description' => $this->description,
-            'short_description' => $this->short_description,
-            'features' => $this->features,
-            'documents' => $this->documents,
-            'image' => $image,
-            'gallery' => MediaResource::collection($media),
-            'categories' => $this->categories->map(function($e) {
-                return [
-                    'id' => $e->id,
-                    'title' => $e->title,
-                    'slug' => $e->slug,
-                ];
-            }),
-            'brand'=>$this->brand != null ? $this->brand : null,
-            'source'=>$this->source != null ? $this->source : null,
-        ];
+        if (isset($user) && $user->hasRole(['Distributer'])){
+            return [
+                'id' => $this->id,
+                'sku' => $this->sku,
+                'title' => $this->name,
+                'slug' => $this->slug,
+                'availableQty' => $this->stock,
+                'price' => $this->price->normal_price,
+                'sale_price' => $this->price->distributor_price ?: null,
+                'description' => $this->description,
+                'short_description' => $this->short_description,
+                'features' => $this->features,
+                'documents' => $this->documents,
+                'image' => $image,
+                'gallery' => MediaResource::collection($media),
+                'categories' => $this->categories->map(function($e) {
+                    return [
+                        'id' => $e->id,
+                        'title' => $e->title,
+                        'slug' => $e->slug,
+                    ];
+                }),
+                'brand'=>$this->brand != null ? $this->brand : null,
+                'source'=>$this->source != null ? $this->source : null,
+            ];
+        }else {
+            return [
+                'id' => $this->id,
+                'sku' => $this->sku,
+                'title' => $this->name,
+                'slug' => $this->slug,
+                'availableQty' => $this->stock,
+                'price' => $this->price->normal_price,
+                'sale_price' => $this->price->sale_price ?: null,
+                'description' => $this->description,
+                'short_description' => $this->short_description,
+                'features' => $this->features,
+                'documents' => $this->documents,
+                'image' => $image,
+                'gallery' => MediaResource::collection($media),
+                'categories' => $this->categories->map(function($e) {
+                    return [
+                        'id' => $e->id,
+                        'title' => $e->title,
+                        'slug' => $e->slug,
+                    ];
+                }),
+                'brand'=>$this->brand != null ? $this->brand : null,
+                'source'=>$this->source != null ? $this->source : null,
+            ];
+        }
+
     }
 }
