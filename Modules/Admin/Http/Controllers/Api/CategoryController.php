@@ -24,6 +24,18 @@ class CategoryController extends ApiAdminController
         parent::__construct($repository);
     }
 
+    public function parentCategory()
+    {
+        $where[] = [
+            'parent', '=', 0
+        ];
+        return response()->json([
+            'status' => 'Success',
+            'message' => null,
+            'data' => $this->repository->get($where)
+        ]);
+    }
+
     /**
      * @return JsonResponse
      */
