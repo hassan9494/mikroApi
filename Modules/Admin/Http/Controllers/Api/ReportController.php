@@ -303,6 +303,8 @@ class ReportController extends Controller
                     'stock', '<', DB::raw('min_qty')
                 ]
             ];
+        }elseif (request('needConditionReport') != null && request('needConditionReport') == 'stock'){
+            $where = [];
         } else {
             $where = [];
         }

@@ -61,6 +61,7 @@ Route::prefix('admin')
         Route::get('category/datatable', [CategoryController::class, 'datatable']);
         Route::get('sub-category/datatable', [CategoryController::class, 'subCategory']);
         Route::resource('category', 'CategoryController');
+        Route::get('parent-category', [CategoryController::class, 'parentCategory']);
 
         // Brand Routes.
         Route::get('brand/datatable', [BrandController::class, 'datatable']);
