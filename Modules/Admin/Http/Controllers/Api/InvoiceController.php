@@ -123,7 +123,7 @@ class InvoiceController extends ApiAdminController
             'note' => 'nullable|max:500',
             'number' => 'nullable|max:500',
 
-
+            'date' => 'nullable',
             'products.*.id' => 'exists:products,id',
             'products.*.price' => 'required|numeric',
             'products.*.quantity' => 'required|numeric',

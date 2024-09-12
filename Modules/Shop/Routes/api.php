@@ -5,6 +5,7 @@ use Modules\Shop\Http\Controllers\Api\AddressController;
 use Modules\Shop\Http\Controllers\Api\CategoryController;
 use Modules\Shop\Http\Controllers\Api\CityController;
 use Modules\Shop\Http\Controllers\Api\CouponController;
+use Modules\Shop\Http\Controllers\Api\EmailController;
 use Modules\Shop\Http\Controllers\Api\OrderController;
 use Modules\Shop\Http\Controllers\Api\ProductController;
 
@@ -72,6 +73,14 @@ Route::namespace('Api')->group(function () {
         'coupon/check',
         [CouponController::class, 'check']
     );
+
+    Route::prefix('admin')->group(function () {
+        Route::post(
+            '/send-email',
+            [EmailController::class, 'sendEmailToUser']);
+
+    });
+
 });
 
 

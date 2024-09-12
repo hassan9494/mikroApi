@@ -94,6 +94,10 @@ Route::get('import_order',[ImportController::class,'order']);
 Route::get('update-products-qty',[ImportController::class,'updateProductsQty']);
 
 
+
+
 Route::get('/welcome', function () {
-    return view('welcome');
+    $order = Order::find(209);
+
+    return view('test.order_details', compact('order'));
 });

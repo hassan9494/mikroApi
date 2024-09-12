@@ -127,6 +127,9 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                 $products = $invoice->products;
                 foreach ($products as $product) {
                     $product->stock = $product->stock + $product->pivot->quantity;
+                    $price = $product->price;
+                    $price->real_price = $product->pivot->price;
+                    $product->price = $price;
                     $product->save();
                 }
             }

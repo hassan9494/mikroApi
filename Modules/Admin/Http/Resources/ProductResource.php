@@ -50,6 +50,7 @@ class ProductResource extends JsonResource
             'options' => $this->options,
             'datasheets' => $this->datasheets,
             'maxCartAmount' => $this->maxCartAmount,
+            'packageInclude' => $this->packageInclude,
             'brand_id' => $this->brand_id != null ? $this->brand_id : null,
             'source_id' => $this->source_id != null ? $this->source_id : null,
 

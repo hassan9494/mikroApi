@@ -2,6 +2,7 @@
 
 namespace Modules\Admin\Http\Resources;
 
+use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class InvoiceResource extends JsonResource
@@ -20,6 +21,7 @@ class InvoiceResource extends JsonResource
             'products' => $this->getItems(),
 
             'created_at' => $this->created_at,
+            'date' => Carbon::parse($this->date)->format('Y-m-d'),
             'completed_at' => $this->completed_at,
             'updated_at' => $this->updated_at,
 
