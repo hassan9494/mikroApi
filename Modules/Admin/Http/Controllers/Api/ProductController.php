@@ -271,6 +271,7 @@ class ProductController extends Controller
             //'gallery' => 'nullable',
             'short_description' => 'nullable',
             'description' => 'nullable',
+            'packageInclude' => 'nullable',
             'features' => 'nullable',
             'code' => 'nullable',
             'documents' => 'nullable',
@@ -283,11 +284,11 @@ class ProductController extends Controller
             'options.kit' => 'required|boolean',
             'media' => 'nullable|array',
             'kit' => 'nullable|array',
-            'source_sku' => 'required|max:255',
+            'source_sku' => 'nullable|max:255',
             'min_qty' => 'required',
-            'maxCartAmount' => 'required',
-            'brand_id' => 'integer',
-            'source_id' => 'integer'
+            'maxCartAmount' => 'nullable',
+            'brand_id' => 'nullable|integer',
+            'source_id' => 'nullable|integer'
 
         ]);
     }

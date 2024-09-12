@@ -29,7 +29,8 @@ class NeedStocksReportResource extends JsonResource
                 'source_sku' => $this->source_sku,
                 'sales' => $this->sales(null, null),
                 'priceAll' => $priceAll,
-                'allRealPrice' => $realPriceAll
+                'allRealPrice' => $realPriceAll,
+                'slug' => $this->slug,
             ];
 
 

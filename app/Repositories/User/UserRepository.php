@@ -85,6 +85,7 @@ class UserRepository extends EloquentRepository implements UserRepositoryInterfa
         $query = $this->model
             ->where('name', 'LIKE', '%'.$q.'%')
             ->orWhere('email', 'LIKE', '%'.$q.'%')
+            ->orWhere('phone', 'LIKE', '%'.$q.'%')
             ->limit($limit);
 
 //        if ($role) $query->role($role);

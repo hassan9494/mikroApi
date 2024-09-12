@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Modules\Shop\Emails\SendOrderDetailsEmail;
 use Modules\Shop\Http\Resources\OrderResource;
 use Modules\Shop\Repositories\Coupon\CouponRepository;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
@@ -78,6 +80,10 @@ class OrderController extends Controller
         }
         $user=Auth::user();
         $order = $this->repository->makeByUser($data, Auth::user()->primaryAddress,$user);
+        $details = [
+            'subject' => 'Your Microelectron Order has been received',
+        ];
+        Mail::to($user->email)->send(new SendOrderDetailsEmail($details,$order));
         return new OrderResource($order);
     }
 
@@ -101,6 +107,10 @@ class OrderController extends Controller
             'coupon_id' => 'nullable|exists:coupons,id',
         ]);
         $order = $this->repository->makeByGuest($data);
+        $details = [
+            'subject' => 'Your Microelectron Order has been received',
+        ];
+        Mail::to($request->customer['email'])->send(new SendOrderDetailsEmail($details,$order));
         return new OrderResource($order);
     }
 
