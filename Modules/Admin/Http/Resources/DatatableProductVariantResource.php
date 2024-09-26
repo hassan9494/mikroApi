@@ -4,7 +4,7 @@ namespace Modules\Admin\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class DatatableProductResource extends JsonResource
+class DatatableProductVariantResource extends JsonResource
 {
 
     /**
@@ -17,18 +17,17 @@ class DatatableProductResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'sku' => $this->sku,
-            'source_sku' => $this->source_sku,
             'name' => $this->name,
+            'short_description' => $this->short_description,
             'stock' => $this->stock,
             'min_qty' => $this->min_qty,
-            'slug' => $this->sku,
             'price' => $this->price,
             'image' => $this->getFirstMediaUrl(),
-            'sales' => $this->completedOrders,
-            'brand_id' => $this->brand_id,
-            'source_id' => $this->source_id,
-            'variants_count' => $this->product_variants->count(),
+            'product_id' => $this->product_id
+//            'sales' => $this->completedOrders,
+//            'brand_id' => $this->brand_id,
+//            'source_id' => $this->source_id,
+//            'variants_count' => $this->product_variants->count(),
         ];
 
     }

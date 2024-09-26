@@ -1,30 +1,30 @@
 <?php
 
-namespace Modules\Shop\Repositories\Product;
+namespace Modules\Shop\Repositories\ProductVariants;
 
 use App\Repositories\Base\EloquentRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
-use Modules\Shop\Entities\Product;
+use Modules\Shop\Entities\ProductVariant;
 
 /**
  * Class EloquentDevice
  * @package App\Repositories\Device
  */
-class ProductRepository extends EloquentRepository implements ProductRepositoryInterface
+class ProductVariantsRepository extends EloquentRepository implements ProductVariantsRepositoryInterface
 {
 
     /**
-     * @var Product
+     * @var ProductVariant
      */
     protected $model;
 
     /**
      * ProductRepository constructor.
-     * @param Product $model
+     * @param ProductVariant $model
      */
-    public function __construct(Product $model)
+    public function __construct(ProductVariant $model)
     {
         parent::__construct($model);
     }
@@ -40,8 +40,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $model = parent::create($data);
 
         // Attach categories
-        $categories = array_merge($data['categories'],$data['sub_categories']);
-        $model->categories()->attach($categories);
+
 
         // Sync media
         $model->syncMedia($data['media'] ?? []);
@@ -57,10 +56,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $data['replacement_item'] = $data['replacement_item'][0]['id'];
         }
         $model = parent::update($id, $data);
-        $categories = array_merge($data['categories'],$data['sub_categories']);
 
         if ($data['categories'] ?? false)
-            $model->categories()->sync($categories);
+            $model->categories()->sync($data['categories']);
 
         $kit = [];
         if ($data['kit'] ?? false) {
@@ -69,7 +67,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             }
         }
         if (count($kit) != 0)
-        $model->kit()->sync($kit);
+            $model->kit()->sync($kit);
         $model->syncMedia($data['media'] ?? []);
     }
 
@@ -83,10 +81,10 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
      */
     public function search($searchWord, $category, $limit = 20, $filter,$inStock = false)
     {
-        $query = Product::query();
+        $query = ProductVariant::query();
 
         if ($searchWord) {
-            return Product::search($searchWord)->paginate($limit);
+            return ProductVariant::search($searchWord)->paginate($limit);
         } else if ($category) {
             $query->whereHas('categories', function (Builder $q) use ($category) {
                 $q->where('slug', $category);

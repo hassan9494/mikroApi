@@ -15,6 +15,7 @@ use Modules\Admin\Http\Controllers\Api\MediaController;
 use Modules\Admin\Http\Controllers\Api\OrderController;
 use Modules\Admin\Http\Controllers\Api\OutlayController;
 use Modules\Admin\Http\Controllers\Api\ProductController;
+use Modules\Admin\Http\Controllers\Api\ProductVariantsController;
 use Modules\Admin\Http\Controllers\Api\ReceiptController;
 use Modules\Admin\Http\Controllers\Api\ReportController;
 use Modules\Admin\Http\Controllers\Api\CityController;
@@ -22,6 +23,7 @@ use Modules\Admin\Http\Controllers\Api\RoleController;
 use Modules\Admin\Http\Controllers\Api\ShippingProviderController;
 use Modules\Admin\Http\Controllers\Api\SourceController;
 use Modules\Admin\Http\Controllers\Api\StatsController;
+use Modules\Admin\Http\Controllers\Api\TagController;
 use Modules\Admin\Http\Controllers\Api\UserController;
 use Modules\Admin\Http\Controllers\Api\PromotionController;
 use Modules\Admin\Http\Controllers\Api\SlideController;
@@ -60,6 +62,7 @@ Route::prefix('admin')
         // Category Routes.
         Route::get('category/datatable', [CategoryController::class, 'datatable']);
         Route::get('sub-category/datatable', [CategoryController::class, 'subCategory']);
+        Route::get('sub-category', [CategoryController::class, 'subCategoryIndex']);
         Route::resource('category', 'CategoryController');
         Route::get('parent-category', [CategoryController::class, 'parentCategory']);
 
@@ -107,6 +110,7 @@ Route::prefix('admin')
         // User Routes.
         Route::post('user/{id}/verification-email', [UserController::class, 'verificationEmail']);
         Route::get('user/datatable', [UserController::class, 'datatable']);
+        Route::get('user/employee', [UserController::class, 'employee']);
         Route::get('user/autocomplete', [UserController::class, 'autocomplete']);
 
         // Product Routes.
@@ -116,6 +120,11 @@ Route::prefix('admin')
         Route::post('product/stock', [ProductController::class, 'stock']);
         Route::post('product/sku', [ProductController::class, 'sku']);
         Route::resource('product', 'ProductController');
+
+
+        // Variants Product Routes.
+        Route::get('variant-product/datatable', [ProductVariantsController::class, 'datatable']);
+        Route::resource('variant-product', 'ProductVariantsController');
 
         // Order Routes.
         Route::get('order/datatable', [OrderController::class, 'datatable']);
@@ -145,6 +154,10 @@ Route::prefix('admin')
         // Slide Routes.
         Route::get('slide/datatable', [SlideController::class, 'datatable']);
         Route::resource('slide', 'SlideController');
+
+        // Tag Routes.
+        Route::get('tag/datatable', [TagController::class, 'datatable']);
+        Route::resource('tag', 'TagController');
 
         // Promotion Routes.
         Route::get('promotion/datatable', [PromotionController::class, 'datatable']);
@@ -177,5 +190,6 @@ Route::prefix('admin')
 
         // Role Routes.
         Route::get('role/datatable', [RoleController::class, 'datatable']);
+        Route::get('role/employee', [RoleController::class,'employeeRoles']);
         Route::resource('role', 'RoleController');
     });
