@@ -34,6 +34,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // Extract the ID of the first replacement item if it exists
         if (!empty($data['replacement_item'])) {
             $data['replacement_item'] = $data['replacement_item'][0]['id'];
+        }else{
+            $data['replacement_item'] = null;
         }
 
         // Create the model with the modified data
@@ -55,6 +57,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // Extract the ID of the first replacement item if it exists
         if (!empty($data['replacement_item'])) {
             $data['replacement_item'] = $data['replacement_item'][0]['id'];
+        }else{
+            $data['replacement_item'] = null;
         }
         $model = parent::update($id, $data);
         $categories = array_merge($data['categories'],$data['sub_categories']);
