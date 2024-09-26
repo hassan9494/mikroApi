@@ -2,32 +2,34 @@
 
 namespace Modules\Admin\Http\Controllers\Api;
 
-use App\Models\OldProduct;
+
 use App\Traits\ApiResponser;
 use App\Traits\Datatable;
-use http\Env\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Modules\Admin\Http\Resources\DatatableProductResource;
-use Modules\Admin\Http\Resources\ProductResource;
+use Modules\Admin\Http\Resources\DatatableProductVariantResource;
+use Modules\Admin\Http\Resources\ProductVariantResource;
 use Modules\Shop\Entities\Product;
-use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
+use Modules\Shop\Entities\ProductVariant;
+use Modules\Shop\Repositories\ProductVariants\ProductVariantsRepository;
+use Modules\Shop\Repositories\ProductVariants\ProductVariantsRepositoryInterface;
 
-class ProductController extends Controller
+class ProductVariantsController extends Controller
 {
 
     use ApiResponser;
 
     /**
-     * @var ProductRepositoryInterface
+     * @var ProductVariantsRepositoryInterface
      */
-    private ProductRepositoryInterface $repository;
+    private ProductVariantsRepositoryInterface $repository;
 
     /**
      * ProductController constructor.
-     * @param ProductRepositoryInterface $repository
+     * @param ProductVariantsRepositoryInterface $repository
      */
-    public function __construct(ProductRepositoryInterface $repository)
+    public function __construct(ProductVariantsRepositoryInterface $repository)
     {
         $this->repository = $repository;
     }
@@ -58,12 +60,12 @@ class ProductController extends Controller
 
     /**
      * @param $id
-     * @return ProductResource
+     * @return ProductVariantResource
      */
-    public function show($id): ProductResource
+    public function show($id): ProductVariantResource
     {
-        $model = $this->repository->findOrFail($id, ['kit']);
-        return new ProductResource($model);
+        $model = $this->repository->findOrFail($id);
+        return new ProductVariantResource($model);
     }
 
     /**
@@ -71,9 +73,15 @@ class ProductController extends Controller
      */
     public function datatable(): JsonResponse
     {
+        $id = request('id');
+        $where = [
+            [
+                'product_id',  $id
+            ]
+        ];
         return Datatable::make($this->repository->model())
-            ->search('id', 'name', 'sku')
-            ->resource(DatatableProductResource::class)
+            ->search('id', 'name')
+            ->resource(DatatableProductVariantResource::class)
             ->json();
     }
 
@@ -84,50 +92,10 @@ class ProductController extends Controller
     {
 
         $data = $this->validate();
+        $data['product_id'] = request('product_id');
         return $this->success(
             $this->repository->create($data)
         );
-    }
-
-
-    /**
-     * @return JsonResponse
-     */
-    public function storeFromDataBase()
-    {
-        $product = Product::find(88);
-//        foreach ($oldProducts as $product){
-
-            $media = [];
-            $x = request();
-            $x['name'] = $product->name;
-            $x['sku'] = $product->sku;
-            $x['short_description'] = $product->short_description;
-            $x['description'] = $product->description;
-            $x['features'] = $product->features;
-            $x['code'] = $product->code;
-            $x['documents'] = $product->documents;
-            $x['stock'] = $product->stock;
-            $x['meta'] = $product->meta;
-            $x['price'] = $product->price;
-            $x['datasheets'] = $product->datasheets;
-            $x['price'] = $product->price;
-            $x['options'] = $product->options;
-
-            $x['gallery'] = $product->gallery;
-
-            $test = str_replace('[', '', $product->gallery);
-            $test2 = str_replace(']', '', $test);
-            foreach (explode(',', $test2) as $key=>$item){
-                $media[$key] = [
-                    'id' => $item, 'key' => "temp/".str_replace('"', '', $item), 'new' => true,'url' =>"/storage/temp/".str_replace('"', '', $item)
-                ];
-
-//            }
-//            $x['media'] = $media;
-            $data = $this->validate();
-            $this->repository->update($product->id, $data);
-        }
     }
 
 
@@ -266,33 +234,14 @@ class ProductController extends Controller
     {
         return request()->validate([
             'name' => 'required|max:255',
-            'sku' => 'required|max:255',
-            'categories' => 'required',
-            'sub_categories' => 'nullable',
-            //'gallery' => 'nullable',
             'short_description' => 'nullable',
-            'description' => 'nullable',
-            'packageInclude' => 'nullable',
-            'features' => 'nullable',
-            'code' => 'nullable',
-            'documents' => 'nullable',
             'stock' => 'required',
-            'meta' => 'required|array',
             'price' => 'required|array',
-            'datasheets' => 'nullable|array',
             'options.available' => 'required|boolean',
             'options.featured' => 'required|boolean',
-            'options.kit' => 'required|boolean',
             'media' => 'nullable|array',
-            'kit' => 'nullable|array',
-            'source_sku' => 'nullable|max:255',
             'min_qty' => 'required',
             'maxCartAmount' => 'nullable',
-            'brand_id' => 'nullable|integer',
-            'source_id' => 'nullable|integer',
-            'is_retired' => 'nullable|boolean',
-            'replacement_item' => 'nullable|array',
-            'hasVariants' => 'nullable|boolean',
 
         ]);
     }

@@ -42,6 +42,28 @@ class UserController extends ApiAdminController
     }
 
     /**
+     * @return JsonResponse
+     */
+    public function employee(): JsonResponse
+    {
+        $search = $this->datatableSearchFields();
+        $user = Auth::user();
+
+        if ($user->hasRole(['super'])){
+            $whereHas = ['user','Distributer'];
+        }elseif($user->hasRole(['admin']))
+        {
+            $whereHas =  ['super','user','Distributer'];
+        }else{
+            $whereHas =  ['super','admin','Admin cash','user','Distributer'];
+        }
+
+        return $this->success(
+            $this->repository->datatable($search, ['roles'],$whereHas)
+        );
+    }
+
+    /**
      * @return string[]
      */
     public function datatableSearchFields(): array

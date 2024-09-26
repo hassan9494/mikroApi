@@ -63,6 +63,10 @@ class RepositoryServiceProvider extends ServiceProvider
             'Modules\Common\Repositories\Slide\SlideRepository'
         );
         $this->app->singleton(
+            'Modules\Common\Repositories\Tag\TagRepositoryInterface',
+            'Modules\Common\Repositories\Tag\TagRepository'
+        );
+        $this->app->singleton(
             'Modules\Common\Repositories\Promotion\PromotionRepositoryInterface',
             'Modules\Common\Repositories\Promotion\PromotionRepository'
         );

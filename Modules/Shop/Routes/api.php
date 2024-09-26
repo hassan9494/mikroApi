@@ -8,6 +8,7 @@ use Modules\Shop\Http\Controllers\Api\CouponController;
 use Modules\Shop\Http\Controllers\Api\EmailController;
 use Modules\Shop\Http\Controllers\Api\OrderController;
 use Modules\Shop\Http\Controllers\Api\ProductController;
+use Modules\Shop\Http\Controllers\Api\TagController;
 
 /*
 |--------------------------------------------------------------------------
@@ -68,6 +69,10 @@ Route::namespace('Api')->group(function () {
     Route::get(
         'city',
         [CityController::class, 'index']
+    );
+    Route::get(
+        'tag',
+        [TagController::class, 'index']
     );
     Route::post(
         'coupon/check',

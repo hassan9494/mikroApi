@@ -43,6 +43,10 @@ class RepositoryServiceProvider extends ServiceProvider
             'Modules\Shop\Repositories\Product\ProductRepository'
         );
         $this->app->singleton(
+            'Modules\Shop\Repositories\ProductVariants\ProductVariantsRepositoryInterface',
+            'Modules\Shop\Repositories\ProductVariants\ProductVariantsRepository'
+        );
+        $this->app->singleton(
             'Modules\Shop\Repositories\Order\OrderRepositoryInterface',
             'Modules\Shop\Repositories\Order\OrderRepository'
         );

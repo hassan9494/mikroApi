@@ -47,6 +47,49 @@ class RoleController extends ApiAdminController
     }
 
     /**
+     * @return JsonResponse
+     */
+    public function employeeRoles(): JsonResponse
+    {
+        $user = Auth::user();
+        $where = [
+            [
+                'name', '!=', 'super'
+            ],
+            [
+                'name', '!=', 'admin'
+            ],
+            [
+                'name', '!=', 'user'
+            ],
+            [
+                'name', '!=', 'Distributer'
+            ]
+        ];
+        $where2 = [
+            [
+                'name', '!=', 'user'
+            ],
+            [
+                'name', '!=', 'Distributer'
+            ]
+        ];
+        if (!$user->hasRole('super') && !$user->hasRole('admin') && $user->hasRole('Manager') ) {
+            array_push($where,['name','!=','Admin cash']);
+            $data = $this->repository->get($where);
+        }elseif (!$user->hasRole('super') ){
+            $data = $this->repository->get($where);
+        }
+        else{
+            $data = $this->repository->get($where2);
+        }
+
+        return response()->json([
+            'data' => $data
+        ]);
+    }
+
+    /**
      * @return array
      */
     public function validate(): array

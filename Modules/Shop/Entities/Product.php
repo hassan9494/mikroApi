@@ -4,7 +4,9 @@ namespace Modules\Shop\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Laravel\Scout\Searchable;
 use Modules\Shop\Support\Enums\OrderStatus;
 use Modules\Shop\Traits\Product\Finance;
@@ -57,6 +59,8 @@ class Product extends Model implements HasMedia
         'slug',
         'brand_id',
         'source_id',
+        'replacement_item',
+        'hasVariants'
     ];
 
     protected $attributes = [
@@ -173,6 +177,21 @@ class Product extends Model implements HasMedia
     public function source()
     {
         return $this->belongsTo(Source::class,'source_id');
+    }
+
+    public function replacement_item(): HasOne
+    {
+        return $this->hasOne(Product::class,'replacement_item');
+    }
+
+    public function product_replacement(): BelongsTo
+    {
+        return $this->belongsTo(Product::class,'replacement_item');
+    }
+
+    public function product_variants()
+    {
+        return $this->hasMany(ProductVariant::class,'product_id');
     }
 
 }

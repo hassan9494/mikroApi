@@ -3,12 +3,12 @@
 namespace Modules\Shop\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Sanctum\PersonalAccessToken;
+use Modules\Admin\Http\Resources\MediaResource;
 use Modules\Shop\Entities\Product;
 
-class ProductShortResource extends JsonResource
+class ProductVariantsResource extends JsonResource
 {
 
     /**
@@ -31,39 +31,32 @@ class ProductShortResource extends JsonResource
         }
         $user = auth()->user();
         $media = $this->getMedia();
-        $replacement_item = Product::where('id',$this->replacement_item)->first();
         $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
-        if ((isset($user) && $user->hasRole(['Distributer']))){
+        if (isset($user) && $user->hasRole(['Distributer'])){
             return [
                 'id' => $this->id,
-                'sku' => $this->sku,
                 'title' => $this->name,
-                'slug' => $this->slug,
                 'availableQty' => $this->stock,
                 'is_available' => $this->options->available,
                 'is_retired' => $this->is_retired,
-                'price' =>  $this->price->normal_price,
+                'price' => $this->price->normal_price,
                 'sale_price' => $this->price->distributor_price ?: null,
+                'short_description' => $this->short_description,
                 'image' => $image,
-                'sales' => $this->sales(null, null),
-                'replacement_item' =>  new ProductResource($replacement_item),
-
+                'gallery' => MediaResource::collection($media)
             ];
-        }else{
+        }else {
             return [
                 'id' => $this->id,
-                'sku' => $this->sku,
                 'title' => $this->name,
-                'slug' => $this->slug,
                 'availableQty' => $this->stock,
                 'is_available' => $this->options->available,
                 'is_retired' => $this->is_retired,
-                'price' =>  $this->price->normal_price,
+                'price' => $this->price->normal_price,
                 'sale_price' => $this->price->sale_price ?: null,
+                'short_description' => $this->short_description,
                 'image' => $image,
-                'sales' => $this->sales(null, null),
-                'replacement_item' =>  new ProductResource($replacement_item),
-
+                'gallery' => MediaResource::collection($media)
             ];
         }
 
