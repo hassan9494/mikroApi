@@ -21,7 +21,6 @@ use Spatie\MediaLibrary\HasMedia;
 class ProductVariant extends Model implements HasMedia
 {
     use HasFactory;
-//    use Searchable;
     use Stock;
     use Finance;
     use Media;
