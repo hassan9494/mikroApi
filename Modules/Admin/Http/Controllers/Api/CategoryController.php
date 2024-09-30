@@ -119,6 +119,7 @@ class CategoryController extends ApiAdminController
             'icon' => $model->icon,
             'slug' => $model->slug,
             'order' => $model->order,
+            'available' => $model->available,
             'created_at' => $model->created_at,
             'updated_at' => $model->updated_at,
             'deleted_at' => $model->deleted_at,
@@ -161,6 +162,7 @@ class CategoryController extends ApiAdminController
             'icon' => 'nullable|max:255',
             'parent' => 'nullable',
             'order' => 'required',
+            'available' => 'required|boolean',
             'media' => 'nullable|array',
         ]);
     }

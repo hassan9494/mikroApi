@@ -93,11 +93,11 @@ class UserRepository extends EloquentRepository implements UserRepositoryInterfa
         return $query->get();
     }
 
-    public function datatable($searchColumns = [], $with = [], $whereHas = [])
+    public function datatable($searchColumns = [], $with = [], $whereDosntHas = [],$whereHasnt = [])
     {
         $roles = ['super'];
 //        $x =  $this->mode;
-        return Datatable::make($this->model)->search(...$searchColumns)->whereDosentHave($whereHas)->with($with)->get();
+        return Datatable::make($this->model)->search(...$searchColumns)->whereDosentHave($whereDosntHas)->whereHave($whereHasnt)->with($with)->get();
     }
 
 }

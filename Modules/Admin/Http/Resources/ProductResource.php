@@ -40,6 +40,13 @@ class ProductResource extends JsonResource
                     'image' => $e->getFirstMediaUrl()
                 ];
             }),
+            'related'=>$this->relatedProducts()->get()->map(function ($e) {
+                return [
+                    'id' => $e->id,
+                    'name' => $e->name,
+                    'image' => $e->getFirstMediaUrl()
+                ];
+            }),
 
             'categories' => $this->categories()->where('parent',0)->get()->map(function ($e) {
                 return $e->id;

@@ -29,7 +29,7 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        $items = $this->repository->get(['parent' => 0])->sortBy('order');
+        $items = $this->repository->get(['parent' => 0,'available'=>true])->sortBy('order');
         return CategoryResource::collection($items);
     }
 

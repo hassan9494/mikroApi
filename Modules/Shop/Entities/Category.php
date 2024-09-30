@@ -20,7 +20,7 @@ class Category extends Model implements HasMedia
     */
 
     protected $table = 'categories';
-    protected $fillable = ['id', 'title', 'slug', 'icon', 'parent', 'order'];
+    protected $fillable = ['id', 'title', 'slug', 'icon', 'parent', 'order','available'];
 
     /*
     |--------------------------------------------------------------------------
