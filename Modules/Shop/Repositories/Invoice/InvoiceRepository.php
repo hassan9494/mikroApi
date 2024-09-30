@@ -123,6 +123,13 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
         $status = $status ?? InvoiceStatus::DRAFT()->value;
 
         $invoice = $this->findOrFail($id, ['products']);
+        if ($invoice->status == InvoiceStatus::COMPLETED()->value && $status != InvoiceStatus::COMPLETED()->value){
+            $products = $invoice->products;
+            foreach ($products as $product) {
+                $product->stock = $product->stock - $product->pivot->quantity;
+                $product->save();
+            }
+        }else{
             if ($status == InvoiceStatus::COMPLETED()->value) {
                 $products = $invoice->products;
                 foreach ($products as $product) {
@@ -133,6 +140,8 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                     $product->save();
                 }
             }
+        }
+
 
         $invoice->update(['status' => $status]);
         return $invoice;

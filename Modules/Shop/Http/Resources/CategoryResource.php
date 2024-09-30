@@ -23,7 +23,7 @@ class CategoryResource extends JsonResource
             'icon' => $this->icon,
             'parent' => $this->parent,
             'order' => $this->order,
-            'children' => CategoryResource::collection($this->children),
+            'children' => CategoryResource::collection($this->children()->where('available',true)->get()),
             'image' => $image
         ];
     }

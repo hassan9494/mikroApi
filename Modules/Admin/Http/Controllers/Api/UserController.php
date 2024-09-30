@@ -28,16 +28,16 @@ class UserController extends ApiAdminController
         $user = Auth::user();
 
         if ($user->hasRole(['super'])){
-            $whereHas = [];
+            $whereDosntHas = [];
         }elseif($user->hasRole(['admin']))
         {
-            $whereHas =  ['super'];
+            $whereDosntHas =  ['super'];
         }else{
-            $whereHas =  ['super','admin','Admin cash'];
+            $whereDosntHas =  ['super','admin','Admin cash'];
         }
 
         return $this->success(
-            $this->repository->datatable($search, ['roles'],$whereHas)
+            $this->repository->datatable($search, ['roles'],$whereDosntHas,[])
         );
     }
 
@@ -50,16 +50,16 @@ class UserController extends ApiAdminController
         $user = Auth::user();
 
         if ($user->hasRole(['super'])){
-            $whereHas = ['user','Distributer'];
+            $whereHas = ['super','admin','Admin cash','Distributer','Cashier','Product Manager','Manager'];
         }elseif($user->hasRole(['admin']))
         {
-            $whereHas =  ['super','user','Distributer'];
+            $whereHas =  ['admin','Admin cash','Distributer','Cashier','Product Manager','Manager'];
         }else{
-            $whereHas =  ['super','admin','Admin cash','user','Distributer'];
+            $whereHas =  ['Admin cash','Distributer','Cashier','Product Manager','Manager'];
         }
 
         return $this->success(
-            $this->repository->datatable($search, ['roles'],$whereHas)
+            $this->repository->datatable($search, ['roles'],[],$whereHas)
         );
     }
 

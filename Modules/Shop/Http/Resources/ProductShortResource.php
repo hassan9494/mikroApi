@@ -47,6 +47,8 @@ class ProductShortResource extends JsonResource
                 'image' => $image,
                 'sales' => $this->sales(null, null),
                 'replacement_item' =>  new ProductResource($replacement_item),
+                'hasVariants' =>  $this->hasVariants,
+                'colors' => ProductVariantsResource::collection($this->product_variants)
 
             ];
         }else{
@@ -63,6 +65,8 @@ class ProductShortResource extends JsonResource
                 'image' => $image,
                 'sales' => $this->sales(null, null),
                 'replacement_item' =>  new ProductResource($replacement_item),
+                'hasVariants' =>  $this->hasVariants,
+                'colors' => ProductVariantsResource::collection($this->product_variants)
 
             ];
         }

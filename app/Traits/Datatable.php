@@ -139,6 +139,21 @@ class Datatable
         return $this;
     }
 
+    /**
+     * @param array $whereDoesntHave
+     * @return $this
+     */
+    public function whereHave(array $whereDoesntHave = []): Datatable
+    {
+        if (count($whereDoesntHave) > 0) {
+            $this->query->whereHas('roles', function ($query) use ($whereDoesntHave) {
+                $query->whereIn('name', $whereDoesntHave);
+            });
+            return $this;
+        }
+        return $this;
+    }
+
 
     /**
      * @param array $with

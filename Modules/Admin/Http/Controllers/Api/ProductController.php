@@ -285,6 +285,7 @@ class ProductController extends Controller
             'options.kit' => 'required|boolean',
             'media' => 'nullable|array',
             'kit' => 'nullable|array',
+            'related' => 'nullable|array',
             'source_sku' => 'nullable|max:255',
             'min_qty' => 'required',
             'maxCartAmount' => 'nullable',

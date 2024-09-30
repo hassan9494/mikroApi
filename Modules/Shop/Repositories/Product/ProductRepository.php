@@ -44,6 +44,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // Attach categories
         $categories = array_merge($data['categories'],$data['sub_categories']);
         $model->categories()->attach($categories);
+        $model->relatedProducts()->attach($data['related']);
 
         // Sync media
         $model->syncMedia($data['media'] ?? []);
@@ -65,6 +66,15 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         if ($data['categories'] ?? false)
             $model->categories()->sync($categories);
+
+        $related = [];
+        if ($data['related'] ?? false) {
+            foreach ($data['related'] as $item) {
+                $related[$item['id']] = Arr::only($item,'' );
+            }
+        }
+        if (count($related) != 0)
+            $model->relatedProducts()->sync($related);
 
         $kit = [];
         if ($data['kit'] ?? false) {
