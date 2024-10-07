@@ -62,10 +62,13 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $data['replacement_item'] = null;
         }
         $model = parent::update($id, $data);
-        $categories = array_merge($data['categories'],$data['sub_categories']);
 
-        if ($data['categories'] ?? false)
+
+        if ($data['categories'] ?? false){
+            $categories = array_merge($data['categories'],$data['sub_categories']);
             $model->categories()->sync($categories);
+        }
+
 
         $related = [];
         if ($data['related'] ?? false) {
