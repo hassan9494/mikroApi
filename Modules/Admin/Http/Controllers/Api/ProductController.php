@@ -266,7 +266,7 @@ class ProductController extends Controller
     {
         return request()->validate([
             'name' => 'required|max:255',
-            'sku' => 'required|max:255',
+            'sku' => 'nullable|max:255',
             'categories' => 'required',
             'sub_categories' => 'nullable',
             //'gallery' => 'nullable',

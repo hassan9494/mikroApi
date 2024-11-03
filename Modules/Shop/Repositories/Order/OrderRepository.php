@@ -108,7 +108,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $data['shipping']['city'] = $city->name;
         }
 
-        $cart = $this->prepareCartProducts($data['products'] ?? []);
+        $cart = $this->prepareCartProducts($data['products'] ?? [],null,$data['options']);
 
         $order = $this->model->create($data);
 
@@ -231,7 +231,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
      * @param Order|null $order
      * @return array
      */
-    private function prepareCartProducts(array $items = [], Order $order = null): array
+    private function prepareCartProducts(array $items = [], Order $order = null,array $options = []): array
     {
         $products = [];
         $subtotal = 0;
@@ -243,9 +243,11 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $product = $this->products->findOrFail($id);
 
             // if (!$checkStock) continue;
+            if (count($options) > 0 && !$options['price_offer']){
+                if (!$product->checkStock($quantity))
+                    throw new BadRequestException($product->name . ' has insufficient quantity');
+            }
 
-            if (!$product->checkStock($quantity))
-                throw new BadRequestException($product->name . ' has insufficient quantity');
 
             // If custom price enabled, then use custom price otherwise use normal_price
             $price = $item['price'];
