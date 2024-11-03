@@ -39,10 +39,13 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }
 
         // Create the model with the modified data
+        $data['sku'] = 'me-';
         $model = parent::create($data);
+        $model->sku = 'me-'.$model->id;
+        $model->save();
 
         // Attach categories
-        $categories = array_merge($data['categories'],$data['sub_categories']);
+        $categories = array_merge($data['categories'],$data['sub_categories'] ?? []);
         $model->categories()->attach($categories);
         $model->relatedProducts()->attach($data['related']);
 
@@ -60,6 +63,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $data['replacement_item'] = $data['replacement_item'][0]['id'];
         }else{
             $data['replacement_item'] = null;
+        }
+        if ($data['sku'] == null || $data['sku'] == ''){
+            $data['sku'] = 'me-'.$id;
         }
         $model = parent::update($id, $data);
 
