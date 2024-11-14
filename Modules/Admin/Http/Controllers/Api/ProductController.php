@@ -273,6 +273,7 @@ class ProductController extends Controller
             'short_description' => 'nullable',
             'description' => 'nullable',
             'packageInclude' => 'nullable',
+            'location' => 'nullable',
             'features' => 'nullable',
             'code' => 'nullable',
             'documents' => 'nullable',

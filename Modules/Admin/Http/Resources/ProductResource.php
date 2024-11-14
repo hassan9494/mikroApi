@@ -69,6 +69,7 @@ class ProductResource extends JsonResource
             'is_retired' => $this->is_retired,
             'replacement_item' => $replacement_item ?[ new ProductResource($replacement_item)]  : [],
             'hasVariants' => $this->hasVariants,
+            'location' => $this->location,
 
         ];
     }
