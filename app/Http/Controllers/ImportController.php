@@ -120,7 +120,7 @@ class ImportController extends Controller
     public function importProductImages()
     {
 
-        $oldProducts = Product::where('id','>',12161)->get();
+        $oldProducts = Product::where('id','>',12213)->get();
 //        dd($oldProducts);
         foreach ($oldProducts as $product) {
 
