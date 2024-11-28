@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Modules\Blog\Entities\Article;
 use Modules\Common\Entities\City;
+use Modules\Common\Entities\Link;
 use Modules\Common\Entities\Promotion;
 use Modules\Common\Entities\Slide;
 
@@ -59,6 +60,28 @@ class WebsiteController extends Controller
                 'image' => $image,
             ];
         }
+        return $this->success($data);
+    }
+
+    /**
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function links()
+    {
+        $model = Link::find(1);
+        $data = [];
+
+                $data = [
+                'id' => $model->id,
+                'location' => $model->location,
+                'email' => $model->email,
+                'facebook' => $model->facebook,
+                'instagram' => $model->instagram,
+                'telegram' => $model->telegram,
+                'whatsapp' => $model->whatsapp,
+                'youtube' => $model->youtube,
+                'call' => $model->call,
+            ];
         return $this->success($data);
     }
 

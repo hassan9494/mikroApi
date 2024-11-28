@@ -64,7 +64,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }else{
             $data['replacement_item'] = null;
         }
-        if ($data['sku'] == null || $data['sku'] == ''){
+        if (!empty($data['sku']) &&($data['sku'] == null || $data['sku'] == '')){
             $data['sku'] = 'me-'.$id;
         }
         $model = parent::update($id, $data);

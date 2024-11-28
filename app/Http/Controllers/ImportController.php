@@ -166,20 +166,34 @@ class ImportController extends Controller
 
 // Convert content into an array based on new lines
         $lines = explode(PHP_EOL, $fileContent);
+
         foreach ($lines as $line) {
+
             // Skip the header line or empty lines
             if (!empty($line) && !str_contains($line, 'id,qty')) {
                 // Convert each line into an array based on commas
                 $data = str_getcsv($line);
-
                 // Find the product by ID and update the qty
                 $product = Product::find($data[0]);
                 if ($product) {
                     $product->stock = $data[1];
+                    $prices = json_decode($data[2]);
+
+                    foreach ($prices->prices as $old_price) {
+                        if ($old_price->LargerThanQty == 1) {
+
+                            $price['normal_price'] = $old_price->NormalPrice;
+                            $price['sale_price'] = $old_price->SalePrice;
+                        }
+                    }
+                    $price['real_price'] = (float)$data[3];
+                    $price['distributor_price'] = (float)$data[4];
+                    $product->price = $price;
                     $product->save();
                 }
             }
         }
+        return true;
     }
 
     public function productCategory()

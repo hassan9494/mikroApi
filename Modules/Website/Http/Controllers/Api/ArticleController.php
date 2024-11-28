@@ -60,5 +60,24 @@ class WebsiteController extends Controller
         return $this->success($data);
     }
 
+    /**
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function links()
+    {
+        $models = Slide::all()->sortBy('order');
+        $data = [];
+        foreach ($models as $model) {
+            if (!($image = $model->getFirstMediaUrl())) continue;
+                $data[] = [
+                'id' => $model->id,
+                'name' => $model->name,
+                'order' => $model->order,
+                'image' => $image,
+            ];
+        }
+        return $this->success($data);
+    }
+
 
 }

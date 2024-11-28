@@ -60,7 +60,10 @@ class Product extends Model implements HasMedia
         'brand_id',
         'source_id',
         'replacement_item',
-        'hasVariants'
+        'hasVariants',
+        'order_qty',
+        'store_available',
+        'stock_available'
     ];
 
     protected $attributes = [

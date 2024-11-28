@@ -3,6 +3,7 @@
 namespace Modules\Admin\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Shop\Entities\Source;
 
 class NeedStocksReportResource extends JsonResource
 {
@@ -17,6 +18,7 @@ class NeedStocksReportResource extends JsonResource
     {
         $priceAll = $this->stock * $this->price->normal_price;
         $realPriceAll = $this->stock * $this->price->real_price;
+        $source = Source::find($this->source_id);
             return [
                 'id' => $this->id,
                 'name' => $this->name,
@@ -31,6 +33,7 @@ class NeedStocksReportResource extends JsonResource
                 'priceAll' => $priceAll,
                 'allRealPrice' => $realPriceAll,
                 'slug' => $this->slug,
+                'source' =>  $source ? $source->name : null,
             ];
 
 

@@ -11,6 +11,7 @@ use Modules\Admin\Http\Controllers\Api\DeptController;
 use Modules\Admin\Http\Controllers\Api\FileController;
 use Modules\Admin\Http\Controllers\Api\GraduationProjectController;
 use Modules\Admin\Http\Controllers\Api\InvoiceController;
+use Modules\Admin\Http\Controllers\Api\LinksController;
 use Modules\Admin\Http\Controllers\Api\MediaController;
 use Modules\Admin\Http\Controllers\Api\OrderController;
 use Modules\Admin\Http\Controllers\Api\OutlayController;
@@ -119,6 +120,7 @@ Route::prefix('admin')
         Route::get('product/autocomplete', [ProductController::class, 'autocomplete']);
         Route::post('product/stock', [ProductController::class, 'stock']);
         Route::post('product/sku', [ProductController::class, 'sku']);
+        Route::post('product/stock2', [ProductController::class, 'stock2']);
         Route::resource('product', 'ProductController');
 
 
@@ -162,6 +164,10 @@ Route::prefix('admin')
         // Promotion Routes.
         Route::get('promotion/datatable', [PromotionController::class, 'datatable']);
         Route::resource('promotion', 'PromotionController');
+
+        // Link Routes.
+        Route::get('links/datatable', [LinksController::class, 'datatable']);
+        Route::resource('links', 'LinksController');
 
         // Shipping Provider Routes.
         Route::get('shipping-provider/datatable', [ShippingProviderController::class, 'datatable']);
