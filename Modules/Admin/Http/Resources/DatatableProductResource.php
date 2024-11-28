@@ -28,6 +28,10 @@ class DatatableProductResource extends JsonResource
             'sales' => $this->completedOrders,
             'brand_id' => $this->brand_id,
             'source_id' => $this->source_id,
+            'stock_available' => $this->stock_available,
+            'store_available' => $this->store_available,
+            'order_qty' => $this->order_qty,
+            'location' => $this->location,
             'variants_count' => $this->product_variants->count(),
         ];
 

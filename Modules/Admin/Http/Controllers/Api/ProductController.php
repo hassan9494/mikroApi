@@ -230,6 +230,28 @@ class ProductController extends Controller
         return $this->success();
     }
 
+    public function stock2(): JsonResponse
+    {
+        $data = request()->validate([
+            'products.*.id' => 'exists:products,id',
+            'products.*.min_qty' => 'numeric|min:0',
+            'products.*.order_qty' => 'numeric|nullable',
+            'products.*.stock_available' => 'numeric|nullable',
+            'products.*.store_available' => 'numeric|nullable',
+            'products.*.location' => 'sometimes|string|nullable',
+
+        ]);
+
+        foreach ($data['products'] as $item) {
+
+            $this->repository->update(
+                $item['id'],
+                \Arr::only($item, ['order_qty', 'min_qty', 'stock_available', 'store_available','location']))
+            ;
+        }
+        return $this->success();
+    }
+
 
 
 //    /**

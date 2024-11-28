@@ -69,7 +69,8 @@ class OrderResource extends JsonResource
                 'real_price' => $product->pivot->real_price,
                 'normal_price' => $product->calcPrice(),
                 'min_price' => $product->calcMinPrice(),
-                'image' => $product->getFirstMediaUrl()
+                'image' => $product->getFirstMediaUrl(),
+                'location' => $product->location
             ];
         }
         return $items;
