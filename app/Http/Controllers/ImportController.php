@@ -174,23 +174,26 @@ class ImportController extends Controller
                 // Convert each line into an array based on commas
                 $data = str_getcsv($line);
                 // Find the product by ID and update the qty
-                $product = Product::find($data[0]);
-                if ($product) {
-                    $product->stock = $data[1];
-                    $prices = json_decode($data[2]);
+                if ($data[0] < 1000){
+                    $product = Product::find($data[0]);
+                    if ($product) {
+                        $product->stock = $data[1];
+                        $prices = json_decode($data[2]);
 
-                    foreach ($prices->prices as $old_price) {
-                        if ($old_price->LargerThanQty == 1) {
+                        foreach ($prices->prices as $old_price) {
+                            if ($old_price->LargerThanQty == 1) {
 
-                            $price['normal_price'] = $old_price->NormalPrice;
-                            $price['sale_price'] = $old_price->SalePrice;
+                                $price['normal_price'] = $old_price->NormalPrice;
+                                $price['sale_price'] = $old_price->SalePrice;
+                            }
                         }
+                        $price['real_price'] = (float)$data[3];
+                        $price['distributor_price'] = (float)$data[4];
+                        $product->price = $price;
+                        $product->save();
                     }
-                    $price['real_price'] = (float)$data[3];
-                    $price['distributor_price'] = (float)$data[4];
-                    $product->price = $price;
-                    $product->save();
                 }
+
             }
         }
         return true;
