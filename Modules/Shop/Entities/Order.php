@@ -222,7 +222,8 @@ class Order extends Model implements HasMedia
         // If order is taxed and doesn't have a tax number, and it's not pending, then generate a serial tax number.
         if (!$this->isPending && !$this->tax_number && $this?->options?->taxed)
         {
-            $this->tax_number = Order::whereNotNull('tax_number')->max('tax_number') + 1;
+            $lastorder = Order::whereNotNull('tax_number')->max('tax_number');
+            $this->tax_number = $lastorder ? $lastorder +1  : 13185;
             $this->taxed_at = now();
         }
 
