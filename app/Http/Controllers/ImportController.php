@@ -174,7 +174,7 @@ class ImportController extends Controller
                 // Convert each line into an array based on commas
                 $data = str_getcsv($line);
                 // Find the product by ID and update the qty
-                if ($data[0] >= 3000 && $data[0] < 6000){
+                if ($data[0] >= 6000 && $data[0] < 10000){
                     $product = Product::find($data[0]);
                     if ($product) {
                         $product->stock = $data[1];
