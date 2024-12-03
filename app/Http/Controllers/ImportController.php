@@ -67,6 +67,22 @@ class ImportController extends Controller
         }
     }
 
+    public function slug()
+    {
+        $products = Product::all();
+        foreach ($products as $product) {
+            // Convert the product name to lowercase
+            $string = mb_strtolower($product->name);
+
+            // Replace unwanted characters with hyphens, and replace periods with hyphens
+            $product->slug = preg_replace('/[^a-z0-9\.]+/', '-', $string); // Allow decimal points
+            $product->slug = str_replace('.', '-', $product->slug); // Replace periods with hyphens
+
+            // Save the product with the new slug
+            $product->save();
+        }
+    }
+
     public function product()
     {
         $oldProducts = OldProduct::where('id','>',12161)->get();
