@@ -92,6 +92,7 @@ Route::get('import_supplier',[ImportController::class,'supplier']);
 Route::get('import_user',[ImportController::class,'user']);
 Route::get('import_order',[ImportController::class,'order']);
 Route::get('update-products-qty',[ImportController::class,'updateProductsQty']);
+Route::get('slug',[ImportController::class,'slug']);
 
 
 
