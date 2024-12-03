@@ -71,9 +71,7 @@ class ImportController extends Controller
     {
         $products = Product::all();
         foreach ($products as $product) {
-            // Convert the product name to lowercase
-            $string = str_replace('.', '-', $product->name);// Allow decimal points
-            $product->slug = Str::slug($string, '-'); // Replace periods with hyphens
+            $product->slug = Str::slug($product->name, '-'); // Replace periods with hyphens
 
             // Save the product with the new slug
             $product->save();
