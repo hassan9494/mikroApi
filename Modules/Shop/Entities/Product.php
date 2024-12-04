@@ -197,4 +197,9 @@ class Product extends Model implements HasMedia
         return $this->hasMany(ProductVariant::class,'product_id');
     }
 
+    public function search()
+    {
+        return true;
+    }
+
 }
