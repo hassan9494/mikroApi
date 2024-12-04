@@ -109,8 +109,27 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $query = Product::query();
 
         if ($searchWord) {
-//            return Product::search($searchWord)->paginate($limit);
-            return Product::where('name' , 'LIKE' ,'%'.$searchWord.'%')->paginate($limit);
+            $searchTerms = explode(' ', strtolower($searchWord));
+            $termCount = count($searchTerms);
+
+            $query->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->orWhere('name', 'LIKE', '%' . $term . '%');
+                }
+            });
+
+            $rankingQuery = "CASE ";
+            $rankingQuery .= "WHEN LOWER(name) = '" . strtolower($searchWord) . "' THEN " . ($termCount + 1) . " ";
+            $rankingQuery .= "ELSE (";
+            foreach ($searchTerms as $term) {
+                $rankingQuery .= "CASE WHEN LOWER(name) LIKE '%" . $term . "%' THEN 1 ELSE 0 END + ";
+            }
+            $rankingQuery = rtrim($rankingQuery, "+ ") . ") END AS rank";
+
+            $query->addSelect(['*', \DB::raw($rankingQuery)]);
+            $query->orderByDesc('rank')
+                ->orderByRaw("CASE WHEN LOWER(name) LIKE '" . strtolower($searchWord) . "%' THEN 0 ELSE 1 END")
+                ->orderBy('name');
         } else if ($category) {
             $query->whereHas('categories', function (Builder $q) use ($category) {
                 $q->where('slug', $category);
@@ -164,6 +183,24 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $query->where('stock','>=',0);
         }
         return $query->paginate($limit);
+    }
+
+    private function getCombinations($array, $size)
+    {
+        $result = [];
+        $combinationsHelper = function($array, $size, $start = 0, $current = []) use (&$combinationsHelper, &$result) {
+            if (sizeof($current) == $size) {
+                $result[] = $current;
+                return;
+            }
+            for ($i = $start; $i < sizeof($array); $i++) {
+                $new = $current;
+                $new[] = $array[$i];
+                $combinationsHelper($array, $size, $i + 1, $new);
+            }
+        };
+        $combinationsHelper($array, $size);
+        return $result;
     }
 
 
