@@ -104,7 +104,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
      * @param $inStock
      * @return LengthAwarePaginator
      */
-    public function search($searchWord, $category, $limit = 20, $filter,$inStock = false)
+    public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
         $query = Product::query();
 
@@ -118,17 +118,21 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 }
             });
 
+            // Create ranking logic with a new alias
             $rankingQuery = "CASE ";
             $rankingQuery .= "WHEN LOWER(name) = '" . strtolower($searchWord) . "' THEN " . ($termCount + 1) . " ";
             $rankingQuery .= "ELSE (";
             foreach ($searchTerms as $term) {
                 $rankingQuery .= "CASE WHEN LOWER(name) LIKE '%" . $term . "%' THEN 1 ELSE 0 END + ";
             }
-            $rankingQuery = rtrim($rankingQuery, "+ ") . ") END AS rank";
+            $rankingQuery = rtrim($rankingQuery, "+ ") . ") END AS search_rank"; // Changed here
 
-            $query->addSelect(['*', \DB::raw($rankingQuery)]);
-            $query->orderByDesc('rank')
-                ->orderByRaw("CASE WHEN LOWER(name) LIKE '" . strtolower($searchWord) . "%' THEN 0 ELSE 1 END")
+            // Specify the columns you want to select
+            $query->addSelect(['id', 'name','sku','slug','options', 'price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]); // Add other necessary fields
+
+            // Order by the new rank and other criteria
+            $query->orderByDesc('search_rank') // Updated here
+            ->orderByRaw("CASE WHEN LOWER(name) LIKE '" . strtolower($searchWord) . "%' THEN 0 ELSE 1 END")
                 ->orderBy('name');
         } else if ($category) {
             $query->whereHas('categories', function (Builder $q) use ($category) {
@@ -177,11 +181,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 break;
         }
 
-        if ($inStock == 'true'){
-            $query->where('stock','>',0);
-        }else{
-            $query->where('stock','>=',0);
+        if ($inStock == 'true') {
+            $query->where('stock', '>', 0);
+        } else {
+            $query->where('stock', '>=', 0);
         }
+
         return $query->paginate($limit);
     }
 
