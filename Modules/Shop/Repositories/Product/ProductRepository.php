@@ -109,7 +109,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $query = Product::query();
 
         if ($searchWord) {
-            return Product::search($searchWord)->paginate($limit);
+//            return Product::search($searchWord)->paginate($limit);
+            return Product::where('name' , 'LIKE' ,'%'.$searchWord.'%')->paginate($limit);
         } else if ($category) {
             $query->whereHas('categories', function (Builder $q) use ($category) {
                 $q->where('slug', $category);
