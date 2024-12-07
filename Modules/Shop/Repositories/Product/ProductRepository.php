@@ -6,6 +6,7 @@ use App\Repositories\Base\EloquentRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Modules\Shop\Entities\Product;
 
 /**
@@ -42,6 +43,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $data['sku'] = 'me-';
         $model = parent::create($data);
         $model->sku = 'me-'.$model->id;
+        $string = Str::replace('.', '-',$model->name);
+        $model->slug = Str::slug($string, '-');
         $model->save();
 
         // Attach categories
@@ -67,8 +70,14 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         if (!empty($data['sku']) &&($data['sku'] == null || $data['sku'] == '')){
             $data['sku'] = 'me-'.$id;
         }
-        $model = parent::update($id, $data);
 
+        $model = parent::update($id, $data);
+        if (!empty($model->slug) &&($model->slug == null || $model->slug == '')){
+
+            $string = Str::replace('.', '-',$model->name);
+            $model->slug = Str::slug($string, '-');
+            $model->save();
+        }
 
         if ($data['categories'] ?? false){
             $categories = array_merge($data['categories'],$data['sub_categories']);
