@@ -28,7 +28,9 @@ Route::namespace('Api')
         Route::get(
             '/user/me',
             function (Request $request) {
-                return $request->user();
+                $user = $request->user();
+                $user = \App\Models\User::with('roles')->where('id',$user->id)->firstOrFail();
+                return $user;
             }
         );
 

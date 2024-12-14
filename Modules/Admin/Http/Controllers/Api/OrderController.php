@@ -84,12 +84,23 @@ class OrderController extends ApiAdminController
      */
     public function update($id): JsonResponse
     {
-        $data = $this->validate();
-        if ($data['shipping']['status'] == null) {
-            $data['shipping']['status'] = "WAITING";
+        $order = $this->repository->findOrFail($id);
+        if ($order->status != 'COMPLETED'){
+            $data = $this->validate();
+            if ($data['shipping']['status'] == null) {
+                $data['shipping']['status'] = "WAITING";
+            }
+            $order = $this->repository->saveOrder($id, $data);
+            $order->syncMedia($data['attachments'] ?? []);
+            $this->repository->status(
+                $id, request()->get('status')
+            );
+
+        }else{
+            $this->repository->status(
+                $id, request()->get('status')
+            );
         }
-        $order = $this->repository->saveOrder($id, $data);
-        $order->syncMedia($data['attachments'] ?? []);
         return $this->success();
     }
 

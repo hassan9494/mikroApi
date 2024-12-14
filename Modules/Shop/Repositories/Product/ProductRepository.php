@@ -38,6 +38,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }else{
             $data['replacement_item'] = null;
         }
+        if ($data['price']['real_price'] == '' || $data['price']['real_price'] == null){
+            $data['price']['real_price'] = $data['price']['normal_price'] * 0.6;
+        }
 
         // Create the model with the modified data
         $data['sku'] = 'me-';
