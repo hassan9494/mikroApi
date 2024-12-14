@@ -173,7 +173,8 @@ class ProductController extends Controller
                 'min_price' => $product->calcMinPrice(),
                 'image' => $product->getFirstMediaUrl(),
                 'stock' => $product->stock,
-                'sku' => $product->sku
+                'sku' => $product->sku,
+                'location' => $product->location,
             ];
         }
         return $this->success($response);
