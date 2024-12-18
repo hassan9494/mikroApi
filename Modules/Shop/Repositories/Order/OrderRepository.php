@@ -67,6 +67,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
         $data['shipping']['cost'] = $city->shipping_cost;
         $data['shipping']['city'] = $city->name;
+        $data['shipping']['status'] = 'WAITING';
+
 
         $order = $this->model->create($data);
 
@@ -81,14 +83,15 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
      * @param User $user
      * @return Order
      */
-    public function makeByUser(array $data, Address $address,$user): Order
+    public function makeByUser(array $data, Address $address, $user): Order
     {
 
         $data['customer'] = $address->customer;
         $data['shipping'] = $address->shipping;
         $data['city_id'] = $address->city_id;
 
-        $cart = $this->prepareUserProducts($data['products'],$user);
+
+        $cart = $this->prepareUserProducts($data['products'], $user);
 
         $order = $this->model->create($data);
 
@@ -106,9 +109,10 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         if ($data['city_id'] ?? false) {
             $city = $this->cities->findOrFail($data['city_id']);
             $data['shipping']['city'] = $city->name;
+
         }
 
-        $cart = $this->prepareCartProducts($data['products'] ?? [],null,$data['options']);
+        $cart = $this->prepareCartProducts($data['products'] ?? [], null, $data['options']);
 
         $order = $this->model->create($data);
 
@@ -116,8 +120,6 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
         return $order;
     }
-
-
 
 
     /**
@@ -153,16 +155,16 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
         $options = [];
 
-        if ($status == 'PROCESSING' || $status == 'COMPLETED'){
-            foreach ($order->options as $key=>$value){
-                if ($key == 'price_offer'){
+        if ($status == 'PROCESSING' || $status == 'COMPLETED') {
+            foreach ($order->options as $key => $value) {
+                if ($key == 'price_offer') {
                     $options[$key] = false;
-                }else{
+                } else {
                     $options[$key] = $value;
                 }
 
             }
-        }else{
+        } else {
             $options = $order->options;
         }
         if ($this->reduceStock($order, $status))
@@ -171,7 +173,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         if ($this->increaseStock($order, $status))
             $this->updateStock($order->products, false);
 
-        $order->update(['status' => $status,'options' => $options]);
+        $order->update(['status' => $status, 'options' => $options]);
         return $order;
     }
 
@@ -190,10 +192,10 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
      */
     public function sales()
     {
-        return $this->model->Where('status',OrderStatus::COMPLETED()->value)
+        return $this->model->Where('status', OrderStatus::COMPLETED()->value)
             ->selectRaw('YEAR(created_at) year, MONTH(created_at) month')
             ->selectRaw('SUM(total) as total_sales')
-            ->groupby('year','month')
+            ->groupby('year', 'month')
             ->get();
     }
 
@@ -201,12 +203,11 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
      * @param array $items
      * @return array
      */
-    private function prepareUserProducts(array $items = [],$user = null): array
+    private function prepareUserProducts(array $items = [], $user = null): array
     {
         $products = [];
         $subtotal = 0;
-        foreach ($items as $item)
-        {
+        foreach ($items as $item) {
             $id = $item['id'];
             $quantity = $item['quantity'];
 
@@ -217,10 +218,10 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
             $products[$id] = [
                 'quantity' => $quantity,
-                'price' => $product->calcPrice(1,null,$user),
+                'price' => $product->calcPrice(1, null, $user),
                 'real_price' => $product->price->real_price,
             ];
-            $subtotal += $product->calcPrice($quantity,null,$user);
+            $subtotal += $product->calcPrice($quantity, null, $user);
 
         }
         return compact('products', 'subtotal');
@@ -231,19 +232,18 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
      * @param Order|null $order
      * @return array
      */
-    private function prepareCartProducts(array $items = [], Order $order = null,array $options = []): array
+    private function prepareCartProducts(array $items = [], Order $order = null, array $options = []): array
     {
         $products = [];
         $subtotal = 0;
-        foreach ($items as $item)
-        {
+        foreach ($items as $item) {
             $id = $item['id'];
             $quantity = $item['quantity'];
 
             $product = $this->products->findOrFail($id);
 
             // if (!$checkStock) continue;
-            if (count($options) > 0 && !$options['price_offer']){
+            if (count($options) > 0 && !$options['price_offer']) {
                 if (!$product->checkStock($quantity))
                     throw new BadRequestException($product->name . ' has insufficient quantity');
             }
@@ -304,7 +304,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             ($order->status == OrderStatus::COMPLETED()->value || $order->status == OrderStatus::PROCESSING()->value);
     }
 
-    public function get($wheres = [], $with = [],$orWhere = [])
+    public function get($wheres = [], $with = [], $orWhere = [])
     {
         return $this->model->latest()->with($with)->where($wheres)->orWhere($orWhere)->get();
     }
