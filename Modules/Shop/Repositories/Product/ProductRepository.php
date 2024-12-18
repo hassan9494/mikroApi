@@ -35,23 +35,23 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // Extract the ID of the first replacement item if it exists
         if (!empty($data['replacement_item'])) {
             $data['replacement_item'] = $data['replacement_item'][0]['id'];
-        }else{
+        } else {
             $data['replacement_item'] = null;
         }
-        if ($data['price']['real_price'] == '' || $data['price']['real_price'] == null){
+        if ($data['price']['real_price'] == '' || $data['price']['real_price'] == null) {
             $data['price']['real_price'] = $data['price']['normal_price'] * 0.6;
         }
 
         // Create the model with the modified data
         $data['sku'] = 'me-';
         $model = parent::create($data);
-        $model->sku = 'me-'.$model->id;
-        $string = Str::replace('.', '-',$model->name);
+        $model->sku = 'me-' . $model->id;
+        $string = Str::replace('.', '-', $model->name);
         $model->slug = Str::slug($string, '-');
         $model->save();
 
         // Attach categories
-        $categories = array_merge($data['categories'],$data['sub_categories'] ?? []);
+        $categories = array_merge($data['categories'], $data['sub_categories'] ?? []);
         $model->categories()->attach($categories);
         $model->relatedProducts()->attach($data['related']);
 
@@ -67,23 +67,22 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // Extract the ID of the first replacement item if it exists
         if (!empty($data['replacement_item'])) {
             $data['replacement_item'] = $data['replacement_item'][0]['id'];
-        }else{
+        } else {
             $data['replacement_item'] = null;
         }
-        if (!empty($data['sku']) &&($data['sku'] == null || $data['sku'] == '')){
-            $data['sku'] = 'me-'.$id;
+        if (!empty($data['sku']) && ($data['sku'] == null || $data['sku'] == '')) {
+            $data['sku'] = 'me-' . $id;
         }
 
         $model = parent::update($id, $data);
-        if (!empty($model->slug) &&($model->slug == null || $model->slug == '')){
 
-            $string = Str::replace('.', '-',$model->name);
-            $model->slug = Str::slug($string, '-');
-            $model->save();
-        }
+        $string = Str::replace('.', '-', $model->name);
+        $model->slug = Str::slug($string, '-');
+        $model->save();
 
-        if ($data['categories'] ?? false){
-            $categories = array_merge($data['categories'],$data['sub_categories']);
+
+        if ($data['categories'] ?? false) {
+            $categories = array_merge($data['categories'], $data['sub_categories']);
             $model->categories()->sync($categories);
         }
 
@@ -91,7 +90,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $related = [];
         if ($data['related'] ?? false) {
             foreach ($data['related'] as $item) {
-                $related[$item['id']] = Arr::only($item,'' );
+                $related[$item['id']] = Arr::only($item, '');
             }
         }
         if (count($related) != 0)
@@ -104,7 +103,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             }
         }
         if (count($kit) != 0)
-        $model->kit()->sync($kit);
+            $model->kit()->sync($kit);
         $model->syncMedia($data['media'] ?? []);
     }
 
@@ -140,7 +139,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $rankingQuery = rtrim($rankingQuery, "+ ") . ") END AS search_rank"; // Changed here
 
             // Specify the columns you want to select
-            $query->addSelect(['id', 'name','sku','slug','options', 'price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]); // Add other necessary fields
+            $query->addSelect(['id', 'name', 'sku', 'slug', 'options', 'price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]); // Add other necessary fields
 
             // Order by the new rank and other criteria
             $query->orderByDesc('search_rank') // Updated here
@@ -205,7 +204,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     private function getCombinations($array, $size)
     {
         $result = [];
-        $combinationsHelper = function($array, $size, $start = 0, $current = []) use (&$combinationsHelper, &$result) {
+        $combinationsHelper = function ($array, $size, $start = 0, $current = []) use (&$combinationsHelper, &$result) {
             if (sizeof($current) == $size) {
                 $result[] = $current;
                 return;
@@ -219,7 +218,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $combinationsHelper($array, $size);
         return $result;
     }
-
 
 
     public function autocomplete($searchWord, $limit = 20)
