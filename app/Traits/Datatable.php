@@ -55,6 +55,7 @@ class Datatable
                         $orWhere[] = [$column[1], $value['op']?? '=', $value['val']];
                     }else{
                         $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
+                        $orWhere[] = [$value['col'], $value['op'] ?? '=', $value['val']];
                     }
 
             }elseif ($value === "need"){
