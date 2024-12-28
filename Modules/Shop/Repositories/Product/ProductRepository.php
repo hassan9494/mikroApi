@@ -119,37 +119,51 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     {
         $query = Product::query();
 
+        // Handle search by name and meta
         if ($searchWord) {
             $searchTerms = explode(' ', strtolower($searchWord));
             $termCount = count($searchTerms);
 
+            // Build the query for name and meta search
             $query->where(function ($q) use ($searchTerms) {
                 foreach ($searchTerms as $term) {
-                    $q->orWhere('name', 'LIKE', '%' . $term . '%');
+                    $q->orWhere('name', 'LIKE', '%' . $term . '%')
+                        ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title')) LIKE ?", ['%' . $term . '%'])
+                        ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords')) LIKE ?", ['%' . $term . '%'])
+                        ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description')) LIKE ?", ['%' . $term . '%']);
                 }
             });
 
             // Create ranking logic with a new alias
-            $rankingQuery = "CASE ";
-            $rankingQuery .= "WHEN LOWER(name) = '" . strtolower($searchWord) . "' THEN " . ($termCount + 1) . " ";
-            $rankingQuery .= "ELSE (";
+            $rankingQuery = "CASE
+                            WHEN LOWER(name) = '" . strtolower($searchWord) . "' THEN " . ($termCount + 1) . "
+                            ELSE (";
+
             foreach ($searchTerms as $term) {
-                $rankingQuery .= "CASE WHEN LOWER(name) LIKE '%" . $term . "%' THEN 1 ELSE 0 END + ";
+                $rankingQuery .= "CASE
+                                WHEN LOWER(name) LIKE '%" . $term . "%' THEN 1
+                                WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title')) LIKE '%" . $term . "%' THEN 1
+                                WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords')) LIKE '%" . $term . "%' THEN 1
+                                WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description')) LIKE '%" . $term . "%' THEN 1
+                                ELSE 0 END + ";
             }
-            $rankingQuery = rtrim($rankingQuery, "+ ") . ") END AS search_rank"; // Changed here
+
+            $rankingQuery = rtrim($rankingQuery, "+ ") . ") END AS search_rank";
 
             // Specify the columns you want to select
-            $query->addSelect(['id', 'name', 'sku', 'slug', 'options', 'price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]); // Add other necessary fields
+            $query->addSelect(['id', 'name', 'sku', 'slug', 'options', 'price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]);
 
             // Order by the new rank and other criteria
-            $query->orderByDesc('search_rank') // Updated here
-            ->orderByRaw("CASE WHEN LOWER(name) LIKE '" . strtolower($searchWord) . "%' THEN 0 ELSE 1 END")
+            $query->orderByDesc('search_rank')
+                ->orderByRaw("CASE WHEN LOWER(name) LIKE '" . strtolower($searchWord) . "%' THEN 0 ELSE 1 END")
                 ->orderBy('name');
-        } else if ($category) {
+        } elseif ($category) {
+            // Search by category if no search word is provided
             $query->whereHas('categories', function (Builder $q) use ($category) {
                 $q->where('slug', $category);
             });
         } else {
+            // Default to featured products if no category or search word is provided
             $query->where(['options->featured' => true]);
         }
 
@@ -192,7 +206,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 break;
         }
 
-        if ($inStock == 'true') {
+        // Check stock availability based on the parameter
+        if ($inStock === true) {
             $query->where('stock', '>', 0);
         } else {
             $query->where('stock', '>=', 0);
@@ -200,6 +215,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         return $query->paginate($limit);
     }
+
 
     private function getCombinations($array, $size)
     {

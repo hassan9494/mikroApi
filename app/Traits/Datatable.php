@@ -119,6 +119,38 @@ class Datatable
     }
 
     /**
+     * Enhanced custom search function for Datatable
+     *
+     * @param string ...$columns
+     * @return $this
+     */
+    public function custom_search(...$columns): self
+    {
+        $search = request('search', '');
+        if ($search) {
+            $searchTerms = explode(' ', strtolower($search));
+
+            $this->query->where(function ($query) use ($columns, $searchTerms) {
+                foreach ($columns as $column) {
+                    foreach ($searchTerms as $term) {
+                        if ($column === 'meta') {
+                            $query->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title'))) LIKE ?", ['%' . $term . '%'])
+                                ->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords'))) LIKE ?", ['%' . $term . '%'])
+                                ->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description'))) LIKE ?", ['%' . $term . '%']);
+                        } else {
+                            $query->orWhere($column, 'LIKE', '%' . $term . '%');
+                        }
+                    }
+                }
+            });
+        }
+
+        return $this;
+    }
+
+
+
+    /**
      * @param array $with
      * @return $this
      */
