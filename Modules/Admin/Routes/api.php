@@ -4,6 +4,7 @@ use Modules\Admin\Http\Controllers\Api\ArticleController;
 use Modules\Admin\Http\Controllers\Api\AuthController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
+use Modules\Admin\Http\Controllers\Api\LocationController;
 use Modules\Admin\Http\Controllers\Api\CouponController;
 use Modules\Admin\Http\Controllers\Api\CourseController;
 use Modules\Admin\Http\Controllers\Api\CustomsStatementController;
@@ -70,6 +71,10 @@ Route::prefix('admin')
         // Brand Routes.
         Route::get('brand/datatable', [BrandController::class, 'datatable']);
         Route::resource('brand', 'BrandController');
+
+        // Location Routes.
+        Route::get('location/datatable', [LocationController::class, 'datatable']);
+        Route::resource('location', 'LocationController');
 
         // Brand Routes.
         Route::get('source/datatable', [SourceController::class, 'datatable']);

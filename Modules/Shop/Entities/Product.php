@@ -63,7 +63,9 @@ class Product extends Model implements HasMedia
         'hasVariants',
         'order_qty',
         'store_available',
-        'stock_available'
+        'stock_available',
+        'stock_location',
+        'store_location'
     ];
 
     protected $attributes = [
@@ -175,6 +177,16 @@ class Product extends Model implements HasMedia
     public function brand()
     {
         return $this->belongsTo(Brand::class,'brand_id');
+    }
+
+    public function store_location()
+    {
+        return $this->belongsTo(Location::class,'store_location');
+    }
+
+    public function stock_location()
+    {
+        return $this->belongsTo(Location::class,'stock_location');
     }
 
     public function source()
