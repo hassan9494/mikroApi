@@ -305,6 +305,7 @@ class ReportController extends Controller
             ];
         }elseif (request('needConditionReport') != null && request('needConditionReport') == 'stock'){
             $where = [];
+            $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
         } else {
             $where = [];
         }

@@ -72,7 +72,7 @@ class ProductController extends Controller
     public function datatable(): JsonResponse
     {
         return Datatable::make($this->repository->model())
-            ->custom_search('id', 'name', 'sku','meta')
+            ->search('id', 'name', 'sku','meta')
             ->resource(DatatableProductResource::class)
             ->json();
     }
