@@ -21,6 +21,16 @@ class OrderController extends ApiAdminController
     {
         parent::__construct($repository);
     }
+    /**
+     * @return JsonResponse
+     */
+    public function datatable(): JsonResponse
+    {
+        return Datatable::make($this->repository->model())
+            ->search('id', 'name', 'sku','meta')
+            ->resource(OrderResource::class)
+            ->json();
+    }
 
     /**
      * @param $id
