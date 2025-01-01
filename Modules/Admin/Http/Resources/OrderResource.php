@@ -44,6 +44,7 @@ class OrderResource extends JsonResource
 
             'shipping' => $this->shipping,
             'shipping_provider_id' => $this->shipping_provider_id,
+            'shipping_provider' => $this->shippingProvider,
             'city_id' => $this->city_id,
             'coupon_id' => $this->coupon_id,
 

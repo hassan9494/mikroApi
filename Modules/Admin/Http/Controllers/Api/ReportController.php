@@ -198,6 +198,47 @@ class ReportController extends Controller
     /**
      * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
+    public function delivery()
+    {
+
+        $where = [
+            [
+                'status',  'PROCESSING'
+            ],
+            [
+                'shipping->status',  '!=','WAITING'
+            ],
+            [
+                'shipping->status',  '!=',null
+            ]
+        ];
+        $orWhere = [
+            [
+                'status',  'PROCESSING'
+            ],
+            [
+                'shipping->status',  '!=','WAITING'
+            ],
+            [
+                'shipping->status',  '!=',null
+            ]
+        ];
+        if ($dept = request('dept')) {
+            $where[] = ['options->dept', $dept];
+            $orWhere[] = ['options->dept', $dept];
+        }
+        if ($shippingProviderId = request('provider')) {
+            $where[] = ['shipping_provider_id', $shippingProviderId];
+            $orWhere[] = ['shipping_provider_id', $shippingProviderId];
+        }
+        $data = $this->orderRepository->get($where, ['products'],$orWhere)->sortBy('tax_number');
+        return OrderResource::collection($data);
+    }
+
+
+    /**
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     */
     public function outlays()
     {
         $where = [
