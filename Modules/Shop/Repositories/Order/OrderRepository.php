@@ -137,6 +137,11 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             // must be before uodate, see onSaving inside Order model.
             $model->products()->sync($cart['products']);
         }
+        if ($model->options->taxed == true){
+            $data['options']['taxed'] = true;
+        }elseif ($model->tax_number !== null){
+            $data['options']['taxed'] = true;
+        }
 //        $data = \Arr::only($data, ['customer', 'shipping', 'options', 'discount', 'notes', 'shipping_location_id']);
         $model->update($data);
         return $model;
@@ -306,7 +311,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
     public function get($wheres = [], $with = [], $orWhere = [])
     {
-        return $this->model->latest()->with($with)->where($wheres)->orWhere($orWhere)->get();
+        return $this->model->latest()->with($with)->where($wheres)->orWhere($orWhere)->orderBy('taxed_at')->orderBy('tax_number')->get();
     }
 
 }

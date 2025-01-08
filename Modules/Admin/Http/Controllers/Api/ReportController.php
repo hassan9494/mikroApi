@@ -90,7 +90,7 @@ class ReportController extends Controller
                 'taxed_at', '>=', request('from', now()->startOfMonth())
             ],
             [
-                'taxed_at', '<=', request('to', now()->endOfMonth())
+                'taxed_at', '<=', request('newTo', now()->endOfMonth())
             ],
             [
                 'options->taxed', true
@@ -101,7 +101,7 @@ class ReportController extends Controller
                 'updated_at', '>=', request('from', now()->startOfMonth())
             ],
             [
-                'updated_at', '<=', request('to', now()->endOfMonth())
+                'updated_at', '<=', request('newTo', now()->endOfMonth())
             ],
             [
                 'options->taxed', true
