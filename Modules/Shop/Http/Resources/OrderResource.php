@@ -35,6 +35,7 @@ class OrderResource extends JsonResource
         {
             $items[] = [
                 'name' => $product->name,
+                'slug' => $product->slug,
                 'price' => $product->pivot->price,
                 'quantity' => $product->pivot->quantity,
                 'image' => $product->getMedia()->first()?->getFullUrl(),
