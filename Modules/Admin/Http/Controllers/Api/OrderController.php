@@ -3,12 +3,15 @@
 namespace Modules\Admin\Http\Controllers\Api;
 
 use App\Traits\Datatable;
+use http\Env\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\OrderResource;
+use Modules\Shop\Entities\Product;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
+use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 
 class OrderController extends ApiAdminController
 {
@@ -97,6 +100,15 @@ class OrderController extends ApiAdminController
         $order = $this->repository->findOrFail($id);
         if ($order->status != 'COMPLETED'){
             $data = $this->validate();
+            if ($order->status == 'PENDING'){
+                foreach ($data['products'] as $product){
+                    $prod = Product::find($product['id']);
+                    if ($prod->stock < $product['quantity']){
+                        throw new BadRequestException($prod->name . ' has insufficient quantity');
+                    }
+                }
+            }
+//            return \response()->json($data);
             if ($data['shipping']['status'] == null) {
                 $data['shipping']['status'] = "WAITING";
             }
