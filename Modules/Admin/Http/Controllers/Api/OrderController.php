@@ -24,16 +24,16 @@ class OrderController extends ApiAdminController
     {
         parent::__construct($repository);
     }
-    /**
-     * @return JsonResponse
-     */
-    public function datatable(): JsonResponse
-    {
-        return Datatable::make($this->repository->model())
-            ->search('id', 'name', 'sku','meta')
-            ->resource(OrderResource::class)
-            ->json();
-    }
+//    /**
+//     * @return JsonResponse
+//     */
+//    public function datatable(): JsonResponse
+//    {
+//        return Datatable::make($this->repository->model())
+//            ->search('id', 'customer->name', 'customer->phone')
+//            ->resource(OrderResource::class)
+//            ->json();
+//    }
 
     /**
      * @param $id
@@ -100,7 +100,7 @@ class OrderController extends ApiAdminController
         $order = $this->repository->findOrFail($id);
         if ($order->status != 'COMPLETED'){
             $data = $this->validate();
-            if ($order->status == 'PENDING'){
+            if ($order->status == 'PENDING' &&  request()->get('status') != 'PENDING'){
                 foreach ($data['products'] as $product){
                     $prod = Product::find($product['id']);
                     if ($prod->stock < $product['quantity']){
@@ -153,7 +153,7 @@ class OrderController extends ApiAdminController
     public function datatableSearchFields(): array
     {
         return [
-            'id', 'customer->name', 'customer->email', 'customer->phone'
+            'id', 'customer->name', 'customer->email', 'customer->phone','tax_number','status','shipping->status','total'
         ];
     }
 

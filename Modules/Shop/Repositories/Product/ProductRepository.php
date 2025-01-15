@@ -118,6 +118,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
         $query = Product::query();
+        $searchWord = str_replace("'", "\'", $searchWord);
 
         // Handle search by name and meta
         if ($searchWord) {
