@@ -52,10 +52,10 @@ class Datatable
                     if(str_contains($value['col'], '|')){
                         $column = explode('|',$value['col']) ;
                         $where[] = [$column[0], $value['op'] ?? '=', $value['val']];
-                        $orWhere[] = [$column[1], $value['op']?? '=', $value['val']];
+//                        $orWhere[] = [$column[1], $value['op']?? '=', $value['val']];
                     }else{
                         $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
-                        $orWhere[] = [$value['col'], $value['op'] ?? '=', $value['val']];
+//                        $orWhere[] = [$value['col'], $value['op'] ?? '=', $value['val']];
                     }
 
             }elseif ($value === "need"){
@@ -65,6 +65,10 @@ class Datatable
             }elseif ($value === "stock"){
                 $where = [];
                 $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+            }elseif ($value === "nwaqes"){
+                $where = [];
+                $where[0]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+                $where[1] = ['is_retired',0];
             }elseif ($value === "sales"){
                 $where = [];
             }

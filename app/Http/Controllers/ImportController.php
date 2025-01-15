@@ -26,6 +26,7 @@ use Modules\Common\Entities\GraduationProject;
 use Modules\Common\Entities\Outlay;
 use Modules\Shop\Entities\Category;
 use Modules\Shop\Entities\Kit;
+use Modules\Shop\Entities\Location;
 use Modules\Shop\Entities\Order;
 use Modules\Shop\Entities\OrderProduct;
 use Modules\Shop\Entities\Product;
@@ -76,6 +77,62 @@ class ImportController extends Controller
 
             // Save the product with the new slug
             $product->save();
+        }
+    }
+
+
+    public function location()
+    {
+        $products = Product::select('location')->groupBy('location')->get();
+        foreach ($products as $product){
+            if (is_null($product->location)) {
+                // If location is null, escape or handle it as needed
+                $location = ''; // or any other default value you want to assign
+            } else {
+                // If location is not null, check for '/'
+                if (Str::contains($product->location, '/')) {
+                    // Split the string into two parts
+                    list($location1, $location2) = explode('/', $product->location, 2);
+                    $oldLocation = Location::where('name',$location1)->first();
+                    $oldLocation2=Location::where('name',$location2)->first();
+                    if ($oldLocation == null && $oldLocation2 == null ){
+                        $location = new Location();
+                        $location->name = $location1;
+                        $location->save();
+                        $location3 = new Location();
+                        $location3->name = $location2;
+                        $location3->save();
+                    }elseif ($oldLocation == null){
+                        $location = new Location();
+                        $location->name = $location1;
+                        $location->save();
+                    }elseif ($oldLocation2 == null){
+                        $location3 = new Location();
+                        $location3->name = $location2;
+                        $location3->save();
+                    }
+
+                } else {
+                    $oldLocation = Location::where('name',$product->location)->first();
+                    // If there's no '/', assign the whole string to $location
+                    if ($oldLocation == null){
+                        $location = new Location();
+                        $location->name = $product->location;
+                        $location->save();
+                    }
+
+                }
+            }
+        }
+        return $products;
+    }
+
+    public function locationNames()
+    {
+        $locations = Location::all();
+        foreach ($locations as $location){
+            $location->name = trim($location->name);
+            $location->save();
         }
     }
 

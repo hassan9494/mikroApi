@@ -325,7 +325,7 @@ class ReportController extends Controller
     public function productSales(): JsonResponse
     {
         return Datatable::make($this->productRepositoryInterface->model())
-            ->search(['id', 'name->en', 'sku'])
+            ->search('id', 'name->en', 'sku')
             ->resource(ProductSalesReportResource::class)
             ->json();
     }
@@ -373,7 +373,7 @@ class ReportController extends Controller
         }
 
         return Datatable::make($this->productRepositoryInterface->model())
-            ->search(['id', 'name', 'sku', 'stock', 'min_qty'])
+            ->search('id', 'name', 'sku', 'stock', 'min_qty')
             ->resource(NeedStocksReportResource::class)
             ->json();
     }
@@ -392,7 +392,7 @@ class ReportController extends Controller
         $data = $this->productRepositoryInterface->model();
         return Datatable::make($data)
             ->whereHas($whereHas)
-            ->search(['id', 'name', 'sku', 'stock', 'min_qty'])
+            ->search('id', 'name', 'sku', 'stock', 'min_qty')
             ->resource(ProductSalesReportResource::class)
             ->json();
     }
