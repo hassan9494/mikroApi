@@ -110,7 +110,7 @@ class InvoiceController extends ApiAdminController
     public function datatableSearchFields(): array
     {
         return [
-            'id', 'customer->name', 'customer->email', 'customer->phone'
+            'id', 'name', 'number'
         ];
     }
 
@@ -122,10 +122,14 @@ class InvoiceController extends ApiAdminController
         return request()->validate([
             'note' => 'nullable|max:500',
             'number' => 'nullable|max:500',
+            'name' => 'nullable|max:500',
 
             'date' => 'nullable',
             'products.*.id' => 'exists:products,id',
-            'products.*.price' => 'required|numeric',
+            'products.*.purchases_price' => 'required|numeric',
+            'products.*.normal' => 'required|numeric',
+            'products.*.sale_price' => 'required|numeric',
+            'products.*.source_sku' => 'required',
             'products.*.quantity' => 'required|numeric',
 
             'attachments' => 'nullable|array',

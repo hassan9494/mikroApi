@@ -237,7 +237,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     }
 
 
-    public function autocomplete($searchWord, $limit = 20)
+    public function autocomplete2($searchWord, $limit = 20)
     {
 
         $inpStrArray = explode(" ", $searchWord); #converting string to array
@@ -252,6 +252,56 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             ->orwhere('short_description', 'like', "%$revStr%")
             ->limit($limit)
             ->get();
+    }
+
+    public function autocomplete($searchWord, $limit = 20)
+    {
+        $query = Product::query();
+        $searchWord = str_replace("'", "\'", $searchWord);
+
+        // Handle search by name and meta
+        if ($searchWord) {
+            $searchTerms = explode(' ', strtolower($searchWord));
+            $termCount = count($searchTerms);
+
+            // Build the query for name and meta search
+            $query->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->orWhere('name', 'LIKE', '%' . $term . '%')
+                    ->orWhere('sku', 'LIKE', '%' . $term . '%')
+                    ->orWhere('source_sku', 'LIKE', '%' . $term . '%')
+                        ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title')) LIKE ?", ['%' . $term . '%'])
+                        ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords')) LIKE ?", ['%' . $term . '%'])
+                        ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description')) LIKE ?", ['%' . $term . '%']);
+                }
+            });
+
+            // Create ranking logic with a new alias
+            $rankingQuery = "CASE
+                            WHEN LOWER(name) = '" . strtolower($searchWord) . "' THEN " . ($termCount + 1) . "
+                            ELSE (";
+
+            foreach ($searchTerms as $term) {
+                $rankingQuery .= "CASE
+                                WHEN LOWER(name) LIKE '%" . $term . "%' THEN 1
+                                WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title')) LIKE '%" . $term . "%' THEN 1
+                                WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords')) LIKE '%" . $term . "%' THEN 1
+                                WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description')) LIKE '%" . $term . "%' THEN 1
+                                ELSE 0 END + ";
+            }
+
+            $rankingQuery = rtrim($rankingQuery, "+ ") . ") END AS search_rank";
+
+            // Specify the columns you want to select
+            $query->addSelect(['id', 'name', 'sku', 'slug','location', 'options', 'source_sku','price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]);
+
+            // Order by the new rank and other criteria
+            $query->orderByDesc('search_rank')
+                ->orderByRaw("CASE WHEN LOWER(name) LIKE '" . strtolower($searchWord) . "%' THEN 0 ELSE 1 END")
+                ->orderBy('name');
+        }
+
+        return $query->paginate($limit);
     }
 
 }
