@@ -17,6 +17,7 @@ class InvoiceResource extends JsonResource
         return [
             'id' => $this->id,
             'number' => $this->number,
+            'name' => $this->name,
 
             'products' => $this->getItems(),
 
@@ -41,8 +42,11 @@ class InvoiceResource extends JsonResource
                 'id' => $product->id,
                 'name' => $product->name,
                 'sku' => $product->sku,
+                'source_sku' => $product->pivot->source_sku,
                 'quantity' => $product->pivot->quantity,
-                'price' => $product->pivot->price,
+                'purchases_price' => $product->pivot->purchases_price,
+                'normal' => $product->pivot->normal,
+                'sale_price' => $product->pivot->sale_price,
                 'image' => $product->getFirstMediaUrl()
             ];
         }

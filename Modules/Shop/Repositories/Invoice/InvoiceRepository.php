@@ -98,7 +98,10 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
 
 
             // If custom price enabled, then use custom price otherwise use normal_price
-            $price = $item['price'];
+            $price = $item['purchases_price'];
+            $normal_price = $item['normal'];
+            $sale_price = $item['sale_price'];
+            $source_sku = $item['source_sku'];
 
             if ($invoice) {
                 $old = $invoice->products->where('id', $product->id)->first();
@@ -106,7 +109,10 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
 
             $products[$id] = [
                 'quantity' => $quantity,
-                'price' => $price,
+                'purchases_price' => $price,
+                'source_sku' => $source_sku,
+                'normal' => $normal_price,
+                'sale_price' => $sale_price,
             ];
         }
 
@@ -135,8 +141,11 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                 foreach ($products as $product) {
                     $product->stock = $product->stock + $product->pivot->quantity;
                     $price = $product->price;
-                    $price->real_price = $product->pivot->price;
+                    $price->real_price = $product->pivot->purchases_price;
+                    $price->sale_price = $product->pivot->sale_price;
+                    $price->normal_price = $product->pivot->normal;
                     $product->price = $price;
+                    $product->source_sku = $product->pivot->source_sku;
                     $product->save();
                 }
             }

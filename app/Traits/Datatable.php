@@ -67,8 +67,10 @@ class Datatable
                 $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
             }elseif ($value === "nwaqes"){
                 $where = [];
-                $where[0]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
-                $where[1] = ['is_retired',0];
+                $where[0] = ['stock','<',DB::raw('min_qty')];
+                $where[1] = ['min_qty','>',0];
+                $where[2]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+                $where[3] = ['is_retired',0];
             }elseif ($value === "sales"){
                 $where = [];
             }

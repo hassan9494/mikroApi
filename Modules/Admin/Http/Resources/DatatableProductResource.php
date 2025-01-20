@@ -23,6 +23,7 @@ class DatatableProductResource extends JsonResource
             'stock' => $this->stock,
             'min_qty' => $this->min_qty,
             'slug' => $this->sku,
+            'link' => $this->slug,
             'price' => $this->price,
             'image' => $this->getFirstMediaUrl(),
             'sales' => $this->completedOrders,
