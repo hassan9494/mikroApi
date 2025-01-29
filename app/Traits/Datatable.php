@@ -135,24 +135,53 @@ class Datatable
         $search = request('search', '');
         if ($search) {
             $searchTerms = explode(' ', strtolower($search));
+            $termCount = count($searchTerms);
 
+            // Build the query for name and meta search
             $this->query->where(function ($query) use ($columns, $searchTerms) {
                 foreach ($columns as $column) {
                     foreach ($searchTerms as $term) {
                         if ($column === 'meta') {
+                            // Search within JSON fields in meta
                             $query->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title'))) LIKE ?", ['%' . $term . '%'])
                                 ->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords'))) LIKE ?", ['%' . $term . '%'])
                                 ->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description'))) LIKE ?", ['%' . $term . '%']);
                         } else {
+                            // Search within regular columns
                             $query->orWhere($column, 'LIKE', '%' . $term . '%');
                         }
                     }
                 }
             });
+
+            // Create ranking logic similar to autocomplete
+            $rankingQuery = "CASE
+                        WHEN LOWER(name) = '" . strtolower($search) . "' THEN " . ($termCount + 1) . "
+                        ELSE (";
+
+            foreach ($searchTerms as $term) {
+                $rankingQuery .= "CASE
+                            WHEN LOWER(name) LIKE '%" . $term . "%' THEN 1
+                            WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title')) LIKE '%" . $term . "%' THEN 1
+                            WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords')) LIKE '%" . $term . "%' THEN 1
+                            WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description')) LIKE '%" . $term . "%' THEN 1
+                            ELSE 0 END + ";
+            }
+
+            $rankingQuery = rtrim($rankingQuery, "+ ") . ") END AS search_rank";
+
+            // Add ranking to the query
+            $this->query->addSelect(['*', \DB::raw($rankingQuery)]);
+
+            // Order by rank and other criteria
+            $this->query->orderByDesc('search_rank')
+                ->orderByRaw("CASE WHEN LOWER(name) LIKE '" . strtolower($search) . "%' THEN 0 ELSE 1 END")
+                ->orderBy('name');
         }
 
         return $this;
     }
+
 
 
 
