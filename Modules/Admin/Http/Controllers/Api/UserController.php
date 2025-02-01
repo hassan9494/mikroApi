@@ -68,7 +68,7 @@ class UserController extends ApiAdminController
      */
     public function datatableSearchFields(): array
     {
-        return ['id', 'name', 'email', 'phone','role'];
+        return ['id', 'name', 'email', 'phone'];
     }
 
 
