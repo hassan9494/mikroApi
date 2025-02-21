@@ -154,6 +154,26 @@ class UserController extends ApiAdminController
     }
 
     /**
+     * @return JsonResponse
+     */
+    public function autocompletecashier(): JsonResponse
+    {
+        $q = request()->get('q');
+        $models = $this->repository->autocompletecashier($q);
+        $response = [];
+        foreach ($models as $model)
+        {
+            $response[] = [
+                'id' => $model->id,
+                'name' => $model->name,
+                'email' => $model->email,
+                'phone' => $model->phone,
+            ];
+        }
+        return $this->success($response);
+    }
+
+    /**
      * @param $id
      * @return JsonResponse
      */

@@ -17,6 +17,7 @@ use Modules\Admin\Http\Resources\ProductStocksReportResource;
 use Modules\Common\Repositories\CustomsStatement\CustomsStatementRepositoryInterface;
 use Modules\Common\Repositories\Dept\DeptRepositoryInterface;
 use Modules\Common\Repositories\Outlay\OutlayRepositoryInterface;
+use Modules\Shop\Entities\Product;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Repositories\Product\ProductRepository;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
@@ -124,6 +125,21 @@ class ReportController extends Controller
 //        dd($orWhere);
         $data = $this->orderRepository->get($where, ['products'],$orWhere)->sortBy('tax_number');
         return OrderResource::collection($data);
+    }
+
+
+    public function product()
+    {
+        $where = [
+            [
+                'completed_at', '>=', request('from', now()->startOfMonth())
+            ],
+            [
+                'completed_at', '<=', request('newTo', now()->endOfMonth())
+            ]
+        ];
+        $data = Product::all();
+        return  ProductSalesReportResource::collection($data);
     }
 
 
@@ -324,11 +340,20 @@ class ReportController extends Controller
      */
     public function productSales(): JsonResponse
     {
+        $from = request('from');
+        $to = request('to');
+
+
         return Datatable::make($this->productRepositoryInterface->model())
-            ->search('id', 'name->en', 'sku')
+            ->search('id', 'name', 'sku')
             ->resource(ProductSalesReportResource::class)
+            ->additionalData(['from' => $from != 'undefined' ? $from : null, 'to' => $to != 'undefined' ? $to : null])
             ->json();
     }
+
+
+
+
 
     /**
      * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection

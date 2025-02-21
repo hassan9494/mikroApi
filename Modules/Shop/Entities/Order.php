@@ -47,6 +47,7 @@ class Order extends Model implements HasMedia
      */
     protected $fillable=[
         'user_id',
+        'cashier_id',
         'shipping_provider_id',
         'coupon_id',
         'customer',
@@ -188,6 +189,14 @@ class Order extends Model implements HasMedia
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * @return BelongsTo
+     */
+    public function cashier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cashier_id');
     }
 
     /**

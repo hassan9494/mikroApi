@@ -174,6 +174,26 @@ class Product extends Model implements HasMedia
         return OrderProduct::sales($this->id, $from, $to);
     }
 
+    /**
+     * @param $from
+     * @param $to
+     * @return mixed
+     */
+    public function untaxed_sales($from, $to): mixed
+    {
+        return OrderProduct::untaxed_sales($this->id, $from, $to);
+    }
+
+    /**
+     * @param $from
+     * @param $to
+     * @return mixed
+     */
+    public function taxed_sales($from, $to): mixed
+    {
+        return OrderProduct::taxed_sales($this->id, $from, $to);
+    }
+
     public function brand()
     {
         return $this->belongsTo(Brand::class,'brand_id');
