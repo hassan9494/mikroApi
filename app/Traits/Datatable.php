@@ -20,6 +20,8 @@ class Datatable
 
     private $resource;
 
+    private $additionalData = [];
+
     private array $request = [];
 
     public static function make($model): Datatable
@@ -244,6 +246,16 @@ class Datatable
     }
 
     /**
+     * @param $additionalData
+     * @return $this
+     */
+    public function additionalData(array $data): Datatable
+    {
+        $this->additionalData = $data;
+        return $this;
+    }
+
+    /**
      * @return array[]
      */
     #[ArrayShape(['items' => "mixed", 'total' => "mixed"])]
@@ -253,17 +265,24 @@ class Datatable
 
         $this->query
             ->limit($this->request['limit'])
-            ->offset($this->request['limit'] * $this->request['page']);
+            ->offset($this->request['limit'] * ($this->request['page'] - 1)); // Adjusted offset calculation
 
         $this->order();
 
         $items = $this->query->get();
 
+        // Pass additional data to the resource
+        if ($this->resource) {
+            $items = $this->resource::collection($items)->additional($this->additionalData);
+        }
+
         return [
-            'items' => $this->resource ? $this->resource::collection($items) : $items,
+            'items' => $items,
             'total' => $total
         ];
     }
+
+
 
 
     /**

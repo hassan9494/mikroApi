@@ -32,4 +32,11 @@ interface UserRepositoryInterface extends BaseRepository
      */
     public function autocomplete($q, $limit = 20);
 
+    /**
+     * @param $q
+     * @param int $limit
+     * @return mixed
+     */
+    public function autocompletecashier($q, $limit = 20);
+
 }

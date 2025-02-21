@@ -93,6 +93,34 @@ class UserRepository extends EloquentRepository implements UserRepositoryInterfa
         return $query->get();
     }
 
+    /**
+     * @inheritdoc
+     */
+    public function autocompletecashier($q, $limit = 20)
+    {
+        $query = $this->model
+            ->where(function ($query) use ($q) {
+                $query->where('name', 'LIKE', '%'.$q.'%')
+                    ->orWhere('email', 'LIKE', '%'.$q.'%')
+                    ->orWhere('phone', 'LIKE', '%'.$q.'%');
+            })
+            ->whereHas('roles', function ($query) {
+                $query->whereIn('name', [
+                    'super',
+                    'admin',
+                    'Admin cash',
+                    'Distributer',
+                    'Cashier',
+                    'Product Manager',
+                    'Manager'
+                ]);
+            })
+            ->limit($limit);
+
+        return $query->get();
+    }
+
+
     public function datatable($searchColumns = [], $with = [], $whereDosntHas = [],$whereHasnt = [])
     {
         $roles = ['super'];

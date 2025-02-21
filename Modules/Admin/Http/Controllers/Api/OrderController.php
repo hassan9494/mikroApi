@@ -164,6 +164,7 @@ class OrderController extends ApiAdminController
     {
         return request()->validate([
             'user_id' => 'nullable|exists:users,id',
+            'cashier_id' => 'nullable|exists:users,id',
 
             'customer.name' => 'required|max:255',
             'customer.phone' => 'required|max:255',

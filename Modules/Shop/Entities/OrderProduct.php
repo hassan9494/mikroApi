@@ -31,8 +31,42 @@ class OrderProduct extends Pivot
     {
         $record = OrderProduct::where('product_id', $product)
             ->whereHas('completedOrder', function ($q) use ($from, $to) {
-                if ($from) $q->whereDate('inspection_date', '>=', $from);
-                if ($to) $q->whereDate('inspection_date', '<=', $to);
+                if ($from) $q->whereDate('completed_at', '>=', $from);
+                if ($to) $q->whereDate('completed_at', '<=', $to);
+            })
+            ->selectRaw("SUM(quantity) as sold")
+            ->groupBy('product_id')
+            ->get()
+            ->first();
+        return $record?->sold ?? 0;
+    }
+
+
+    public static function taxed_sales($product, $from, $to)
+    {
+        $record = OrderProduct::where('product_id', $product)
+            ->whereHas('completedOrder', function ($q) use ($from, $to) {
+                if ($from) $q->whereDate('completed_at', '>=', $from);
+                if ($to) $q->whereDate('completed_at', '<=', $to);
+            })->whereHas('order', function ($q) {
+                $q->where('options->taxed',false);
+            })
+            ->selectRaw("SUM(quantity) as sold")
+            ->groupBy('product_id')
+            ->get()
+            ->first();
+        return $record?->sold ?? 0;
+    }
+
+
+    public static function untaxed_sales($product, $from, $to)
+    {
+        $record = OrderProduct::where('product_id', $product)
+            ->whereHas('completedOrder', function ($q) use ($from, $to) {
+                if ($from) $q->whereDate('completed_at', '>=', $from);
+                if ($to) $q->whereDate('completed_at', '<=', $to);
+            })->whereHas('order', function ($q) {
+                 $q->where('options->taxed',true);
             })
             ->selectRaw("SUM(quantity) as sold")
             ->groupBy('product_id')
