@@ -367,13 +367,29 @@ class ReportController extends Controller
                 ],
                 [
                     'stock', '<', DB::raw('min_qty')
+                ],
+                [
+                    DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
                 ]
             ];
         }elseif (request('needConditionReport') != null && request('needConditionReport') == 'stock'){
             $where = [];
             $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
         } else {
-            $where = [];
+            $where = [
+                [
+                    'min_qty', '>', 0
+                ],
+                [
+                    'is_retired', 0
+                ],
+                [
+                    'stock', '<', DB::raw('min_qty')
+                ],
+                [
+                    DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
+                ]
+            ];
         }
 
         $data = $this->productRepositoryInterface->get($where)->sortBy('date');
