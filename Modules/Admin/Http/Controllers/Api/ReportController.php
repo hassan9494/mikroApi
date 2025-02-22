@@ -376,6 +376,7 @@ class ReportController extends Controller
             $where = [];
             $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
         } else {
+            ////test
             $where = [
                 [
                     'min_qty', '>', 0
