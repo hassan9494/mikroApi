@@ -83,7 +83,8 @@ class OrderController extends Controller
         $details = [
             'subject' => 'Your Microelectron Order has been received',
         ];
-      //  Mail::to($user->email)->send(new SendOrderDetailsEmail($details,$order));
+//        Mail::to($user->email)->send(new SendOrderDetailsEmail($details,$order));
+
         return new OrderResource($order);
     }
 
@@ -110,7 +111,9 @@ class OrderController extends Controller
         $details = [
             'subject' => 'Your Microelectron Order has been received',
         ];
-        //Mail::to($request->customer['email'])->send(new SendOrderDetailsEmail($details,$order));
+
+//        Mail::to($request->customer['email'])->send(new SendOrderDetailsEmail($details,$order));
+
         return new OrderResource($order);
     }
 

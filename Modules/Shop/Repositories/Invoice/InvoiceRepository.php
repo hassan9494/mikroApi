@@ -146,6 +146,7 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                     $price->normal_price = $product->pivot->normal;
                     $product->price = $price;
                     $product->source_sku = $product->pivot->source_sku;
+                    $product->source_id = $invoice->source_id;
                     $product->save();
                 }
             }

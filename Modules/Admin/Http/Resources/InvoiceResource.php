@@ -28,7 +28,7 @@ class InvoiceResource extends JsonResource
 
             'status' => $this->status,
             'note' => $this->note,
-
+            'source_id' => $this->source_id != null ? $this->source_id : null,
             'attachments' => MediaResource::collection($this->getMedia()),
         ];
     }
