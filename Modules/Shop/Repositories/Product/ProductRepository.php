@@ -118,7 +118,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
         $query = Product::query();
-        $searchWord = str_replace("'", "\'", $searchWord);
+        // Remove this line.  It is dangerous
+        // $searchWord = str_replace("'", "\'", $searchWord);
+
 
         // Handle search by name and meta
         if ($searchWord) {
@@ -128,10 +130,11 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             // Build the query for name and meta search
             $query->where(function ($q) use ($searchTerms) {
                 foreach ($searchTerms as $term) {
-                    $q->orWhere('name', 'LIKE', '%' . $term . '%')
-                        ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title')) LIKE ?", ['%' . $term . '%'])
-                        ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords')) LIKE ?", ['%' . $term . '%'])
-                        ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description')) LIKE ?", ['%' . $term . '%']);
+                    $term = '%' . $term . '%'; // Add wildcards here for LIKE
+                    $q->orWhere('name', 'LIKE', $term)
+                        ->orWhere('meta_title', 'LIKE', $term) // Use generated column
+                        ->orWhere('meta_keywords', 'LIKE', $term) // Use generated column
+                        ->orWhere('meta_description', 'LIKE', $term); // Use generated column
                 }
             });
 
@@ -143,9 +146,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             foreach ($searchTerms as $term) {
                 $rankingQuery .= "CASE
                                 WHEN LOWER(name) LIKE '%" . $term . "%' THEN 1
-                                WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title')) LIKE '%" . $term . "%' THEN 1
-                                WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords')) LIKE '%" . $term . "%' THEN 1
-                                WHEN JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description')) LIKE '%" . $term . "%' THEN 1
+                                WHEN meta_title LIKE '%" . $term . "%' THEN 1
+                                WHEN meta_keywords LIKE '%" . $term . "%' THEN 1
+                                WHEN meta_description LIKE '%" . $term . "%' THEN 1
                                 ELSE 0 END + ";
             }
 
@@ -216,6 +219,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         return $query->paginate($limit);
     }
+
 
 
     private function getCombinations($array, $size)
