@@ -71,7 +71,7 @@
             </tr>
             <tr>
                 <th>ٍShipping</th>
-                <td>Free shipping in Amman within 48 hours above 15 JD Orders</td>
+                <td>Free shipping in Amman within 48 hours above 20 JD Orders</td>
             </tr>
             <tr>
                 <th>Payment Methode</th>
