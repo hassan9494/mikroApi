@@ -29,8 +29,8 @@ class Datatable
         $datatable = new self();
 
         $datatable->model = $model;
-
-        $datatable->request['page'] = request('page', 1);
+        $page = request('page');
+        $datatable->request['page'] = isset($page) ? request('page') +1 : 1;
         $datatable->request['limit'] = request('limit', 10);
         $datatable->request['order'] = json_decode(request('order', ''), true) ?? false;
         $datatable->request['conditions'] = json_decode(request('conditions', ''), true) ?? [];
@@ -46,8 +46,10 @@ class Datatable
 //        dd($this->request);
         $where = [];
         $orWhere = [];
-        foreach ($this->request['conditions'] as $key => $value) {
+        $hasConditions = false;
 
+        foreach ($this->request['conditions'] as $key => $value) {
+            $hasConditions = true;
             if (is_array($value)) {
 
                 if (isset($value['col']))
@@ -84,8 +86,14 @@ class Datatable
             $where[0] = ['stock','<',DB::raw('min_qty')];
             $where[1] = ['min_qty','>',0];
         }
-//        dd($where);
-        $this->query = $this->model->where($where)->orWhere($orWhere);
+
+        // Apply where clauses only if there are any conditions
+        if (!empty($where)) {
+            $this->query = $this->model->where($where)->orWhere($orWhere);
+        } else {
+            // If no conditions, start with a base query
+            $this->query = $this->model->query();
+        }
     }
 
     private function order()
