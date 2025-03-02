@@ -30,7 +30,8 @@ class Datatable
 
         $datatable->model = $model;
 
-        $datatable->request['page'] = request('page', 1);
+        $page = request('page');
+        $datatable->request['page'] = isset($page) ? request('page') +1 : 1;
         $datatable->request['limit'] = request('limit', 10);
         $datatable->request['order'] = json_decode(request('order', ''), true) ?? false;
         $datatable->request['conditions'] = json_decode(request('conditions', ''), true) ?? [];
