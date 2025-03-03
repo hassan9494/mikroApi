@@ -97,33 +97,18 @@ class ReportController extends Controller
                 'options->taxed', true
             ]
         ];
-        $orWhere = [
-            [
-                'updated_at', '>=', request('from', now()->startOfMonth())
-            ],
-            [
-                'updated_at', '<=', request('newTo', now()->endOfMonth())
-            ],
-            [
-                'options->taxed', true
-            ]
-        ];
         if ($exempt = request('exempt')) {
             $where[] = ['options->tax_exempt', $exempt];
-            $orWhere[] = ['options->tax_exempt', $exempt];
         }
         if ($zero = request('zero')) {
             $where[] = ['options->tax_exempt', true];
             $where[] = ['options->tax_zero', $zero];
-            $orWhere[] = ['options->tax_exempt', true];
-            $orWhere[] = ['options->tax_zero', $zero];
         }
         if ($status = request('status')) {
             $where[] = ['status', $status];
-            $orWhere[] = ['status', $status];
         }
 //        dd($orWhere);
-        $data = $this->orderRepository->get($where, ['products'],$orWhere)->sortBy('tax_number');
+        $data = $this->orderRepository->get($where, ['products'])->sortBy('tax_number');
         return OrderResource::collection($data);
     }
 

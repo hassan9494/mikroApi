@@ -34,6 +34,8 @@ trait Stock {
         }
         if ($this->options->kit)
         {
+            $this->stock += $reduce ? -$quantity: +$quantity;
+            $this->save();
             foreach ($this->kit()->get() as $item){
                 $totalQty = $item->pivot->quantity * $quantity;
                 $item->updateStock($totalQty, $reduce);
