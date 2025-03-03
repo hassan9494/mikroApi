@@ -118,10 +118,40 @@ class OrderController extends ApiAdminController
                 $id, request()->get('status')
             );
 
-        }else{
+        }
+        return $this->success();
+    }
+
+    public function updateWithStatus($id): JsonResponse
+    {
+        $order = $this->repository->findOrFail($id);
+        if ($order->status != 'COMPLETED'){
+            $data = $this->validate();
+            if ($order->status == 'PENDING' &&  request()->get('status') != 'PENDING'){
+                foreach ($data['products'] as $product){
+                    $prod = Product::find($product['id']);
+                    if ($prod->stock < $product['quantity']){
+                        throw new BadRequestException($prod->name . ' has insufficient quantity');
+                    }
+                }
+            }
+//            return \response()->json($data);
+            if ($data['shipping']['status'] == null) {
+                $data['shipping']['status'] = "WAITING";
+            }
+            $order = $this->repository->saveOrder($id, $data);
+            $order->syncMedia($data['attachments'] ?? []);
             $this->repository->status(
                 $id, request()->get('status')
             );
+
+        }else{
+            if (request()->get('status') != null){
+                $this->repository->status(
+                    $id, request()->get('status')
+                );
+            }
+
         }
         return $this->success();
     }
