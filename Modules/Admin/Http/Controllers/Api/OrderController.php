@@ -114,9 +114,7 @@ class OrderController extends ApiAdminController
             }
             $order = $this->repository->saveOrder($id, $data);
             $order->syncMedia($data['attachments'] ?? []);
-            $this->repository->status(
-                $id, request()->get('status')
-            );
+
 
         }
         return $this->success();
