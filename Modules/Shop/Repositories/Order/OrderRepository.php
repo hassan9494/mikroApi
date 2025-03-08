@@ -5,6 +5,7 @@ namespace Modules\Shop\Repositories\Order;
 use App\Models\User;
 use App\Repositories\Base\EloquentRepository;
 use Modules\Shop\Entities\Address;
+use Modules\Shop\Entities\Coupon;
 use Modules\Shop\Entities\Order;
 use Modules\Common\Repositories\City\CityRepositoryInterface;
 use Modules\Shop\Repositories\Coupon\CouponRepositoryInterface;
@@ -142,6 +143,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         }elseif ($model->tax_number !== null){
             $data['options']['taxed'] = true;
         }
+        
 //        $data = \Arr::only($data, ['customer', 'shipping', 'options', 'discount', 'notes', 'shipping_location_id']);
         $model->update($data);
         return $model;
