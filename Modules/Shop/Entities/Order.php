@@ -241,6 +241,20 @@ class Order extends Model implements HasMedia
 
         // Set completed_at when order completed and completed date is null.
         $this->completed_at = $this->isCompleted && !$this->completed_at ? Carbon::now() : $this->completed_at;
+
+        if ($this->coupon_id){
+            $coupon = Coupon::find($this->coupon_id);
+            if ($coupon && $coupon->valid && (now() >= $coupon->start_at && now() <= $coupon->end_at)) {
+                if ($coupon->is_percentage) {
+                    $this->discount = $this->total * ($coupon->amount / 100);
+                } else {
+                    $this->discount = $coupon->amount;
+                }
+            }
+
+        }else{
+            $this->discount = 0;
+        }
     }
 
     /**
