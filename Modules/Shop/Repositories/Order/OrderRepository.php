@@ -143,7 +143,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         }elseif ($model->tax_number !== null){
             $data['options']['taxed'] = true;
         }
-        
+
 //        $data = \Arr::only($data, ['customer', 'shipping', 'options', 'discount', 'notes', 'shipping_location_id']);
         $model->update($data);
         return $model;

@@ -80,6 +80,17 @@ class ProductController extends Controller
     /**
      * @return JsonResponse
      */
+    public function deletedDatatable()
+    {
+        $products = Product::onlyTrashed()->get();
+        $total = Product::onlyTrashed()->count();
+        $items = ProductResource::collection($products);
+        return ['data'=>['items'=>$items,'total'=>$total]];
+    }
+
+    /**
+     * @return JsonResponse
+     */
     public function store(): JsonResponse
     {
 
@@ -152,6 +163,18 @@ class ProductController extends Controller
     public function destroy($id): JsonResponse
     {
         $this->repository->delete($id);
+        return $this->success();
+    }
+
+    /**
+     * @param $id
+     * @return JsonResponse
+     * @throws \Exception
+     */
+    public function restore($id): JsonResponse
+    {
+
+        $this->repository->restore($id);
         return $this->success();
     }
 

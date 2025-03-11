@@ -100,15 +100,16 @@ class OrderController extends ApiAdminController
         $order = $this->repository->findOrFail($id);
         if ($order->status != 'COMPLETED'){
 //            if (!$order->options->price_offer){
+
                 $data = $this->validate();
-                if ($order->status != 'PENDING'){
-                    foreach ($data['products'] as $product){
-                        $prod = Product::find($product['id']);
-                        if ($prod->stock < $product['quantity']){
-                            throw new BadRequestException($prod->name . ' has insufficient quantity');
-                        }
-                    }
-                }
+//                if ($order->status != 'PENDING'){
+//                    foreach ($data['products'] as $product){
+//                        $prod = Product::find($product['id']);
+//                        if ($prod->stock < $product['quantity']){
+//                            throw new BadRequestException($prod->name . ' has insufficient quantity');
+//                        }
+//                    }
+//                }
 //            return \response()->json($data);
                 if ($data['shipping']['status'] == null) {
                     $data['shipping']['status'] = "WAITING";
@@ -126,6 +127,7 @@ class OrderController extends ApiAdminController
         $order = $this->repository->findOrFail($id);
         if ($order->status != 'COMPLETED'){
             $data = $this->validate();
+
             if ($order->status == 'PENDING' &&  request()->get('status') != 'PENDING'){
                 foreach ($data['products'] as $product){
                     $prod = Product::find($product['id']);

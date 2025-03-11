@@ -158,9 +158,11 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $query->addSelect(['id', 'name', 'sku', 'slug', 'options', 'price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]);
 
             // Order by the new rank and other criteria
-            $query->orderByDesc('search_rank')
-                ->orderByRaw("CASE WHEN LOWER(name) LIKE '" . strtolower($searchWord) . "%' THEN 0 ELSE 1 END")
-                ->orderBy('name');
+            if (!$filter) {
+                $query->orderByDesc('search_rank')
+                    ->orderByRaw("CASE WHEN LOWER(name) LIKE '" . strtolower($searchWord) . "%' THEN 0 ELSE 1 END")
+                    ->orderBy('name');
+            }
         } elseif ($category) {
             // Search by category if no search word is provided
             $query->whereHas('categories', function (Builder $q) use ($category) {
@@ -307,5 +309,27 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         return $query->paginate($limit);
     }
+
+    /**
+     * @inheritdoc
+     */
+    public function delete($id)
+    {
+
+        return $this->findOrFail($id)->delete();
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function restore($id)
+    {
+
+        $product = $this->model->withTrashed()->findOrFail($id);
+
+        // Restore the soft-deleted record
+        return $product->restore();
+    }
+
 
 }
