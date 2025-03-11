@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Scout\Searchable;
 use Modules\Shop\Support\Enums\OrderStatus;
 use Modules\Shop\Traits\Product\Finance;
@@ -29,6 +30,7 @@ class Product extends Model implements HasMedia
     use Stock;
     use Finance;
     use Media;
+    use SoftDeletes;
 
     /**
      * @var array $fillable
