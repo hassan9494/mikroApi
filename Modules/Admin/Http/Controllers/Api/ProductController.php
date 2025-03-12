@@ -77,16 +77,16 @@ class ProductController extends Controller
             ->json();
     }
 
-    /**
-     * @return JsonResponse
-     */
-    public function deletedDatatable()
-    {
-        $products = Product::onlyTrashed()->get();
-        $total = Product::onlyTrashed()->count();
-        $items = ProductResource::collection($products);
-        return ['data'=>['items'=>$items,'total'=>$total]];
-    }
+//    /**
+//     * @return JsonResponse
+//     */
+//    public function deletedDatatable()
+//    {
+//        $products = Product::onlyTrashed()->get();
+//        $total = Product::onlyTrashed()->count();
+//        $items = ProductResource::collection($products);
+//        return ['data'=>['items'=>$items,'total'=>$total]];
+//    }
 
     /**
      * @return JsonResponse
@@ -166,17 +166,18 @@ class ProductController extends Controller
         return $this->success();
     }
 
-    /**
-     * @param $id
-     * @return JsonResponse
-     * @throws \Exception
-     */
-    public function restore($id): JsonResponse
-    {
-
-        $this->repository->restore($id);
-        return $this->success();
-    }
+//    /**
+//     * @param $id
+//     * @return JsonResponse
+//     * @throws \Exception
+//     */
+//    public function restore($id): JsonResponse
+//    {
+//        return $this->success();
+//
+//        $this->repository->restore($id);
+//        return $this->success();
+//    }
 
     /**
      * @return JsonResponse

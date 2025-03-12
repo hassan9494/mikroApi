@@ -244,9 +244,11 @@ class Order extends Model implements HasMedia
 
         if ($this->coupon_id){
             $coupon = Coupon::find($this->coupon_id);
-            if ($coupon && $coupon->valid && (now() >= $coupon->start_at && now() <= $coupon->end_at)) {
+            $couponUse = $coupon->orders;
+
+            if ($coupon && $coupon->valid && (now() >= $coupon->start_at && now() <= $coupon->end_at) && $coupon->count >= 0) {
                 if ($coupon->is_percentage) {
-                    $this->discount = $this->total * ($coupon->amount / 100);
+                    $this->discount = $this->subtotal * ($coupon->amount / 100);
                 } else {
                     $this->discount = $coupon->amount;
                 }
