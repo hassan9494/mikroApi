@@ -117,15 +117,28 @@ class Datatable
      */
     public function search(...$columns): Datatable
     {
-        $search = request('search', '');
+        $search = strtolower(request('search', ''));
         if ($search) {
             $this->query->where(function($query) use ($columns, $search){
-                foreach ($columns as $column)
-                    $query->orWhere($column, 'LIKE', '%'.$search.'%');
+                foreach ($columns as $column) {
+                    // Handle JSON columns (e.g., customer->name)
+                    if (str_contains($column, '->')) {
+                        [$jsonColumn, $jsonKey] = explode('->', $column);
+                        $query->orWhereRaw(
+                            "LOWER(JSON_UNQUOTE(JSON_EXTRACT(`{$jsonColumn}`, '$.\"{$jsonKey}\"'))) LIKE ?",
+                            ['%' . $search . '%']
+                        );
+                    } else {
+                        // Handle non-JSON columns (e.g., id, total)
+                        $query->orWhereRaw("LOWER(`{$column}`) LIKE ?", ['%' . $search . '%']);
+                    }
+                }
             });
         }
         return $this;
     }
+
+
 
     /**
      * Enhanced custom search function for Datatable
