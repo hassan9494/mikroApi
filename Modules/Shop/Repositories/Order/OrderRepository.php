@@ -143,6 +143,19 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         }elseif ($model->tax_number !== null){
             $data['options']['taxed'] = true;
         }
+//        if ($data['coupon_id']){
+//            $coupon = Coupon::find($this->coupon_id);
+//            $couponUse = $coupon->orders;
+//
+//            if ($coupon && $coupon->valid && (now() >= $coupon->start_at && now() <= $coupon->end_at) && $coupon->count >= 0) {
+//                if ($coupon->is_percentage) {
+//                    $this->discount = $this->subtotal * ($coupon->amount / 100);
+//                } else {
+//                    $this->discount = $coupon->amount;
+//                }
+//            }
+//
+//        }
 
 //        $data = \Arr::only($data, ['customer', 'shipping', 'options', 'discount', 'notes', 'shipping_location_id']);
         $model->update($data);

@@ -255,7 +255,7 @@ class Order extends Model implements HasMedia
             }
 
         }else{
-            $this->discount = 0;
+//            $this->discount = 0;
         }
     }
 
