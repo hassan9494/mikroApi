@@ -233,6 +233,7 @@ class OrderController extends ApiAdminController
             'products.*.id' => 'exists:products,id',
             'products.*.price' => 'required|numeric',
             'products.*.quantity' => 'required|numeric',
+            'products.*.number' => 'required|numeric',
 
             'extra_items' => 'nullable|array',
 

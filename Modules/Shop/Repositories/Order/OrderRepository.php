@@ -259,6 +259,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         foreach ($items as $item) {
             $id = $item['id'];
             $quantity = $item['quantity'];
+            $number = $item['number'];
 
             $product = $this->products->findOrFail($id);
 
@@ -272,6 +273,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             // If custom price enabled, then use custom price otherwise use normal_price
             $price = $item['price'];
             $subtotal += $product->calcPrice($quantity, $price);
+            $product_name = $product->name;
 
             $realPrice = $product->price->real_price;
             if ($order) {
@@ -282,6 +284,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $products[$id] = [
                 'quantity' => $quantity,
                 'price' => $price,
+                'number' => $number,
+                'product_name' => $product_name,
                 'real_price' => $realPrice,
             ];
         }
