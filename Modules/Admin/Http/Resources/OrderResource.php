@@ -73,6 +73,8 @@ class OrderResource extends JsonResource
                 'name' => $product->name,
                 'sku' => $product->sku,
                 'quantity' => $product->pivot->quantity,
+                'number' => $product->pivot->number,
+                'product_name' => $product->pivot->product_name,
                 'price' => $product->pivot->price,
                 'real_price' => $product->pivot->real_price,
                 'normal_price' => $product->calcPrice(),
