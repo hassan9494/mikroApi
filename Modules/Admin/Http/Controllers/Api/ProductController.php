@@ -93,7 +93,7 @@ class ProductController extends Controller
      */
     public function kitDatatable()
     {
-        $products = Product::where('options->kit',true)->get();
+        $products = Product::where('options->kit',true)->paginate(request('limit'));
         $total = Product::where('options->kit',true)->count();
         $items = ProductResource::collection($products);
         return ['data'=>['items'=>$items,'total'=>$total]];
