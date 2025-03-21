@@ -34,7 +34,7 @@ class OrderResource extends JsonResource
         foreach ($this->products as $product)
         {
             $items[] = [
-                'name' => $product->name,
+                'name' => $product->pivot->product_name,
                 'slug' => $product->slug,
                 'price' => $product->pivot->price,
                 'quantity' => $product->pivot->quantity,

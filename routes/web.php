@@ -104,3 +104,19 @@ Route::get('/welcome', function () {
 
     return view('test.order_details', compact('order'));
 });
+Route::get('/putproductnameintheorder', function () {
+    // Get all orders
+    $orders = Order::with('products')->get();
+
+    foreach ($orders as $order) {
+        // Loop through each product in the order
+        foreach ($order->products as $product) {
+            // Update the product_name in the pivot table
+            $order->products()->updateExistingPivot($product->id, [
+                'product_name' => $product->name,
+            ]);
+        }
+    }
+
+    return "Product names updated for all orders.";
+});

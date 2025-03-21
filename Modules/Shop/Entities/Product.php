@@ -30,7 +30,7 @@ class Product extends Model implements HasMedia
     use Stock;
     use Finance;
     use Media;
-//    use SoftDeletes;
+    use SoftDeletes;
 
     /**
      * @var array $fillable

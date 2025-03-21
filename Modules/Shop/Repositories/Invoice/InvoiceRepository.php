@@ -102,6 +102,7 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
             $normal_price = $item['normal'];
             $sale_price = $item['sale_price'];
             $source_sku = $item['source_sku'];
+            $product_name = $product->name;
 
             if ($invoice) {
                 $old = $invoice->products->where('id', $product->id)->first();
@@ -113,6 +114,7 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                 'source_sku' => $source_sku,
                 'normal' => $normal_price,
                 'sale_price' => $sale_price,
+                'product_name' => $product_name,
             ];
         }
 
