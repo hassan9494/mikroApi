@@ -6,6 +6,7 @@ use App\Models\OldCategory;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Modules\Shop\Entities\Category;
+use Modules\Shop\Entities\Invoice;
 use Modules\Shop\Entities\Order;
 use Modules\Shop\Entities\Product;
 
@@ -119,4 +120,20 @@ Route::get('/putproductnameintheorder', function () {
     }
 
     return "Product names updated for all orders.";
+});
+Route::get('/putproductnameintheinvoice', function () {
+    // Get all orders
+    $invoices = Invoice::with('products')->get();
+
+    foreach ($invoices as $invoice) {
+        // Loop through each product in the order
+        foreach ($invoice->products as $product) {
+            // Update the product_name in the pivot table
+            $invoice->products()->updateExistingPivot($product->id, [
+                'product_name' => $product->name,
+            ]);
+        }
+    }
+
+    return "Product names updated for all Invoices.";
 });
