@@ -40,7 +40,7 @@ class InvoiceResource extends JsonResource
         {
             $items[] = [
                 'id' => $product->id,
-                'name' => $product->name,
+                'name' => $product->pivot->product_name,
                 'sku' => $product->sku,
                 'source_sku' => $product->pivot->source_sku,
                 'quantity' => $product->pivot->quantity,

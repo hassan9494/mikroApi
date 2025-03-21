@@ -85,7 +85,7 @@ class ReportController extends Controller
      */
     public function order()
     {
-//        dd('kdjkdj');
+
         $where = [
             [
                 'taxed_at', '>=', request('from', now()->startOfMonth())
@@ -161,25 +161,41 @@ class ReportController extends Controller
     /**
      * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
+    /**
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     */
     public function zemam()
     {
+        // Initialize conditions
+        $where = [];
+        $orWhere = [];
 
-        $where = [
-            [
-                'taxed_at', '>=', request('from', now()->startOfMonth())
-            ],
-            [
-                'taxed_at', '<=', request('to', now()->endOfMonth())
-            ]
-        ];
-        $orWhere = [
-            [
-                'updated_at', '>=', request('from', now()->startOfMonth())
-            ],
-            [
-                'updated_at', '<=', request('to', now()->endOfMonth())
-            ]
-        ];
+        // Handle "from" and "newTo" logic
+        $from = request('from');
+        $newTo = request('newTo');
+
+        if ($from && $newTo) {
+            // Both "from" and "newTo" are set
+            $where[] = ['taxed_at', '>=', $from];
+            $where[] = ['taxed_at', '<=', $newTo];
+            $orWhere[] = ['updated_at', '>=', $from];
+            $orWhere[] = ['updated_at', '<=', $newTo];
+        } elseif ($from) {
+            // Only "from" is set
+            $where[] = ['taxed_at', '>=', $from];
+            $orWhere[] = ['updated_at', '>=', $from];
+        } elseif ($newTo) {
+            // Only "newTo" is set
+            $where[] = ['taxed_at', '<=', $newTo];
+            $orWhere[] = ['updated_at', '<=', $newTo];
+        }
+
+        // Default case: no "from" or "newTo"
+        if (!$from && !$newTo) {
+            // Leave conditions empty to fetch all data
+        }
+
+        // Handle "dept" logic
         if ($dept = request('dept')) {
             $where[] = ['options->dept', $dept];
             $orWhere[] = ['options->dept', $dept];
@@ -187,13 +203,19 @@ class ReportController extends Controller
             $where[] = ['options->dept', true];
             $orWhere[] = ['options->dept', true];
         }
+
+        // Handle "status" logic
         if ($status = request('status')) {
             $where[] = ['status', $status];
             $orWhere[] = ['status', $status];
         }
-        $data = $this->orderRepository->get($where, ['products'],$orWhere)->sortBy('tax_number');
+
+        // Fetch data using orderRepository
+        $data = $this->orderRepository->get($where, ['products'], $orWhere)->sortBy('tax_number');
+
         return OrderResource::collection($data);
     }
+
 
 
     /**

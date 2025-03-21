@@ -310,26 +310,26 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         return $query->paginate($limit);
     }
 
-//    /**
-//     * @inheritdoc
-//     */
-//    public function delete($id)
-//    {
-//
-//        return $this->findOrFail($id)->delete();
-//    }
-//
-//    /**
-//     * @inheritdoc
-//     */
-//    public function restore($id)
-//    {
-//
-//        $product = $this->model->withTrashed()->findOrFail($id);
-//
-//        // Restore the soft-deleted record
-//        return $product->restore();
-//    }
+    /**
+     * @inheritdoc
+     */
+    public function delete($id)
+    {
+
+        return $this->findOrFail($id)->delete();
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function restore($id)
+    {
+
+        $product = $this->model->onlyTrashed()->findOrFail($id);
+
+        // Restore the soft-deleted record
+        return $product->restore();
+    }
 
 
 }

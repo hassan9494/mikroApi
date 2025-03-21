@@ -123,6 +123,7 @@ Route::prefix('admin')
         // Product Routes.
         Route::get('product/datatable', [ProductController::class, 'datatable']);
         Route::get('deletedProduct/datatable', [ProductController::class, 'deletedDatatable']);
+        Route::get('kitProduct/datatable', [ProductController::class, 'kitDatatable']);
         Route::get('restore_product/{id}', [ProductController::class, 'restore']);
         Route::get('product/sales', [OrderController::class, 'sales']);
         Route::get('product/autocomplete', [ProductController::class, 'autocomplete']);
