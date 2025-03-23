@@ -63,6 +63,7 @@ class ProductResource extends JsonResource
                 'source'=>$this->source != null ? $this->source : null,
                 'replacement_item' =>  new ProductResource($replacement_item),
                 'hasVariants' =>  $this->hasVariants,
+                'deleted_at' =>  $this->deleted_at,
                 'colors' => ProductVariantsResource::collection($this->product_variants)
             ];
         }else {
@@ -95,6 +96,7 @@ class ProductResource extends JsonResource
                 'source'=>$this->source != null ? $this->source : null,
                 'replacement_item' =>  new ProductResource($replacement_item),
                 'hasVariants' =>  $this->hasVariants,
+                'deleted_at' =>  $this->deleted_at,
                 'colors' => ProductVariantsResource::collection($this->product_variants)
             ];
         }
