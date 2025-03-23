@@ -57,12 +57,18 @@ class ProductController extends Controller
      */
     public function show($sku): ProductResource
     {
-        $item = $this->repository->get(['sku' => $sku])->first();
+        // Attempt to find the product by SKU, including soft-deleted records
+        $item = $this->repository->model()->withTrashed()->where('sku', $sku)->first();
+
+        // If not found by SKU, attempt to find it by slug, including soft-deleted records
         if ($item == null) {
-            $item =$this->repository->get(['slug' => $sku])->first();
+            $item = $this->repository->model()->withTrashed()->where('slug', $sku)->first();
         }
+
+        // Return the product resource
         return new ProductResource($item);
     }
+
 
 
     /**
@@ -71,9 +77,13 @@ class ProductController extends Controller
      */
     public function related($id): AnonymousResourceCollection
     {
-        $item = $this->repository->findOrFail($id);
+        // Use withTrashed() to include soft-deleted items
+        $item = $this->repository->model()->withTrashed()->findOrFail($id);
+
+        // Return related products as a collection
         return ProductShortResource::collection($item->relatedProducts);
     }
+
 
     /**
      * @param $id
