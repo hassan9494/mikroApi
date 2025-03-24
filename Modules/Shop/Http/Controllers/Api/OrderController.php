@@ -10,10 +10,12 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Modules\Shop\Emails\SendOrderDetailsEmail;
+use Modules\Shop\Entities\Product;
 use Modules\Shop\Http\Resources\OrderResource;
 use Modules\Shop\Repositories\Coupon\CouponRepository;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
+use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 
 class OrderController extends Controller
 {
@@ -79,6 +81,22 @@ class OrderController extends Controller
             abort(400, 'Please the delivery address.');
         }
         $user=Auth::user();
+        foreach ($data['products'] as $product){
+            $prod = Product::find($product['id']);
+            if ($prod->stock < $product['quantity']){
+                throw new BadRequestException($prod->name . ' has insufficient quantity');
+            }
+            if ($prod->options->kit == true){
+                $kits = $prod->kit()->get();
+//                        return response()->json($kits);
+                foreach ($kits as $kit){
+//                            return response()->json($kit->name);
+                    if ($kit->pivot->quantity * $product['quantity'] > $kit->stock){
+                        throw new BadRequestException($kit->name . ' Which is kit has insufficient quantity');
+                    }
+                }
+            }
+        }
         $order = $this->repository->makeByUser($data, Auth::user()->primaryAddress,$user);
         $details = [
             'subject' => 'Your Microelectron Order has been received',
@@ -107,6 +125,22 @@ class OrderController extends Controller
             'products.*.quantity' => 'numeric|min:1',
             'coupon_id' => 'nullable|exists:coupons,id',
         ]);
+        foreach ($data['products'] as $product){
+            $prod = Product::find($product['id']);
+            if ($prod->stock < $product['quantity']){
+                throw new BadRequestException($prod->name . ' has insufficient quantity');
+            }
+            if ($prod->options->kit == true){
+                $kits = $prod->kit()->get();
+//                        return response()->json($kits);
+                foreach ($kits as $kit){
+//                            return response()->json($kit->name);
+                    if ($kit->pivot->quantity * $product['quantity'] > $kit->stock){
+                        throw new BadRequestException($kit->name . ' Which is kit has insufficient quantity');
+                    }
+                }
+            }
+        }
         $order = $this->repository->makeByGuest($data);
         $details = [
             'subject' => 'Your Microelectron Order has been received',

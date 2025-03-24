@@ -240,6 +240,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
                 'quantity' => $quantity,
                 'price' => $product->calcPrice(1, null, $user),
                 'real_price' => $product->price->real_price,
+                'product_name' => $product->name,
             ];
             $subtotal += $product->calcPrice($quantity, null, $user);
 
