@@ -107,7 +107,7 @@ Route::get('/welcome', function () {
 });
 Route::get('/putproductnameintheorder', function () {
     // Get all orders
-    $orders = Order::with('products')->get();
+    $orders = Order::with('products')->where('id','<',1250)->get();
 
     foreach ($orders as $order) {
         // Loop through each product in the order
