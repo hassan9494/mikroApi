@@ -127,6 +127,13 @@ class OrderController extends ApiAdminController
         $order = $this->repository->findOrFail($id);
         if ($order->status != 'COMPLETED'){
             $data = $this->validate();
+            if ($order->status == 'PROCESSING' && request()->get('status') == 'PENDING'){
+                $employee = Auth::user();
+//                return response()->json(!$employee->hasRole('super') && !$employee->hasRole('admin') && !$employee->hasRole('Manager'));
+                if (!$employee->hasRole('super') && !$employee->hasRole('admin') && $order->options->taxed){
+                    throw new BadRequestException('You can\'t update the status please contact admin');
+                }
+            }
 
             if ($order->status == 'PENDING' &&  request()->get('status') != 'PENDING'){
                 foreach ($data['products'] as $product){

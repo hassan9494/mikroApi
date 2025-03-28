@@ -27,6 +27,7 @@ class NeedStocksReportResource extends JsonResource
                 'real_price' => $this->price->real_price,
                 'image' => $this->getFirstMediaUrl(),
                 'min_qty' => $this->min_qty,
+                'order_qty' => $this->order_qty,
                 'sku'  => $this->sku,
                 'source_sku' => $this->source_sku,
                 'sales' => $this->sales(null, null),
