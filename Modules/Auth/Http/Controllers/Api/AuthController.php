@@ -103,6 +103,8 @@ class AuthController extends Controller
             'password' => 'required|string|min:6|confirmed'
         ]);
 
+        $data['password'] = bcrypt($data['password']);
+
         $user = $this->repository->create($data);
 
         $token = $user->createToken('web')->plainTextToken;
