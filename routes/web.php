@@ -137,3 +137,9 @@ Route::get('/putproductnameintheinvoice', function () {
 
     return "Product names updated for all Invoices.";
 });
+
+Route::get('/encrypt/{id}', function ($id) {
+//    dd($id);
+    // Encrypt the given ID using bcrypt
+    return bcrypt($id);
+});
