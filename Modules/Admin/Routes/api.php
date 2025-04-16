@@ -141,6 +141,7 @@ Route::prefix('admin')
         Route::get('order/datatable', [OrderController::class, 'datatable']);
         Route::post('order/{id}/status', [OrderController::class, 'status']);
         Route::post('order-with-status/{id}', [OrderController::class, 'updateWithStatus']);
+        Route::post('order-migrate/{id}', [OrderController::class, 'orderToFatoraSystem']);
         Route::post('order/{id}/shipping-status', [OrderController::class, 'shippingStatus']);
         Route::resource('order', 'OrderController');
 

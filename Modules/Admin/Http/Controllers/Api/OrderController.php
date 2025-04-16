@@ -6,8 +6,11 @@ use App\Traits\Datatable;
 use http\Env\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\OrderResource;
+use Modules\Admin\Http\Services\UblInvoiceService;
+use Modules\Shop\Entities\Order;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
@@ -174,6 +177,12 @@ class OrderController extends ApiAdminController
         return $this->success();
     }
 
+    public function migrateOrder($id): JsonResponse
+    {
+
+        return $this->success();
+    }
+
     /**
      * @param $id
      */
@@ -217,6 +226,8 @@ class OrderController extends ApiAdminController
             'customer.name' => 'required|max:255',
             'customer.phone' => 'required|max:255',
             'customer.email' => 'nullable|email|max:255',
+            'customer_identity_number' => 'nullable',
+            'identity_number_type' => 'required|max:3',
 
             'city_id' => 'nullable',
             'shipping_provider_id' => 'nullable',
@@ -246,6 +257,92 @@ class OrderController extends ApiAdminController
 
             'attachments' => 'nullable|array',
         ]);
+    }
+
+    public function orderToFatoraSystem( $id)
+    {
+        $order = Order::find($id);
+        $service = new UblInvoiceService();
+        $orderToFatora = $this->calcOrderFatora($order);
+
+        // 1. Generate XML
+        $xml = $service->generate($orderToFatora);
+
+        return response()->json([
+            'status' => 'success',
+            'invoice_id' => $xml
+        ]);
+
+        // 2. Validate
+        if (!$service->validateXml($xml)) {
+            return response()->json(['error' => 'Invalid XML structure'], 400);
+        }
+
+        // 3. Wrap in JSON
+        $jsonPayload = $service->wrapInJson($xml);
+
+        // 4. Submit to JoFotara
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer '.config('jo_fotara.encryption_key'),
+            'Content-Type' => 'application/json'
+        ])
+            ->post(config('jo_fotara.api_url').'/invoices', $jsonPayload);
+
+        // 5. Handle Response
+        if ($response->successful()) {
+            return response()->json([
+                'status' => 'success',
+                'invoice_id' => $response->json('invoice_id')
+            ]);
+        }
+
+        return response()->json([
+            'error' => 'Submission failed',
+            'details' => $response->json()
+        ], 400);
+    }
+
+    private function calcOrderFatora(Order $order)
+    {
+
+        $is_taxed = $order->options->taxed;
+        $is_exempt = $order->options->tax_exempt;
+        $tax_zero = $order->options->tax_zero;
+        $taxChar = $this->tax($is_taxed,$is_exempt,$tax_zero);
+        $taxValue = ($taxChar == 's') ? 0.16 : 0;
+        $totalTax = $order->total * $taxValue;
+        $totalBeforDiscount =$order->subtotal - $totalTax;
+        $totalAfterDiscountAndTax = $order->total;
+        $fixedOrder = $order;
+        $fixedOrder->tax_char = $taxChar;
+        $fixedOrder->tax_value = $taxValue;
+        $fixedOrder->totalTax = $totalTax;
+        $fixedOrder->totalBeforDiscount = $totalBeforDiscount;
+        $fixedOrder->totalAfterDiscountAndTax = $totalAfterDiscountAndTax;
+
+        return $fixedOrder;
+
+
+
+    }
+
+    private function tax($is_taxed,$is_exempt,$tax_zero)
+    {
+        if ($is_taxed && !$is_exempt && !$tax_zero){
+            return 's';
+        }elseif ($is_taxed && $is_exempt && !$tax_zero){
+            return 'z';
+        }elseif ($is_taxed && $is_exempt && $tax_zero){
+            return 'o';
+        }else{
+            return null;
+        }
+
+    }
+
+    private function product_taxes()
+    {
+        
     }
 
 }
