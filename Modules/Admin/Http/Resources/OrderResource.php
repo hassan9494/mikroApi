@@ -58,8 +58,9 @@ class OrderResource extends JsonResource
             'status' => $this->status,
             'tax_number' => $this->tax_number,
             'tax_amount' => $this->tax_amount,
-
             'attachments' => MediaResource::collection($this->getMedia()),
+            'identity_number_type' => $this->identity_number_type,
+            'customer_identity_number' => $this->customer_identity_number,
         ];
     }
 
