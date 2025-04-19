@@ -6,6 +6,7 @@ use App\Traits\Datatable;
 use http\Env\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\OrderResource;
@@ -264,19 +265,31 @@ class OrderController extends ApiAdminController
         $order = Order::find($id);
         $service = new UblInvoiceService();
         $orderToFatora = $this->calcOrderFatora($order);
-
+//        return response()->json([
+//            'status' => 'success',
+//            'invoice_id' => $orderToFatora
+//        ]);
         // 1. Generate XML
         $xml = $service->generate($orderToFatora);
+//        $filePath = storage_path('app/invoice.xml'); // Choose a path
+//        File::put($filePath, $xml);
+
+        
+//        $validation = $service->validateXml($xml);
+//        if (!$validation['valid']) {
+//            return response()->json([
+//                'status' => 'error',
+//                'message' => 'XML validation failed',
+//                'errors' => $validation['errors']
+//            ], 422);
+//        }
 
         return response()->json([
             'status' => 'success',
             'invoice_id' => $xml
         ]);
 
-        // 2. Validate
-        if (!$service->validateXml($xml)) {
-            return response()->json(['error' => 'Invalid XML structure'], 400);
-        }
+
 
         // 3. Wrap in JSON
         $jsonPayload = $service->wrapInJson($xml);
@@ -329,11 +342,11 @@ class OrderController extends ApiAdminController
     private function tax($is_taxed,$is_exempt,$tax_zero)
     {
         if ($is_taxed && !$is_exempt && !$tax_zero){
-            return 's';
+            return 'S';
         }elseif ($is_taxed && $is_exempt && !$tax_zero){
-            return 'z';
+            return 'Z';
         }elseif ($is_taxed && $is_exempt && $tax_zero){
-            return 'o';
+            return 'O';
         }else{
             return null;
         }
@@ -342,7 +355,7 @@ class OrderController extends ApiAdminController
 
     private function product_taxes()
     {
-        
+
     }
 
 }
