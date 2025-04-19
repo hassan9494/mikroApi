@@ -34,11 +34,32 @@ class UblInvoiceService
         ]);
     }
 
-    public function validateXml(string $xml): bool
+    public function validateXml(string $xml): array
     {
+        libxml_use_internal_errors(true);
+
         $dom = new \DOMDocument();
         $dom->loadXML($xml);
 
-        return $dom->schemaValidate(resource_path('xsd/UBL-Invoice-2.1.xsd'));
+        // Get the FULL path to the XSD file
+        $xsdPath = base_path('resources/xsd/UBL-Invoice-2.1.xsd');
+
+
+        $valid = $dom->schemaValidate($xsdPath);
+
+        $errors = libxml_get_errors();
+        libxml_clear_errors();
+
+        return [
+            'valid' => $valid,
+            'errors' => array_map(function(\libXMLError $error) {
+                return [
+                    'level' => $this->errorLevelToString($error->level),
+                    'message' => trim($error->message),
+                    'line' => $error->line
+                ];
+            }, $errors)
+        ];
     }
+
 }

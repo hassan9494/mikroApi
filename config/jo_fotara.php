@@ -6,7 +6,7 @@ return [
     'encryption_key' => env('JO_ENCRYPTION_KEY'),
     'currency' => 'JOD',
     'tax_rate' => 16,
-    'company_id'=>12345678,
+    'company_id'=>'9932895',
     'seller_name'=>'Mahmoud and Montasir',
     'postal_code'=>'33554',
     'seller_income_source'=>'9932895',
