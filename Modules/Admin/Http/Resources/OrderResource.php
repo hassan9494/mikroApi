@@ -44,6 +44,8 @@ class OrderResource extends JsonResource
 
             'subtotal' => $this->subtotal,
             'discount' => $this->discount,
+            'discount_percentage' => $this->discount_percentage,
+            'uuid' => $this->uuid,
             'total' => $this->total,
             'coupon_discount' => $this->coupon_discount,
 

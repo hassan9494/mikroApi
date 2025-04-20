@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\OrderResource;
 use Modules\Admin\Http\Services\UblInvoiceService;
@@ -225,7 +226,7 @@ class OrderController extends ApiAdminController
             'cashier_id' => 'nullable|exists:users,id',
 
             'customer.name' => 'required|max:255',
-            'customer.phone' => 'required|max:255',
+            'customer.phone' => 'required|max:14|min:9',
             'customer.email' => 'nullable|email|max:255',
             'customer_identity_number' => 'nullable',
             'identity_number_type' => 'required|max:3',
@@ -246,6 +247,7 @@ class OrderController extends ApiAdminController
 
             'coupon_id' => 'nullable|exists:coupons,id',
             'discount' => 'required|numeric',
+            'discount_percentage' => 'required|numeric',
             'notes' => 'nullable|max:500',
             'invoice_notes' => 'nullable|max:500',
 
@@ -274,7 +276,7 @@ class OrderController extends ApiAdminController
 //        $filePath = storage_path('app/invoice.xml'); // Choose a path
 //        File::put($filePath, $xml);
 
-        
+
 //        $validation = $service->validateXml($xml);
 //        if (!$validation['valid']) {
 //            return response()->json([
@@ -284,35 +286,70 @@ class OrderController extends ApiAdminController
 //            ], 422);
 //        }
 
-        return response()->json([
-            'status' => 'success',
-            'invoice_id' => $xml
-        ]);
+//        return response()->json([
+//            'status' => 'success',
+//            'invoice_id' => $xml
+//        ]);
 
 
 
         // 3. Wrap in JSON
-        $jsonPayload = $service->wrapInJson($xml);
+        $jsonPayload = [
+            'invoice' => base64_encode($xml) // Mandatory base64 encoding
+        ];
+
+        $response = Http::withHeaders([
+            'Client-Id' => config('jo_fotara.client_id'),
+            'Secret-Key' => config('jo_fotara.secret_key'),
+            'Content-Type' => 'application/json',
+        ])->post(config('jo_fotara.api_url').'/core/invoices/', $jsonPayload);
 
         // 4. Submit to JoFotara
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('jo_fotara.encryption_key'),
-            'Content-Type' => 'application/json'
-        ])
-            ->post(config('jo_fotara.api_url').'/invoices', $jsonPayload);
+
 
         // 5. Handle Response
         if ($response->successful()) {
+            $responseData = $response->json();
+
+            $order->update([
+                'invoice_id' => $responseData['invoiceId'],
+                'qr_code' => $responseData['qrCode'],
+                'is_migrated' => true
+            ]);
+
+            Log::info('JoFotara Response', $responseData);
+
             return response()->json([
                 'status' => 'success',
-                'invoice_id' => $response->json('invoice_id')
+                'invoice_id' => $responseData['invoiceId'],
+                'qr_code_url' => $responseData['qrCodeUrl']
             ]);
         }
 
+        $errorCode = $response->json('errorCode');
+        $errorMessage = $this->mapErrorCode($errorCode);
+        Log::error(['JoFotara Response'=> $response->reason()]);
+        Log::error(['JoFotara Response successful'=> $response->successful()]);
+        Log::error(['JoFotara Response failed'=> $response->body()]);
         return response()->json([
-            'error' => 'Submission failed',
+            'status' => 'error',
+            'code' => $errorCode,
+            'message' => $errorMessage,
             'details' => $response->json()
         ], 400);
+    }
+
+    private function mapErrorCode($code)
+    {
+        // Map error codes from documentation
+        $errors = [
+            'E001' => 'Invalid client credentials',
+            'E002' => 'Invalid XML structure',
+            'E003' => 'Duplicate invoice submission',
+            // Add more codes from documentation
+        ];
+
+        return $errors[$code] ?? 'Unknown error';
     }
 
     private function calcOrderFatora(Order $order)
