@@ -143,3 +143,11 @@ Route::get('/encrypt/{id}', function ($id) {
     // Encrypt the given ID using bcrypt
     return bcrypt($id);
 });
+
+Route::get('/generateUuid', function () {
+    $orders = Order::where('uuid',null)->get();
+    foreach ($orders as $order){
+        $order->uuid = Str::uuid();
+        $order->save();
+    }
+});

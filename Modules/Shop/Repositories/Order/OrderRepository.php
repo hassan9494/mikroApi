@@ -4,6 +4,7 @@ namespace Modules\Shop\Repositories\Order;
 
 use App\Models\User;
 use App\Repositories\Base\EloquentRepository;
+use Illuminate\Support\Str;
 use Modules\Shop\Entities\Address;
 use Modules\Shop\Entities\Coupon;
 use Modules\Shop\Entities\Order;
@@ -69,7 +70,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         $data['shipping']['cost'] = $city->shipping_cost;
         $data['shipping']['city'] = $city->name;
         $data['shipping']['status'] = 'WAITING';
-
+        $data['uuid'] = Str::uuid();
 
         $order = $this->model->create($data);
 
@@ -93,7 +94,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
 
         $cart = $this->prepareUserProducts($data['products'], $user);
-
+        $data['uuid'] = Str::uuid();
         $order = $this->model->create($data);
 
         $order->products()->attach($cart['products']);
@@ -114,7 +115,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         }
 
         $cart = $this->prepareCartProducts($data['products'] ?? [], null, $data['options']);
-
+        $data['uuid'] = Str::uuid();
         $order = $this->model->create($data);
 
         $order->products()->attach($cart['products']);
@@ -236,6 +237,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             if (!$product->checkStock($quantity))
                 throw new BadRequestException($product->name . ' has insufficient quantity');
 
+
+
             $products[$id] = [
                 'quantity' => $quantity,
                 'price' => $product->calcPrice(1, null, $user),
@@ -268,6 +271,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             if (count($options) > 0 && !$options['price_offer']) {
                 if (!$product->checkStock($quantity))
                     throw new BadRequestException($product->name . ' has insufficient quantity');
+            }
+            if ($product->price->real_price >= $item['price']){
+                throw new BadRequestException($product->name . ' has Low price');
             }
 
 

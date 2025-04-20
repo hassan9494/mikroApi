@@ -7,7 +7,7 @@
 
 <cbc:ProfileID>reporting:1.0</cbc:ProfileID>
     <cbc:ID>{{ $order->tax_number }}</cbc:ID>
-    <cbc:UUID>{{ $order->tax_number }}</cbc:UUID>
+    <cbc:UUID>{{ $order->uuid }}</cbc:UUID>
     <cbc:IssueDate>{{ \Carbon\Carbon::parse($order->taxed_at)->format('Y-m-d') }}</cbc:IssueDate>
     <cbc:InvoiceTypeCode name="{{$order->options->dept ? '022' : '012' }}">388</cbc:InvoiceTypeCode>
     @if($order->invoice_notes)
@@ -17,7 +17,7 @@
     <cbc:TaxCurrencyCode>{{ config('jo_fotara.currency') }}</cbc:TaxCurrencyCode>
     <cac:AdditionalDocumentReference>
         <cbc:ID>ICV</cbc:ID>
-        <cbc:UUID>{{ $order->id }}</cbc:UUID>
+        <cbc:UUID>{{ $order->uuid }}</cbc:UUID>
     </cac:AdditionalDocumentReference>
 
     <!-- Seller Information -->
