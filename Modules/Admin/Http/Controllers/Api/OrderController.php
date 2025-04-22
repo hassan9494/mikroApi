@@ -287,10 +287,10 @@ class OrderController extends ApiAdminController
 //            ], 422);
 //        }
 
-        return response()->json([
-            'status' => 'success',
-            'invoice_id' => $xml
-        ]);
+//        return response()->json([
+//            'status' => 'success',
+//            'invoice_id' => $xml
+//        ]);
 
 
 
