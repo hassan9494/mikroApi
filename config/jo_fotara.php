@@ -7,6 +7,7 @@ return [
     'secret_key' => env('JO_SECRET_KEY'),
     'encryption_key' => env('JO_ENCRYPTION_KEY'),
     'currency' => 'JOD',
+    'currency_attribute' => 'JO',
     'tax_rate' => 16,
     'company_id'=>'13461320',
     'seller_name'=>' منتصر ومحمود لاللكترونيات',
