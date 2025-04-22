@@ -100,10 +100,10 @@
         <cac:InvoiceLine>
             <cbc:ID>{{ $item->id }}</cbc:ID>
             <cbc:InvoicedQuantity unitCode="PCE">{{ $item->pivot->quantity }}</cbc:InvoicedQuantity>
-            <cbc:LineExtensionAmount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{ number_format(($item->pivot->quantity * ($item->pivot->price - ($item->pivot->price * $order->tax_value)) - ($item->pivot->discount / (1+$order->tax_value))), 3, '.', '')  }}</cbc:LineExtensionAmount>
+            <cbc:LineExtensionAmount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{ number_format((($item->pivot->quantity * ($item->pivot->price / (1 + $order->tax_value))) - ($item->pivot->discount / (1+$order->tax_value))), 3, '.', '')  }}</cbc:LineExtensionAmount>
             <cac:TaxTotal>
-                <cbc:TaxAmount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{number_format((($item->pivot->price * $item->pivot->quantity ) - ($item->pivot->price * $item->pivot->quantity )/ (1+$order->tax_value)), 3, '.', '')}}</cbc:TaxAmount>
-                <cbc:RoundingAmount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{ $item->pivot->quantity * $item->pivot->price  }}</cbc:RoundingAmount>
+                <cbc:TaxAmount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{ number_format(((($item->pivot->quantity * ($item->pivot->price / (1 + $order->tax_value))) - ($item->pivot->discount / (1+$order->tax_value))) * $order->tax_value), 3, '.', '')}}</cbc:TaxAmount>
+                <cbc:RoundingAmount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{ number_format(((($item->pivot->quantity * ($item->pivot->price / (1 + $order->tax_value))) - ($item->pivot->discount / (1+$order->tax_value))) * $order->tax_value), 3, '.', '') +  number_format((($item->pivot->quantity * ($item->pivot->price / (1 + $order->tax_value))) - ($item->pivot->discount / (1+$order->tax_value))), 3, '.', '')  }}</cbc:RoundingAmount>
                 <cac:TaxSubtotal>
                     <cbc:TaxAmount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{number_format($item->pivot->price * $item->pivot->quantity * $order->tax_value, 3, '.', '')}}</cbc:TaxAmount>
                     <cac:TaxCategory>
@@ -123,7 +123,7 @@
                 <cac:AllowanceCharge>
                     <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
                     <cbc:AllowanceChargeReason>DISCOUNT</cbc:AllowanceChargeReason>
-                    <cbc:Amount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{$item->pivot->discount}}</cbc:Amount>
+                    <cbc:Amount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{number_format($item->pivot->discount / (1 + $order->tax_value), 3, '.', '')}}</cbc:Amount>
                 </cac:AllowanceCharge>
             </cac:Price>
         </cac:InvoiceLine>
