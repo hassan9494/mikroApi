@@ -310,8 +310,10 @@ class OrderController extends ApiAdminController
 
         // 5. Handle Response
         if ($response->successful()) {
-            $responseData = $response->json();
+            Log::info(['JoFotara Response'=> $response]);
 
+            $responseData = $response->json();
+            Log::info(['JoFotara Response json'=> $responseData]);
             $order->update([
                 'invoice_id' => $responseData['invoiceId'],
                 'qr_code' => $responseData['qrCode'],
