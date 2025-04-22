@@ -292,11 +292,11 @@ class OrderController extends ApiAdminController
 //            'invoice_id' => $xml
 //        ]);
 
-
+        $minfiedXml = preg_replace('/>\s+</', '><', trim($xml));
 
         // 3. Wrap in JSON
         $jsonPayload = [
-            'invoice' => base64_encode($xml) // Mandatory base64 encoding
+            'invoice' => base64_encode($minfiedXml) // Mandatory base64 encoding
         ];
 
         $response = Http::withHeaders([
@@ -318,8 +318,8 @@ class OrderController extends ApiAdminController
             $responseData = $response->json();
             Log::info(['JoFotara Response json'=> $responseData]);
             $order->update([
-                'invoice_id' => $responseData['invoiceId'],
-                'qr_code' => $responseData['qrCode'],
+                'invoice_id' => $responseData['EINV_NUM'],
+                'qr_code' => $responseData['EINV_QR'],
                 'is_migrated' => true
             ]);
 
