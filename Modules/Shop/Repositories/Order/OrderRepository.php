@@ -264,6 +264,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $id = $item['id'];
             $quantity = $item['quantity'];
             $number = $item['number'];
+            $discount = $item['discount'];
 
             $product = $this->products->findOrFail($id);
 
@@ -292,6 +293,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
                 'quantity' => $quantity,
                 'price' => $price,
                 'number' => $number,
+                'discount' => $discount,
                 'product_name' => $product_name,
                 'real_price' => $realPrice,
             ];

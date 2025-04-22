@@ -255,6 +255,7 @@ class OrderController extends ApiAdminController
             'products.*.price' => 'required|numeric',
             'products.*.quantity' => 'required|numeric',
             'products.*.number' => 'required|numeric',
+            'products.*.discount' => 'required|numeric',
 
             'extra_items' => 'nullable|array',
 
@@ -359,8 +360,8 @@ class OrderController extends ApiAdminController
         $is_exempt = $order->options->tax_exempt;
         $tax_zero = $order->options->tax_zero;
         $taxChar = $this->tax($is_taxed,$is_exempt,$tax_zero);
-        $taxValue = ($taxChar == 's') ? 0.16 : 0;
-        $totalTax = $order->total * $taxValue;
+        $taxValue = ($taxChar == 'S') ? 0.16 : 0;
+        $totalTax = $order->total / (1 + $taxValue);
         $totalBeforDiscount =$order->subtotal - $totalTax;
         $totalAfterDiscountAndTax = $order->total;
         $fixedOrder = $order;

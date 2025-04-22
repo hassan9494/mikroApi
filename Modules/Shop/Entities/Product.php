@@ -155,7 +155,7 @@ class Product extends Model implements HasMedia
             'order_products',
             'product_id',
             'order_id'
-        )->withPivot('price', 'quantity', 'real_price','product_name','number');
+        )->withPivot('price', 'quantity', 'real_price','product_name','number','discount');
     }
 
     /**
