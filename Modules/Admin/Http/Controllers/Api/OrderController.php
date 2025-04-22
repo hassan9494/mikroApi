@@ -331,8 +331,7 @@ class OrderController extends ApiAdminController
 
             return response()->json([
                 'status' => 'success',
-                'invoice_id' => $responseData['invoiceId'],
-                'qr_code_url' => $responseData['qrCodeUrl']
+                'qr_code_url' => $responseData['EINV_QR']
             ]);
         }
 
