@@ -10,7 +10,7 @@ return [
     'currency_attribute' => 'JO',
     'tax_rate' => 16,
     'company_id'=>'13461320',
-    'seller_name'=>' منتصر ومحمود لاللكترونيات',
+    'seller_name'=>'منتصر و محمود للالكترونيات',
     'postal_code'=>'33554',
     'seller_income_source'=>'13322320',
     'buyer_city'=>'JO-AM'

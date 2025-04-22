@@ -96,9 +96,9 @@
 
 
     <!-- Line Items -->
-    @foreach($order->products as $item)
+    @foreach($order->products as $key=>$item)
         <cac:InvoiceLine>
-            <cbc:ID>{{ $item->id }}</cbc:ID>
+            <cbc:ID>{{ $key + 1 }}</cbc:ID>
             <cbc:InvoicedQuantity unitCode="PCE">{{ $item->pivot->quantity }}</cbc:InvoicedQuantity>
             <cbc:LineExtensionAmount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{ number_format((($item->pivot->quantity * ($item->pivot->price / (1 + $order->tax_value))) - ($item->pivot->discount / (1+$order->tax_value))), 3, '.', '')  }}</cbc:LineExtensionAmount>
             <cac:TaxTotal>
