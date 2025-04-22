@@ -274,24 +274,15 @@ class OrderController extends ApiAdminController
 //            'invoice_id' => $orderToFatora
 //        ]);
         // 1. Generate XML
-        $view = view('your.blade.template', ['order' => $orderToFatora]);
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . $view->render();
-        $dom = new DOMDocument();
-        $dom->loadXML($xml);
-        if (!$dom->validate()) {
-            Log::error('Invalid XML structure', libxml_get_errors());
-            throw new Exception('Invalid XML structure');
-        }
-        // Minify carefully
-        $minfiedXml = preg_replace('/\s+/', ' ', $xml);
-        $minfiedXml = preg_replace('/> </', '><', $minfiedXml);
-        $minfiedXml = trim($minfiedXml);
+        $xml = $service->generate($orderToFatora);
+        $payload = $service->prepareForSubmission($xml);
 
-        Log::info('XML before submission:', [$minfiedXml]);
 
-        $jsonPayload = [
-            'invoice' => base64_encode($minfiedXml)
-        ];
+        Log::info('XML before submission:', [$payload]);
+
+//        $jsonPayload = [
+//            'invoice' => base64_encode($minfiedXml)
+//        ];
 //        $filePath = storage_path('app/invoice.xml'); // Choose a path
 //        File::put($filePath, $xml);
 
@@ -316,7 +307,7 @@ class OrderController extends ApiAdminController
             'Client-Id' => config('jo_fotara.client_id'),
             'Secret-Key' => config('jo_fotara.secret_key'),
             'Content-Type' => 'application/json',
-        ])->post(config('jo_fotara.api_url').'/core/invoices/', $jsonPayload);
+        ])->post(config('jo_fotara.api_url').'/core/invoices/', $payload);
 
         // 4. Submit to JoFotara
         Log::info(['JoFotara Response'=> $response]);
