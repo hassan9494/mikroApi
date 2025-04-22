@@ -74,7 +74,8 @@ class Order extends Model implements HasMedia
         'customer_identity_number',
         'is_migrated',
         'discount_percentage',
-        'uuid'
+        'uuid',
+        'qr_code'
     ];
 
     protected $casts = [
