@@ -361,7 +361,7 @@ class OrderController extends ApiAdminController
         $tax_zero = $order->options->tax_zero;
         $taxChar = $this->tax($is_taxed,$is_exempt,$tax_zero);
         $taxValue = ($taxChar == 'S') ? 0.16 : 0;
-        $totalTax = $order->total / (1 + $taxValue);
+        $totalTax = ($order->total / (1 + $taxValue)) * $taxValue;
         $totalBeforDiscount =$order->subtotal - $totalTax;
         $totalAfterDiscountAndTax = $order->total;
         $fixedOrder = $order;
