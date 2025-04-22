@@ -306,7 +306,10 @@ class OrderController extends ApiAdminController
         ])->post(config('jo_fotara.api_url').'/core/invoices/', $jsonPayload);
 
         // 4. Submit to JoFotara
-
+        Log::info(['JoFotara Response'=> $response]);
+        Log::info(['JoFotara client _id'=> config('jo_fotara.client_id')]);
+        Log::info(['JoFotara secret_key'=> config('jo_fotara.secret_key')]);
+        Log::info(['JoFotara secret_key'=> config('jo_fotara.api_url').'/core/invoices/']);
 
         // 5. Handle Response
         if ($response->successful()) {
