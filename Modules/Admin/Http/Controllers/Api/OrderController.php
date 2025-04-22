@@ -3,6 +3,7 @@
 namespace Modules\Admin\Http\Controllers\Api;
 
 use App\Traits\Datatable;
+use DOMDocument;
 use http\Env\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -273,7 +274,24 @@ class OrderController extends ApiAdminController
 //            'invoice_id' => $orderToFatora
 //        ]);
         // 1. Generate XML
-        $xml = $service->generate($orderToFatora);
+        $view = view('your.blade.template', ['order' => $orderToFatora]);
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . $view->render();
+        $dom = new DOMDocument();
+        $dom->loadXML($xml);
+        if (!$dom->validate()) {
+            Log::error('Invalid XML structure', libxml_get_errors());
+            throw new Exception('Invalid XML structure');
+        }
+        // Minify carefully
+        $minfiedXml = preg_replace('/\s+/', ' ', $xml);
+        $minfiedXml = preg_replace('/> </', '><', $minfiedXml);
+        $minfiedXml = trim($minfiedXml);
+
+        Log::info('XML before submission:', [$minfiedXml]);
+
+        $jsonPayload = [
+            'invoice' => base64_encode($minfiedXml)
+        ];
 //        $filePath = storage_path('app/invoice.xml'); // Choose a path
 //        File::put($filePath, $xml);
 
@@ -292,12 +310,7 @@ class OrderController extends ApiAdminController
 //            'invoice_id' => $xml
 //        ]);
 
-        $minfiedXml = preg_replace('/>\s+</', '><', trim($xml));
 
-        // 3. Wrap in JSON
-        $jsonPayload = [
-            'invoice' => base64_encode($minfiedXml) // Mandatory base64 encoding
-        ];
 
         $response = Http::withHeaders([
             'Client-Id' => config('jo_fotara.client_id'),
