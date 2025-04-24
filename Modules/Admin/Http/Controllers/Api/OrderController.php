@@ -230,7 +230,7 @@ class OrderController extends ApiAdminController
             'customer.phone' => 'required|max:14|min:9',
             'customer.email' => 'nullable|email|max:255',
             'customer_identity_number' => 'nullable',
-            'identity_number_type' => 'required|max:3',
+            'identity_number_type' => 'nullable|max:3',
 
             'city_id' => 'nullable',
             'shipping_provider_id' => 'nullable',
@@ -272,10 +272,10 @@ class OrderController extends ApiAdminController
 
         // 1. Generate XML
         $xml = $service->generate($orderToFatora);
-        return response()->json([
-            'status' => 'success',
-            'invoice_id' => $xml
-        ]);
+//        return response()->json([
+//            'status' => 'success',
+//            'invoice_id' => $xml
+//        ]);
         $payload = $service->prepareForSubmission($xml);
 
 
@@ -309,13 +309,9 @@ class OrderController extends ApiAdminController
 
         // 4. Submit to JoFotara
         Log::info(['JoFotara Response'=> $response]);
-        Log::info(['JoFotara client _id'=> config('jo_fotara.client_id')]);
-        Log::info(['JoFotara secret_key'=> config('jo_fotara.secret_key')]);
-        Log::info(['JoFotara secret_key'=> config('jo_fotara.api_url').'/core/invoices/']);
 
         // 5. Handle Response
         if ($response->successful()) {
-            Log::info(['JoFotara Response'=> $response]);
 
             $responseData = $response->json();
             Log::info(['JoFotara Response json'=> $responseData]);
@@ -326,18 +322,16 @@ class OrderController extends ApiAdminController
                 'is_migrated' => true
             ]);
 
-            Log::info('JoFotara Response', $responseData);
-
             return response()->json([
                 'status' => 'success',
-                'qr_code_url' => $responseData['EINV_QR']
+                'qr_code_url' => $responseData['EINV_QR'],
+                'fatora_status' => $responseData['EINV_STATUS']
             ]);
         }
 
         $errorCode = $response->json('errorCode');
         $errorMessage = $this->mapErrorCode($errorCode);
         Log::error(['JoFotara Response'=> $response->reason()]);
-        Log::error(['JoFotara Response successful'=> $response->successful()]);
         Log::error(['JoFotara Response failed'=> $response->body()]);
         return response()->json([
             'status' => 'error',
