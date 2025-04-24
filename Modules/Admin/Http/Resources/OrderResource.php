@@ -63,6 +63,9 @@ class OrderResource extends JsonResource
             'attachments' => MediaResource::collection($this->getMedia()),
             'identity_number_type' => $this->identity_number_type,
             'customer_identity_number' => $this->customer_identity_number,
+            'is_migrated' => $this->is_migrated,
+            'fatora_status' => $this->fatora_status,
+            'qr_code' => $this->qr_code,
         ];
     }
 

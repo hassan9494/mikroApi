@@ -269,12 +269,13 @@ class OrderController extends ApiAdminController
         $order = Order::find($id);
         $service = new UblInvoiceService();
         $orderToFatora = $this->calcOrderFatora($order);
-//        return response()->json([
-//            'status' => 'success',
-//            'invoice_id' => $orderToFatora
-//        ]);
+
         // 1. Generate XML
         $xml = $service->generate($orderToFatora);
+        return response()->json([
+            'status' => 'success',
+            'invoice_id' => $xml
+        ]);
         $payload = $service->prepareForSubmission($xml);
 
 
@@ -296,10 +297,7 @@ class OrderController extends ApiAdminController
 //            ], 422);
 //        }
 
-//        return response()->json([
-//            'status' => 'success',
-//            'invoice_id' => $xml
-//        ]);
+
 
 
 
@@ -324,6 +322,7 @@ class OrderController extends ApiAdminController
             $oldOrder = Order::find($id);
             $oldOrder->update([
                 'qr_code' => $responseData['EINV_QR'],
+                'fatora_status' => $responseData['EINV_STATUS'],
                 'is_migrated' => true
             ]);
 
