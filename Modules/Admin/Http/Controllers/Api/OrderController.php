@@ -308,15 +308,15 @@ class OrderController extends ApiAdminController
         ])->post(config('jo_fotara.api_url').'/core/invoices/', $payload);
 
         // 4. Submit to JoFotara
-        Log::info(['JoFotara Response'=> $response]);
+//        Log::info(['JoFotara Response'=> $response]);
 
         // 5. Handle Response
         if ($response->successful()) {
 
             $responseData = $response->json();
             Log::info(['JoFotara Response json'=> $responseData]);
-            Log::info(['JoFotara Response qr'=> $responseData['EINV_QR']]);
-            Log::info(['JoFotara Response qr'=> $responseData['EINV_STATUS']]);
+//            Log::info(['JoFotara Response qr'=> $responseData['EINV_QR']]);
+//            Log::info(['JoFotara Response qr'=> $responseData['EINV_STATUS']]);
             $oldOrder = Order::find($id);
 
             $oldOrder->update([
@@ -324,10 +324,9 @@ class OrderController extends ApiAdminController
                 'fatora_status' => $responseData['EINV_STATUS'],
                 'is_migrated' => true
             ]);
-            Log::info(['order after update'=>$oldOrder]);
-
             return response()->json([
                 'status' => 'success',
+                'invoice_id' => $xml,
                 'qr_code_url' => $responseData['EINV_QR'],
                 'fatora_status' => $responseData['EINV_STATUS']
             ]);
