@@ -75,7 +75,7 @@ class Order extends Model implements HasMedia
         'is_migrated',
         'discount_percentage',
         'uuid',
-        'qr_code'.
+        'qr_code',
         'fatora_status'
     ];
 
