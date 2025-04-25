@@ -315,12 +315,16 @@ class OrderController extends ApiAdminController
 
             $responseData = $response->json();
             Log::info(['JoFotara Response json'=> $responseData]);
+            Log::info(['JoFotara Response qr'=> $responseData['EINV_QR']]);
+            Log::info(['JoFotara Response qr'=> $responseData['EINV_STATUS']]);
             $oldOrder = Order::find($id);
+
             $oldOrder->update([
                 'qr_code' => $responseData['EINV_QR'],
                 'fatora_status' => $responseData['EINV_STATUS'],
                 'is_migrated' => true
             ]);
+            Log::info(['order after update'=>$oldOrder]);
 
             return response()->json([
                 'status' => 'success',
