@@ -272,10 +272,10 @@ class OrderController extends ApiAdminController
 
         // 1. Generate XML
         $xml = $service->generate($orderToFatora);
-//        return response()->json([
-//            'status' => 'success',
-//            'invoice_id' => $xml
-//        ]);
+        return response()->json([
+            'status' => 'success',
+            'invoice_id' => $xml
+        ]);
         $payload = $service->prepareForSubmission($xml);
 
 
