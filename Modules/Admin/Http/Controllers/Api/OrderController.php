@@ -272,10 +272,10 @@ class OrderController extends ApiAdminController
 
         // 1. Generate XML
         $xml = $service->generate($orderToFatora);
-        return response()->json([
-            'status' => 'success',
-            'invoice_id' => $xml
-        ]);
+//        return response()->json([
+//            'status' => 'success',
+//            'invoice_id' => $xml
+//        ]);
         $payload = $service->prepareForSubmission($xml);
 
 
@@ -375,6 +375,10 @@ class OrderController extends ApiAdminController
         $fixedOrder->totalBeforDiscount = $totalBeforDiscount;
         $fixedOrder->totalAfterDiscountAndTax = $totalAfterDiscountAndTax;
 
+        $fixedOrder->final_discount = $this->calcFinalDiscount($order,$taxValue);
+        $fixedOrder->final_tax = $this->calcFinalTax($order,$taxValue);
+        $fixedOrder->final_total = $this->calcFinalTotal($order,$taxValue);
+
         return $fixedOrder;
 
 
@@ -395,9 +399,40 @@ class OrderController extends ApiAdminController
 
     }
 
-    private function product_taxes()
+    private function calcFinalDiscount($order,$taxValue)
     {
+        $discount = 0;
+        foreach ($order->products as $product){
+            $discount += number_format($product->pivot->discount / (1+$taxValue),3, '.', '');
+        }
+        foreach ($order->extra_items as $product){
+            $discount += number_format($product->discount / (1+$taxValue),3, '.', '');
+        }
+        return $discount;
+    }
 
+    private function calcFinalTax($order,$taxValue)
+    {
+        $tax = 0;
+        foreach ($order->products as $product){
+            $tax += number_format((($product->pivot->quantity *($product->pivot->price /(1+$taxValue)) ) - (number_format(($product->pivot->discount /(1+$taxValue)),3, '.', ''))) * $taxValue,3, '.', '');
+        }
+        foreach ($order->extra_items as $product){
+            $tax += number_format((($product->quantity *($product->price /(1+$taxValue)) ) - (number_format(($product->discount /(1+$taxValue)),3, '.', ''))) * $taxValue,3, '.', '');
+        }
+        return $tax;
+    }
+
+    private function calcFinalTotal($order,$taxValue)
+    {
+        $total = 0;
+        foreach ($order->products as $product){
+            $total += number_format((($product->pivot->price / (1+$taxValue)) * $product->pivot->quantity), 3, '.', '');
+        }
+        foreach ($order->extra_items as $product){
+            $total += number_format((($product->price / (1+$taxValue)) * $product->quantity), 3, '.', '');
+        }
+        return $total;
     }
 
 }
