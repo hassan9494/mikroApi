@@ -2,7 +2,9 @@
 
 namespace Modules\Admin\Http\Controllers\Api;
 
+use App\Jobs\ProcessOrderToFatora;
 use App\Traits\Datatable;
+use Carbon\Carbon;
 use DOMDocument;
 use http\Env\Response;
 use Illuminate\Http\JsonResponse;
@@ -163,6 +165,9 @@ class OrderController extends ApiAdminController
             if ($data['shipping']['status'] == null) {
                 $data['shipping']['status'] = "WAITING";
             }
+            if (request()->get('status') == 'COMPLETED'){
+                $data['completed_by'] = auth()->id();
+            }
             $order = $this->repository->saveOrder($id, $data);
             $order->syncMedia($data['attachments'] ?? []);
             $this->repository->status(
@@ -274,32 +279,10 @@ class OrderController extends ApiAdminController
         $xml = $service->generate($orderToFatora);
 //        return response()->json([
 //            'status' => 'success',
-//            'invoice_id' => $xml
+//            'invoice_id' => $xml,
+//            'user-id' => auth()->id()
 //        ]);
         $payload = $service->prepareForSubmission($xml);
-
-
-        Log::info('XML before submission:', [$payload]);
-
-//        $jsonPayload = [
-//            'invoice' => base64_encode($minfiedXml)
-//        ];
-//        $filePath = storage_path('app/invoice.xml'); // Choose a path
-//        File::put($filePath, $xml);
-
-
-//        $validation = $service->validateXml($xml);
-//        if (!$validation['valid']) {
-//            return response()->json([
-//                'status' => 'error',
-//                'message' => 'XML validation failed',
-//                'errors' => $validation['errors']
-//            ], 422);
-//        }
-
-
-
-
 
         $response = Http::withHeaders([
             'Client-Id' => config('jo_fotara.client_id'),
@@ -307,22 +290,19 @@ class OrderController extends ApiAdminController
             'Content-Type' => 'application/json',
         ])->post(config('jo_fotara.api_url').'/core/invoices/', $payload);
 
-        // 4. Submit to JoFotara
-//        Log::info(['JoFotara Response'=> $response]);
-
         // 5. Handle Response
         if ($response->successful()) {
 
             $responseData = $response->json();
-            Log::info(['JoFotara Response json'=> $responseData]);
-//            Log::info(['JoFotara Response qr'=> $responseData['EINV_QR']]);
-//            Log::info(['JoFotara Response qr'=> $responseData['EINV_STATUS']]);
+//            Log::info(['JoFotara Response json'=> $responseData]);
             $oldOrder = Order::find($id);
 
             $oldOrder->update([
                 'qr_code' => $responseData['EINV_QR'],
                 'fatora_status' => $responseData['EINV_STATUS'],
-                'is_migrated' => true
+                'is_migrated' => true,
+                'migrated_at' => now(),
+                'migrated_by' => auth()->id()
             ]);
             return response()->json([
                 'status' => 'success',
@@ -334,12 +314,18 @@ class OrderController extends ApiAdminController
 
         $errorCode = $response->json('errorCode');
         $errorMessage = $this->mapErrorCode($errorCode);
-        Log::error(['JoFotara Response'=> $response->reason()]);
         Log::error(['JoFotara Response failed'=> $response->body()]);
+        $oldOrder = Order::find($id);
+        $responseData = $response->body();
+        $oldOrder->update([
+            'fatora_status' => $responseData['EINV_RESULTS']['EINV_STATUS'] ?? 'failed',
+            'migrate_error' => $responseData['EINV_RESULTS']['ERRORS'] ?? $this->mapErrorCode($errorCode),
+            'is_migrated' => false,
+        ]);
         return response()->json([
             'status' => 'error',
             'code' => $errorCode,
-            'message' => $errorMessage,
+            'message' => $responseData['EINV_RESULTS']['ERRORS'] ?? $this->mapErrorCode($errorCode),
             'details' => $response->json()
         ], 400);
     }
@@ -442,6 +428,38 @@ class OrderController extends ApiAdminController
         }
 
         return $total;
+    }
+
+    public function migrateMultipleOrders()
+    {
+        // Use Carbon's parse or createFromFormat consistently
+        $startDate = Carbon::createFromFormat('d-m-Y', '01-04-2025')->startOfDay();
+
+        $orders = Order::where('status', 'COMPLETED')
+            ->where('options->taxed', true)
+            ->where('is_migrated', false)
+            ->whereDate('taxed_at', '>=', $startDate)  // Use whereDate for date comparison
+            ->get();
+
+        $userId = auth()->id();
+
+        if ($orders->isEmpty()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'No orders found for migration',
+                'order_ids' => []
+            ]);
+        }
+
+        foreach ($orders as $order) {
+            ProcessOrderToFatora::dispatch($order, $userId);  // Consider using a specific queue
+        }
+
+        return response()->json([
+            'status' => 'queued',
+            'message' => $orders->count() . ' orders have been queued for migration',
+            'order_ids' => $orders->pluck('id')
+        ]);
     }
 
 }

@@ -54,21 +54,16 @@ class Order extends Model implements HasMedia
         'status',
         'notes',
         'invoice_notes',
-
         'subtotal',
         'discount',
         'total',
         'profit',
-
         'options',
         'tax_number',
-
         'completed_at',
         'taxed_at',
-
         'city_id',
         'shipping',
-
         'extra_items',
         'identity_number_type',
         'customer_identity_number',
@@ -76,7 +71,11 @@ class Order extends Model implements HasMedia
         'discount_percentage',
         'uuid',
         'qr_code',
-        'fatora_status'
+        'fatora_status',
+        'completed_by',
+        'migrated_by',
+        'migrated_at',
+        'migrate_error',
     ];
 
     protected $casts = [
