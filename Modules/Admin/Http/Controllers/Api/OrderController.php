@@ -451,8 +451,11 @@ class OrderController extends ApiAdminController
             ]);
         }
 
-        foreach ($orders as $order) {
-            ProcessOrderToFatora::dispatch($order, $userId);  // Consider using a specific queue
+        foreach ($orders as $key=>$order) {
+            if ($key == 0){
+                ProcessOrderToFatora::dispatch($order, $userId);  // Consider using a specific queue
+            }
+            
         }
 
         return response()->json([
