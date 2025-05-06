@@ -48,55 +48,69 @@ use Illuminate\Support\Facades\Storage;
 
 trait Media
 {
-
     use InteractsWithMedia;
 
     /**
-     * Convert and add media to collection
-     *
-     * @param string $path
-     * @param string $collection
-     * @return void
+     * Convert and add media to collection (only for images)
+     * For non-images, save as-is
      */
-    protected function convertAndAddMedia($path, $collection)
+    protected function addMediaToCollection($path, $collection)
     {
-        $image = Image::make(Storage::path($path));
-        $filename = pathinfo($path, PATHINFO_FILENAME) . '.webp';
-        $webpPath = 'temp/' . $filename;
+        $mimeType = Storage::mimeType($path);
+        $filename = pathinfo($path, PATHINFO_BASENAME);
 
-        Storage::put($webpPath, $image->encode('webp', 80));
+        // Check if the file is an image (GD/Intervention supports these)
+        $isImage = in_array($mimeType, [
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/bmp',
+            'image/webp',
+        ]);
 
-        $this->addMediaFromDisk($webpPath, 'local')
-            ->usingFileName($filename)
-            ->toMediaCollection($collection);
+        if ($isImage) {
+            // Convert images to WebP
+            $image = Image::make(Storage::path($path));
+            $filename = pathinfo($path, PATHINFO_FILENAME) . '.webp';
+            $webpPath = 'temp/' . $filename;
 
-        Storage::delete($webpPath);
+            Storage::put($webpPath, $image->encode('webp', 80));
+            $this->addMediaFromDisk($webpPath, 'local')
+                ->usingFileName($filename)
+                ->toMediaCollection($collection);
+
+            Storage::delete($webpPath);
+        } else {
+            // For non-images (PDF, DOCX, etc.), save the original file
+            $this->addMediaFromDisk($path, 'local')
+                ->usingFileName($filename)
+                ->toMediaCollection($collection);
+        }
     }
 
     /**
-     * @param array $data
-     * @param string $collection
+     * Sync media files (images + non-images)
      */
     public function syncMedia($data = [], $collection = 'default')
     {
         foreach ($data as $media) {
             if (\Arr::get($media, 'new')) {
-                $this->convertAndAddMedia($media['key'], $collection);
-            } else if (\Arr::get($media, 'deleted')) {
+                $this->addMediaToCollection($media['key'], $collection);
+            } elseif (\Arr::get($media, 'deleted')) {
                 $this->media()->where('id', $media['id'])->delete();
             }
         }
     }
 
     /**
-     * @param string $collection
+     * Sync a single file
      */
     public function syncOneFile($collection = 'default')
     {
         if (request()->hasFile('file')) {
             $this->media()->delete();
             $path = request()->file('file')->store('temp');
-            $this->convertAndAddMedia($path, $collection);
+            $this->addMediaToCollection($path, $collection);
             Storage::delete($path);
         }
     }
