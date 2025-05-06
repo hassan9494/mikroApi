@@ -106,10 +106,11 @@ class OrderController extends ApiAdminController
     public function update($id): JsonResponse
     {
         $order = $this->repository->findOrFail($id);
+        $data = $this->validate();
         if ($order->status != 'COMPLETED'){
 //            if (!$order->options->price_offer){
 
-                $data = $this->validate();
+
 //                if ($order->status != 'PENDING'){
 //                    foreach ($data['products'] as $product){
 //                        $prod = Product::find($product['id']);
@@ -126,6 +127,9 @@ class OrderController extends ApiAdminController
                 $order->syncMedia($data['attachments'] ?? []);
 //            }
 
+        }else{
+            $order = $this->repository->saveOrder($id, $data);
+            $order->syncMedia($data['attachments'] ?? []);
         }
         return $this->success();
     }
@@ -452,10 +456,9 @@ class OrderController extends ApiAdminController
         }
 
         foreach ($orders as $key=>$order) {
-            if ($key == 0){
                 ProcessOrderToFatora::dispatch($order, $userId);  // Consider using a specific queue
-            }
             
+
         }
 
         return response()->json([
