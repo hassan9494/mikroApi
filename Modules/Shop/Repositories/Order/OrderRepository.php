@@ -79,6 +79,25 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         return $this->update($order->id, []);
     }
 
+
+    /**
+     * @inheritdoc
+     */
+    public function autocomplete($q, $limit = 20)
+    {
+        $query = $this->model
+            ->whereNotNull('tax_number')
+            ->where(function($query) use ($q) {
+                $query->where('tax_number', 'LIKE', '%'.$q.'%')
+                    ->orWhere('id', 'LIKE', '%'.$q.'%');
+            })
+            ->limit($limit);
+
+//        if ($role) $query->role($role);
+
+        return $query->get();
+    }
+
     /**
      * @param array $data
      * @param Address $address

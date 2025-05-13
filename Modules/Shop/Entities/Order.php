@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Common\Entities\City;
 use Modules\Shop\Database\Factories\OrderFactory;
 use Modules\Shop\Support\Enums\OrderShippingStatus;
@@ -211,6 +212,14 @@ class Order extends Model implements HasMedia
     public function city(): BelongsTo
     {
         return $this->belongsTo(City::class, 'city_id');
+    }
+
+    /**
+     * @return HasMany
+     */
+    public function returnOrders(): BelongsTo
+    {
+        return $this->hasMany(ReturnOrder::class, 'order_id');
     }
 
     /**

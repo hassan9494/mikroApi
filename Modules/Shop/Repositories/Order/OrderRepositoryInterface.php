@@ -57,6 +57,13 @@ interface OrderRepositoryInterface extends BaseRepository
     public function saveOrder($id, $data, bool $checkStock = true);
 
     /**
+     * @param $q
+     * @param int $limit
+     * @return mixed
+     */
+    public function autocomplete($q, $limit = 20);
+
+    /**
      * @return mixed
      */
     public function sales();

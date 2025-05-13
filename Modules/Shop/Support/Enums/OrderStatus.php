@@ -9,6 +9,7 @@ use Spatie\Enum\Laravel\Enum;
  * @method static self PROCESSING()
  * @method static self COMPLETED()
  * @method static self CANCELED()
+ * @method static self DRAFT()
  */
 final class OrderStatus extends Enum
 {
