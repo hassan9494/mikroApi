@@ -21,6 +21,7 @@ use Modules\Admin\Http\Controllers\Api\ProductVariantsController;
 use Modules\Admin\Http\Controllers\Api\ReceiptController;
 use Modules\Admin\Http\Controllers\Api\ReportController;
 use Modules\Admin\Http\Controllers\Api\CityController;
+use Modules\Admin\Http\Controllers\Api\ReturnOrderController;
 use Modules\Admin\Http\Controllers\Api\RoleController;
 use Modules\Admin\Http\Controllers\Api\ShippingProviderController;
 use Modules\Admin\Http\Controllers\Api\SourceController;
@@ -145,6 +146,13 @@ Route::prefix('admin')
         Route::post('orders-migrate', [OrderController::class, 'migrateMultipleOrders']);
         Route::post('order/{id}/shipping-status', [OrderController::class, 'shippingStatus']);
         Route::resource('order', 'OrderController');
+        Route::get('orders/autocomplete', [OrderController::class, 'autocomplete']);
+
+        // ReturnOrder Routes.
+        Route::get('return-order/datatable', [ReturnOrderController::class, 'datatable']);
+        Route::post('return-order-migrate/{id}', [ReturnOrderController::class, 'orderToFatoraSystem']);
+        Route::post('return-orders-migrate', [ReturnOrderController::class, 'migrateMultipleOrders']);
+        Route::resource('return-order', 'ReturnOrderController');
 
         // Invoice Routes.
         Route::get('invoice/datatable', [InvoiceController::class, 'datatable']);

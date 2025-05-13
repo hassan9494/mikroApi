@@ -13,23 +13,22 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Modules\Admin\Http\Resources\DatatableProductResource;
-use Modules\Admin\Http\Resources\OrderForReturnResource;
-use Modules\Admin\Http\Resources\OrderResource;
+use Modules\Admin\Http\Resources\ReturnOrderResource;
 use Modules\Admin\Http\Services\UblInvoiceService;
-use Modules\Shop\Entities\Order;
+use Modules\Shop\Entities\ReturnOrder;
 use Modules\Shop\Entities\Product;
-use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
+use Modules\Shop\Repositories\ReturnOrder\ReturnOrderRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 
-class OrderController extends ApiAdminController
+class ReturnOrderController extends ApiAdminController
 {
 
     /**
-     * OrderController constructor.
-     * @param OrderRepositoryInterface $repository
+     * ReturnOrderController constructor.
+     * @param ReturnOrderRepositoryInterface $repository
      */
-    public function __construct(OrderRepositoryInterface $repository)
+    public function __construct(ReturnOrderRepositoryInterface $repository)
     {
         parent::__construct($repository);
     }
@@ -40,18 +39,18 @@ class OrderController extends ApiAdminController
 //    {
 //        return Datatable::make($this->repository->model())
 //            ->search('id', 'customer->name', 'customer->phone')
-//            ->resource(OrderResource::class)
+//            ->resource(ReturnOrderResource::class)
 //            ->json();
 //    }
 
     /**
      * @param $id
-     * @return OrderResource
+     * @return ReturnOrderResource
      */
     public function show($id)
     {
         $model = $this->repository->findOrFail($id);
-        return new OrderResource($model);
+        return new ReturnOrderResource($model);
     }
 
     /**
@@ -62,36 +61,16 @@ class OrderController extends ApiAdminController
         $from = request('from');
         $to = request('to');
         $id = json_decode(request('conditions'))[0]->id;
-        $whereHas['Products'] =  function ($q) use ($id) {
-            if ($id) $q->where('products.id',  $id);
+        $whereHas['Products'] = function ($q) use ($id) {
+            if ($id) $q->where('products.id', $id);
         };
         return Datatable::make($this->repository->model())
             ->with(['products'])
             ->whereHas($whereHas)
             ->search('id', 'name', 'sku')
-            ->resource(OrderResource::class)
+            ->resource(ReturnOrderResource::class)
             ->json();
     }
-
-    /**
-     * @return JsonResponse
-     */
-    public function autocomplete(): JsonResponse
-    {
-        $q = request()->get('q');
-        $models = $this->repository->autocomplete($q);
-        $response = [];
-        foreach ($models as $model)
-        {
-            $response[] = [
-                'id' => $model->id,
-                'tax_number' => $model->tax_number,
-                'products' => $model->products,
-            ];
-        }
-        return $this->success(OrderForReturnResource::collection($models));
-    }
-
 
     /**
      * @return JsonResponse
@@ -100,18 +79,10 @@ class OrderController extends ApiAdminController
     {
 
         $data = $this->validate();
-        if ($data['shipping']['status'] == null) {
-            $data['shipping']['status'] = "WAITING";
-        }
+
 
         $order = $this->repository->make($data);
 
-        if (!\Arr::get($data, 'options.price_offer', false)) {
-            // Mark as processing
-            $this->repository->status($order->id, OrderStatus::PROCESSING()->value);
-        } else {
-            $this->repository->status($order->id, OrderStatus::PENDING()->value);
-        }
 
         $order->syncMedia($data['attachments'] ?? []);
 
@@ -128,58 +99,36 @@ class OrderController extends ApiAdminController
     {
         $order = $this->repository->findOrFail($id);
         $data = $this->validate();
-        if ($order->status != 'COMPLETED'){
-//            if (!$order->options->price_offer){
-
-
-//                if ($order->status != 'PENDING'){
-//                    foreach ($data['products'] as $product){
-//                        $prod = Product::find($product['id']);
-//                        if ($prod->stock < $product['quantity']){
-//                            throw new BadRequestException($prod->name . ' has insufficient quantity');
-//                        }
-//                    }
-//                }
-//            return \response()->json($data);
-                if ($data['shipping']['status'] == null) {
-                    $data['shipping']['status'] = "WAITING";
-                }
-                $order = $this->repository->saveOrder($id, $data);
-                $order->syncMedia($data['attachments'] ?? []);
-//            }
-
-        }else{
-            $order = $this->repository->saveOrder($id, $data);
-            $order->syncMedia($data['attachments'] ?? []);
-        }
+        $order = $this->repository->saveOrder($id, $data);
+        $order->syncMedia($data['attachments'] ?? []);
         return $this->success();
     }
 
     public function updateWithStatus($id): JsonResponse
     {
         $order = $this->repository->findOrFail($id);
-        if ($order->status != 'COMPLETED'){
+        if ($order->status != 'COMPLETED') {
             $data = $this->validate();
-            if ($order->status == 'PROCESSING' && request()->get('status') == 'PENDING'){
+            if ($order->status == 'PROCESSING' && request()->get('status') == 'PENDING') {
                 $employee = Auth::user();
 //                return response()->json(!$employee->hasRole('super') && !$employee->hasRole('admin') && !$employee->hasRole('Manager'));
-                if (!$employee->hasRole('super') && !$employee->hasRole('admin') && $order->options->taxed){
+                if (!$employee->hasRole('super') && !$employee->hasRole('admin') && $order->options->taxed) {
                     throw new BadRequestException('You can\'t update the status please contact admin');
                 }
             }
 
-            if ($order->status == 'PENDING' &&  request()->get('status') != 'PENDING'){
-                foreach ($data['products'] as $product){
+            if ($order->status == 'PENDING' && request()->get('status') != 'PENDING') {
+                foreach ($data['products'] as $product) {
                     $prod = Product::find($product['id']);
-                    if ($prod->stock < $product['quantity']){
+                    if ($prod->stock < $product['quantity']) {
                         throw new BadRequestException($prod->name . ' has insufficient quantity');
                     }
-                    if ($prod->options->kit == true){
+                    if ($prod->options->kit == true) {
                         $kits = $prod->kit()->get();
 //                        return response()->json($kits);
-                        foreach ($kits as $kit){
+                        foreach ($kits as $kit) {
 //                            return response()->json($kit->name);
-                            if ($kit->pivot->quantity * $product['quantity'] > $kit->stock){
+                            if ($kit->pivot->quantity * $product['quantity'] > $kit->stock) {
                                 throw new BadRequestException($kit->name . ' Which is kit has insufficient quantity');
                             }
                         }
@@ -190,7 +139,7 @@ class OrderController extends ApiAdminController
             if ($data['shipping']['status'] == null) {
                 $data['shipping']['status'] = "WAITING";
             }
-            if (request()->get('status') == 'COMPLETED'){
+            if (request()->get('status') == 'COMPLETED') {
                 $data['completed_by'] = auth()->id();
             }
             $order = $this->repository->saveOrder($id, $data);
@@ -199,8 +148,8 @@ class OrderController extends ApiAdminController
                 $id, request()->get('status')
             );
 
-        }else{
-            if (request()->get('status') != null){
+        } else {
+            if (request()->get('status') != null) {
                 $this->repository->status(
                     $id, request()->get('status')
                 );
@@ -243,7 +192,7 @@ class OrderController extends ApiAdminController
     public function datatableSearchFields(): array
     {
         return [
-            'id', 'customer->name', 'customer->email', 'customer->phone','tax_number','status','shipping->status','total'
+            'id', 'customer->name', 'customer->email', 'customer->phone', 'tax_number', 'status', 'shipping->status', 'total'
         ];
     }
 
@@ -253,39 +202,15 @@ class OrderController extends ApiAdminController
     public function validate(): array
     {
         return request()->validate([
-            'user_id' => 'nullable|exists:users,id',
-            'cashier_id' => 'nullable|exists:users,id',
-
-            'customer.name' => 'required|max:255',
-            'customer.phone' => 'required|max:14|min:9',
-            'customer.email' => 'nullable|email|max:255',
-            'customer_identity_number' => 'nullable',
-            'identity_number_type' => 'nullable|max:3',
-
-            'city_id' => 'nullable',
-            'shipping_provider_id' => 'nullable',
-            'shipping.address' => 'nullable',
-            'shipping.cost' => 'nullable',
-            'shipping.status' => 'nullable',
-            'shipping.free' => 'nullable|boolean',
-
-            'options.taxed' => 'required|boolean',
-            'options.tax_exempt' => 'required|boolean',
-            'options.dept' => 'required|boolean',
-            'options.price_offer' => 'required|boolean',
-            'options.pricing' => 'nullable|string',
-            'options.tax_zero' => 'nullable|boolean',
-
-            'coupon_id' => 'nullable|exists:coupons,id',
+            'order_id' => 'nullable|exists:orders,id',
             'discount' => 'required|numeric',
-            'discount_percentage' => 'required|numeric',
             'notes' => 'nullable|max:500',
-            'invoice_notes' => 'nullable|max:500',
+            'status' => 'required|string',
 
             'products.*.id' => 'exists:products,id',
             'products.*.price' => 'required|numeric',
+            'products.*.returned_quantity' => 'required|numeric',
             'products.*.quantity' => 'required|numeric',
-            'products.*.number' => 'required|numeric',
             'products.*.discount' => 'required|numeric',
 
             'extra_items' => 'nullable|array',
@@ -294,33 +219,33 @@ class OrderController extends ApiAdminController
         ]);
     }
 
-    public function orderToFatoraSystem( $id)
+    public function orderToFatoraSystem($id)
     {
-        $order = Order::find($id);
+        $order = ReturnOrder::find($id);
         $service = new UblInvoiceService();
         $orderToFatora = $this->calcOrderFatora($order);
 
         // 1. Generate XML
         $xml = $service->generate($orderToFatora);
-        return response()->json([
-            'status' => 'success',
-            'invoice_id' => $xml,
-            'user-id' => auth()->id()
-        ]);
+//        return response()->json([
+//            'status' => 'success',
+//            'invoice_id' => $xml,
+//            'user-id' => auth()->id()
+//        ]);
         $payload = $service->prepareForSubmission($xml);
 
         $response = Http::withHeaders([
             'Client-Id' => config('jo_fotara.client_id'),
             'Secret-Key' => config('jo_fotara.secret_key'),
             'Content-Type' => 'application/json',
-        ])->post(config('jo_fotara.api_url').'/core/invoices/', $payload);
+        ])->post(config('jo_fotara.api_url') . '/core/invoices/', $payload);
 
         // 5. Handle Response
         if ($response->successful()) {
 
             $responseData = $response->json();
 //            Log::info(['JoFotara Response json'=> $responseData]);
-            $oldOrder = Order::find($id);
+            $oldOrder = ReturnOrder::find($id);
 
             $oldOrder->update([
                 'qr_code' => $responseData['EINV_QR'],
@@ -339,8 +264,8 @@ class OrderController extends ApiAdminController
 
         $errorCode = $response->json('errorCode');
         $errorMessage = $this->mapErrorCode($errorCode);
-        Log::error(['JoFotara Response failed'=> $response->body()]);
-        $oldOrder = Order::find($id);
+        Log::error(['JoFotara Response failed' => $response->body()]);
+        $oldOrder = ReturnOrder::find($id);
         $responseData = $response->body();
         $oldOrder->update([
             'fatora_status' => $responseData['EINV_RESULTS']['EINV_STATUS'] ?? 'failed',
@@ -368,16 +293,16 @@ class OrderController extends ApiAdminController
         return $errors[$code] ?? 'Unknown error';
     }
 
-    private function calcOrderFatora(Order $order)
+    private function calcOrderFatora(ReturnOrder $order)
     {
 
         $is_taxed = $order->options->taxed;
         $is_exempt = $order->options->tax_exempt;
         $tax_zero = $order->options->tax_zero;
-        $taxChar = $this->tax($is_taxed,$is_exempt,$tax_zero);
+        $taxChar = $this->tax($is_taxed, $is_exempt, $tax_zero);
         $taxValue = ($taxChar == 'S') ? 0.16 : 0;
         $totalTax = ($order->total / (1 + $taxValue)) * $taxValue;
-        $totalBeforDiscount =$order->subtotal - ($order->subtotal / (1 + $taxValue)) * $taxValue;
+        $totalBeforDiscount = $order->subtotal - ($order->subtotal / (1 + $taxValue)) * $taxValue;
         $totalAfterDiscountAndTax = $order->total;
         $fixedOrder = $order;
         $fixedOrder->tax_char = $taxChar;
@@ -386,69 +311,68 @@ class OrderController extends ApiAdminController
         $fixedOrder->totalBeforDiscount = $totalBeforDiscount;
         $fixedOrder->totalAfterDiscountAndTax = $totalAfterDiscountAndTax;
 
-        $fixedOrder->final_discount = $this->calcFinalDiscount($order,$taxValue);
-        $fixedOrder->final_tax = $this->calcFinalTax($order,$taxValue);
-        $fixedOrder->final_total = $this->calcFinalTotal($order,$taxValue);
+        $fixedOrder->final_discount = $this->calcFinalDiscount($order, $taxValue);
+        $fixedOrder->final_tax = $this->calcFinalTax($order, $taxValue);
+        $fixedOrder->final_total = $this->calcFinalTotal($order, $taxValue);
 
         return $fixedOrder;
 
 
-
     }
 
-    private function tax($is_taxed,$is_exempt,$tax_zero)
+    private function tax($is_taxed, $is_exempt, $tax_zero)
     {
-        if ($is_taxed && !$is_exempt && !$tax_zero){
+        if ($is_taxed && !$is_exempt && !$tax_zero) {
             return 'S';
-        }elseif ($is_taxed && $is_exempt && !$tax_zero){
+        } elseif ($is_taxed && $is_exempt && !$tax_zero) {
             return 'Z';
-        }elseif ($is_taxed && $is_exempt && $tax_zero){
+        } elseif ($is_taxed && $is_exempt && $tax_zero) {
             return 'O';
-        }else{
+        } else {
             return null;
         }
 
     }
 
-    private function calcFinalDiscount($order,$taxValue)
+    private function calcFinalDiscount($order, $taxValue)
     {
         $discount = 0;
-        foreach ($order->products as $product){
-            $discount += number_format($product->pivot->discount / (1+$taxValue),3, '.', '');
+        foreach ($order->products as $product) {
+            $discount += number_format($product->pivot->discount / (1 + $taxValue), 3, '.', '');
         }
-        if ($order->extra_items != null && count($order->extra_items) > 0){
-            foreach ($order->extra_items as $product){
-                $discount += number_format($product->discount / (1+$taxValue),3, '.', '');
+        if ($order->extra_items != null && count($order->extra_items) > 0) {
+            foreach ($order->extra_items as $product) {
+                $discount += number_format($product->discount / (1 + $taxValue), 3, '.', '');
             }
         }
 
         return $discount;
     }
 
-    private function calcFinalTax($order,$taxValue)
+    private function calcFinalTax($order, $taxValue)
     {
         $tax = 0;
-        foreach ($order->products as $product){
-            $tax += number_format((($product->pivot->quantity *number_format(($product->pivot->price /(1+$taxValue)), 3, '.', '') ) - (number_format(($product->pivot->discount /(1+$taxValue)),3, '.', ''))) * $taxValue,3, '.', '');
+        foreach ($order->products as $product) {
+            $tax += number_format((($product->pivot->quantity * number_format(($product->pivot->price / (1 + $taxValue)), 3, '.', '')) - (number_format(($product->pivot->discount / (1 + $taxValue)), 3, '.', ''))) * $taxValue, 3, '.', '');
         }
-        if ($order->extra_items != null && count($order->extra_items) > 0){
-            foreach ($order->extra_items as $product){
-                $tax += number_format((($product->quantity *($product->price /(1+$taxValue)) ) - (number_format(($product->discount /(1+$taxValue)),3, '.', ''))) * $taxValue,3, '.', '');
+        if ($order->extra_items != null && count($order->extra_items) > 0) {
+            foreach ($order->extra_items as $product) {
+                $tax += number_format((($product->quantity * ($product->price / (1 + $taxValue))) - (number_format(($product->discount / (1 + $taxValue)), 3, '.', ''))) * $taxValue, 3, '.', '');
             }
         }
 
         return $tax;
     }
 
-    private function calcFinalTotal($order,$taxValue)
+    private function calcFinalTotal($order, $taxValue)
     {
         $total = 0;
-        foreach ($order->products as $product){
-            $total += number_format((number_format(($product->pivot->price / (1+$taxValue)), 3, '.', '') * $product->pivot->quantity), 3, '.', '');
+        foreach ($order->products as $product) {
+            $total += number_format((number_format(($product->pivot->price / (1 + $taxValue)), 3, '.', '') * $product->pivot->quantity), 3, '.', '');
         }
-        if ($order->extra_items != null && count($order->extra_items) > 0){
-            foreach ($order->extra_items as $product){
-                $total += number_format((number_format(($product->price / (1+$taxValue)), 3, '.', '') * $product->quantity), 3, '.', '');
+        if ($order->extra_items != null && count($order->extra_items) > 0) {
+            foreach ($order->extra_items as $product) {
+                $total += number_format((number_format(($product->price / (1 + $taxValue)), 3, '.', '') * $product->quantity), 3, '.', '');
             }
         }
 
@@ -460,7 +384,7 @@ class OrderController extends ApiAdminController
         // Use Carbon's parse or createFromFormat consistently
         $startDate = Carbon::createFromFormat('d-m-Y', '01-04-2025')->startOfDay();
 
-        $orders = Order::where('status', 'COMPLETED')
+        $orders = ReturnOrder::where('status', 'COMPLETED')
             ->where('options->taxed', true)
             ->where('is_migrated', false)
             ->whereDate('taxed_at', '>=', $startDate)  // Use whereDate for date comparison
@@ -476,8 +400,8 @@ class OrderController extends ApiAdminController
             ]);
         }
 
-        foreach ($orders as $key=>$order) {
-                ProcessOrderToFatora::dispatch($order, $userId);  // Consider using a specific queue
+        foreach ($orders as $key => $order) {
+            ProcessOrderToFatora::dispatch($order, $userId);  // Consider using a specific queue
 
 
         }

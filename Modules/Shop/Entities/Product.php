@@ -161,6 +161,19 @@ class Product extends Model implements HasMedia
     /**
      * @return BelongsToMany
      */
+    public function return_orders(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            ReturnOrder::class,
+            'return_order_products',
+            'return_order_id',
+            'product_id'
+        )->withTrashed()->withPivot('price','discount', 'returned_quantity','quantity','name');
+    }
+
+    /**
+     * @return BelongsToMany
+     */
     public function completedOrders(): BelongsToMany
     {
         return $this->orders()->where('status', OrderStatus::COMPLETED()->value);
