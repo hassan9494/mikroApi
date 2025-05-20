@@ -42,12 +42,18 @@ class ProductController extends Controller
      */
     public function index(): AnonymousResourceCollection
     {
-        $search = request()->get('search', false);
-        $category = request()->get('category', false);
-        $limit = request()->get('limit',false);
-        $filter = request()->get('filter',false);
-        $inStock = request()->get('inStock',false);
-        $items = $this->repository->search($search, $category, $limit, $filter,$inStock);
+        $search = request()->get('search', '');
+        $category = request()->get('category', '');
+        $limit = request()->get('limit', 20);
+        $filter = request()->get('filter', false);
+        $inStock = request()->get('inStock', false);
+
+        // Validate minimum search length
+        if ($search && strlen(trim(preg_replace('/[-_\.,\/()+=]/', '', $search))) < 2) {
+            return ProductShortResource::collection([]);
+        }
+
+        $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
         return ProductShortResource::collection($items);
     }
 
