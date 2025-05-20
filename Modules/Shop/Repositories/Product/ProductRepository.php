@@ -174,7 +174,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             if ($category == 'new_product'){
                 $latestIds = Product::query()
                     ->orderBy('id', 'desc')
-                    ->take(500)
+                    ->take(720)
                     ->pluck('id');
 
                 // Then filter by these IDs
