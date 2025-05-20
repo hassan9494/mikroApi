@@ -124,50 +124,69 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         // Handle search by name and meta
         if ($searchWord) {
-            $searchTerms = explode(' ', strtolower($searchWord));
+            // Normalize search input
+            $normalized = mb_strtolower(trim(preg_replace('/[-_\.,\/()+=]/', ' ', $searchWord)));
+            $searchTerms = array_filter(explode(' ', $normalized));
             $termCount = count($searchTerms);
 
-            // Build the query for name and meta search
-            $query->where(function ($q) use ($searchTerms) {
+            if ($termCount === 0) {
+                return $query->paginate($limit);
+            }
+
+            // Build complex ranking
+            $query->select([
+                'products.*',
+                \DB::raw("
+                (CASE
+                    WHEN LOWER(name) = '{$normalized}' THEN 1000
+                    WHEN LOWER(name) LIKE '{$normalized}%' THEN 900
+                    WHEN LOWER(name) LIKE '% {$normalized}%' THEN 800
+                    ELSE
+                        (".implode(' + ', array_map(function($term) {
+                        return "(CASE
+                                WHEN LOWER(name) LIKE '%{$term}%' THEN 100
+                                WHEN meta_title LIKE '%{$term}%' THEN 80
+                                WHEN meta_keywords LIKE '%{$term}%' THEN 60
+                                WHEN meta_description LIKE '%{$term}%' THEN 40
+                                ELSE 0
+                            END)";
+                    }, $searchTerms)).")
+                END) as search_rank
+            ")
+            ]);
+
+            // Add WHERE conditions
+            $query->where(function($q) use ($searchTerms) {
                 foreach ($searchTerms as $term) {
-                    $term = '%' . $term . '%'; // Add wildcards here for LIKE
-                    $q->orWhere('name', 'LIKE', $term)
-                        ->orWhere('meta_title', 'LIKE', $term) // Use generated column
-                        ->orWhere('meta_keywords', 'LIKE', $term) // Use generated column
-                        ->orWhere('meta_description', 'LIKE', $term); // Use generated column
+                    $q->orWhere('name', 'LIKE', "%{$term}%")
+                        ->orWhere('meta_title', 'LIKE', "%{$term}%")
+                        ->orWhere('meta_keywords', 'LIKE', "%{$term}%")
+                        ->orWhere('meta_description', 'LIKE', "%{$term}%");
                 }
             });
 
-            // Create ranking logic with a new alias
-            $rankingQuery = "CASE
-                            WHEN LOWER(name) = '" . strtolower($searchWord) . "' THEN " . ($termCount + 1) . "
-                            ELSE (";
-
-            foreach ($searchTerms as $term) {
-                $rankingQuery .= "CASE
-                                WHEN LOWER(name) LIKE '%" . $term . "%' THEN 1
-                                WHEN meta_title LIKE '%" . $term . "%' THEN 1
-                                WHEN meta_keywords LIKE '%" . $term . "%' THEN 1
-                                WHEN meta_description LIKE '%" . $term . "%' THEN 1
-                                ELSE 0 END + ";
-            }
-
-            $rankingQuery = rtrim($rankingQuery, "+ ") . ") END AS search_rank";
-
-            // Specify the columns you want to select
-            $query->addSelect(['id', 'name', 'sku', 'slug', 'options', 'price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]);
-
-            // Order by the new rank and other criteria
-            if (!$filter) {
-                $query->orderByDesc('search_rank')
-                    ->orderByRaw("CASE WHEN LOWER(name) LIKE '" . strtolower($searchWord) . "%' THEN 0 ELSE 1 END")
-                    ->orderBy('name');
-            }
-        } elseif ($category) {
+            $query->orderByDesc('search_rank')
+                ->orderByRaw("CASE WHEN LOWER(name) LIKE '{$normalized}%' THEN 0 ELSE 1 END")
+                ->orderBy('name');
+        }
+        elseif ($category) {
             // Search by category if no search word is provided
-            $query->whereHas('categories', function (Builder $q) use ($category) {
-                $q->where('slug', $category);
-            });
+            if ($category == 'new_product'){
+                $latestIds = Product::query()
+                    ->orderBy('id', 'desc')
+                    ->take(500)
+                    ->pluck('id');
+
+                // Then filter by these IDs
+                $query->whereIn('id', $latestIds)
+                    ->orderBy('id', 'desc');
+
+            }else{
+                $query->whereHas('categories', function (Builder $q) use ($category) {
+                    $q->where('slug', $category);
+                });
+            }
+
         } else {
             // Default to featured products if no category or search word is provided
             $query->where(['options->featured' => true]);
