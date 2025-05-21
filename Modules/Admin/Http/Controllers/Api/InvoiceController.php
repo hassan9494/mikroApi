@@ -127,6 +127,7 @@ class InvoiceController extends ApiAdminController
             'date' => 'nullable',
             'products.*.id' => 'exists:products,id',
             'products.*.purchases_price' => 'required|numeric',
+            'products.*.distributer_price' => 'required|numeric',
             'products.*.normal' => 'required|numeric',
             'products.*.sale_price' => 'required|numeric',
             'products.*.source_sku' => 'nullable|max:500',
