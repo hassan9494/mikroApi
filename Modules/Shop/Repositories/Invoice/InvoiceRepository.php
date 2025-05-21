@@ -99,6 +99,7 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
 
             // If custom price enabled, then use custom price otherwise use normal_price
             $price = $item['purchases_price'];
+            $distributor_price = $item['distributer_price'];
             $normal_price = $item['normal'];
             $sale_price = $item['sale_price'];
             $source_sku = $item['source_sku'];
@@ -115,6 +116,7 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                 'normal' => $normal_price,
                 'sale_price' => $sale_price,
                 'product_name' => $product_name,
+                'distributer_price' => $distributor_price,
             ];
         }
 
@@ -146,6 +148,7 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                     $price->real_price = $product->pivot->purchases_price;
                     $price->sale_price = $product->pivot->sale_price;
                     $price->normal_price = $product->pivot->normal;
+                    $price->distributor_price = $product->pivot->distributer_price;
                     $product->price = $price;
                     $product->source_sku = $product->pivot->source_sku;
                     $product->source_id = $invoice->source_id;
