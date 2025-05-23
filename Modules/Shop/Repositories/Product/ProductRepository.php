@@ -124,52 +124,77 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         // Handle search by name and meta
         if ($searchWord) {
+            // Decode URL-encoded characters first
             $decoded = urldecode($searchWord);
 
-            // Normalize without removing special chars
+            // Normalize without removing special chars but escape them
             $normalized = trim(preg_replace('/\s+/', ' ', $decoded));
             $searchTerms = array_filter(explode(' ', $normalized));
             $termCount = count($searchTerms);
+
             if ($termCount === 0) {
                 return $query->paginate($limit);
             }
 
-            // Build complex ranking
+            // Escape special characters for SQL
+            $escapedNormalized = addslashes($normalized);
+            $escapedTerms = array_map('addslashes', $searchTerms);
+
+            // Build the CASE statement with escaped values
+            $caseStatements = [];
+            $bindings = [
+                $escapedNormalized, // exact match
+                $escapedNormalized.'%', // starts with
+                '% '.$escapedNormalized.'%' // contains as whole word
+            ];
+
+            $termCases = [];
+            foreach ($escapedTerms as $term) {
+                $termCases[] = "(CASE
+                            WHEN name LIKE ? THEN 100
+                            WHEN meta_title LIKE ? THEN 80
+                            WHEN meta_keywords LIKE ? THEN 60
+                            WHEN meta_description LIKE ? THEN 40
+                            ELSE 0
+                        END)";
+                array_push($bindings,
+                    '%'.$term.'%', // name
+                    '%'.$term.'%', // meta_title
+                    '%'.$term.'%', // meta_keywords
+                    '%'.$term.'%'  // meta_description
+                );
+            }
+
             $query->select([
                 'products.*',
                 \DB::raw("
                 (CASE
-                    WHEN LOWER(name) = '{$normalized}' THEN 1000
-                    WHEN LOWER(name) LIKE '{$normalized}%' THEN 900
-                    WHEN LOWER(name) LIKE '% {$normalized}%' THEN 800
+                    WHEN name = ? THEN 1000
+                    WHEN name LIKE ? THEN 900
+                    WHEN name LIKE ? THEN 800
                     ELSE
-                        (".implode(' + ', array_map(function($term) {
-                        return "(CASE
-                                WHEN LOWER(name) LIKE '%{$term}%' THEN 100
-                                WHEN meta_title LIKE '%{$term}%' THEN 80
-                                WHEN meta_keywords LIKE '%{$term}%' THEN 60
-                                WHEN meta_description LIKE '%{$term}%' THEN 40
-                                ELSE 0
-                            END)";
-                    }, $searchTerms)).")
+                        (".implode(' + ', $termCases).")
                 END) as search_rank
             ")
             ]);
 
-            // Add WHERE conditions
-            $query->where(function($q) use ($searchTerms) {
-                foreach ($searchTerms as $term) {
-                    $q->orWhere('name', 'LIKE', "%{$term}%")
-                        ->orWhere('meta_title', 'LIKE', "%{$term}%")
-                        ->orWhere('meta_keywords', 'LIKE', "%{$term}%")
-                        ->orWhere('meta_description', 'LIKE', "%{$term}%")
-                        ->orWhere('sku', 'LIKE', "%{$term}%")
-                        ->orWhere('source_sku', 'LIKE', "%{$term}%");
+            // Add all bindings
+            $query->addBinding($bindings, 'select');
+
+            // Add WHERE conditions with parameterized queries
+            $query->where(function($q) use ($escapedTerms) {
+                foreach ($escapedTerms as $term) {
+                    $q->orWhere('name', 'LIKE', '%'.$term.'%')
+                        ->orWhere('meta_title', 'LIKE', '%'.$term.'%')
+                        ->orWhere('meta_keywords', 'LIKE', '%'.$term.'%')
+                        ->orWhere('meta_description', 'LIKE', '%'.$term.'%')
+                        ->orWhere('sku', 'LIKE', '%'.$term.'%')
+                        ->orWhere('source_sku', 'LIKE', '%'.$term.'%');
                 }
             });
 
             $query->orderByDesc('search_rank')
-                ->orderByRaw("CASE WHEN LOWER(name) LIKE '{$normalized}%' THEN 0 ELSE 1 END")
+                ->orderByRaw("CASE WHEN name LIKE ? THEN 0 ELSE 1 END", [$escapedNormalized.'%'])
                 ->orderBy('name');
         }
         elseif ($category) {
