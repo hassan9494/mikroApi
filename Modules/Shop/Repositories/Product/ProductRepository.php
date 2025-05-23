@@ -124,11 +124,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         // Handle search by name and meta
         if ($searchWord) {
-            // Normalize search input
-            $normalized = mb_strtolower(trim(preg_replace('/[-_\.,\/()+=]/', ' ', $searchWord)));
+            $decoded = urldecode($searchWord);
+
+            // Normalize without removing special chars
+            $normalized = trim(preg_replace('/\s+/', ' ', $decoded));
             $searchTerms = array_filter(explode(' ', $normalized));
             $termCount = count($searchTerms);
-
             if ($termCount === 0) {
                 return $query->paginate($limit);
             }
@@ -161,7 +162,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     $q->orWhere('name', 'LIKE', "%{$term}%")
                         ->orWhere('meta_title', 'LIKE', "%{$term}%")
                         ->orWhere('meta_keywords', 'LIKE', "%{$term}%")
-                        ->orWhere('meta_description', 'LIKE', "%{$term}%");
+                        ->orWhere('meta_description', 'LIKE', "%{$term}%")
+                        ->orWhere('sku', 'LIKE', "%{$term}%")
+                        ->orWhere('source_sku', 'LIKE', "%{$term}%");
                 }
             });
 

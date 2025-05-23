@@ -70,6 +70,7 @@ class ProductResource extends JsonResource
             'replacement_item' => $replacement_item ?[ new ProductResource($replacement_item)]  : [],
             'hasVariants' => $this->hasVariants,
             'location' => $this->location,
+            'stock_location' => $this->stock_location,
 
         ];
     }
