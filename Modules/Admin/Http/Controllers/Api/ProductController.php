@@ -282,6 +282,7 @@ class ProductController extends Controller
             'products.*.stock_available' => 'numeric|nullable',
             'products.*.store_available' => 'numeric|nullable',
             'products.*.location' => 'sometimes|string|nullable',
+            'products.*.stock_location' => 'sometimes|string|nullable',
 
         ]);
 
@@ -289,7 +290,7 @@ class ProductController extends Controller
 
             $this->repository->update(
                 $item['id'],
-                \Arr::only($item, ['order_qty', 'min_qty', 'stock_available', 'store_available','location']))
+                \Arr::only($item, ['order_qty', 'min_qty', 'stock_available', 'store_available','location','stock_location']))
             ;
         }
         return $this->success();
@@ -339,6 +340,8 @@ class ProductController extends Controller
             'description' => 'nullable',
             'packageInclude' => 'nullable',
             'location' => 'nullable',
+            'stock_location' => 'nullable',
+            'stock_location' => 'nullable',
             'features' => 'nullable',
             'code' => 'nullable',
             'documents' => 'nullable',
