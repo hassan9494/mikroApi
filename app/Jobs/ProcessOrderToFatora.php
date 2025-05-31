@@ -28,6 +28,7 @@ class ProcessOrderToFatora implements ShouldQueue
 
     public function handle(UblInvoiceService $service)
     {
+        set_time_limit(300);
         try {
             $orderToFatora = $this->calcOrderFatora($this->order);
 

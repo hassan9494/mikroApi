@@ -296,17 +296,18 @@ class OrderController extends ApiAdminController
 
     public function orderToFatoraSystem( $id)
     {
+        set_time_limit(300);
         $order = Order::find($id);
         $service = new UblInvoiceService();
         $orderToFatora = $this->calcOrderFatora($order);
 
         // 1. Generate XML
         $xml = $service->generate($orderToFatora);
-//        return response()->json([
-//            'status' => 'success',
-//            'invoice_id' => $xml,
-//            'user-id' => auth()->id()
-//        ]);
+        return response()->json([
+            'status' => 'success',
+            'invoice_id' => $xml,
+            'user-id' => auth()->id()
+        ]);
         $payload = $service->prepareForSubmission($xml);
 
         $response = Http::withHeaders([
