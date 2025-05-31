@@ -152,6 +152,7 @@ Route::prefix('admin')
         Route::get('return-order/datatable', [ReturnOrderController::class, 'datatable']);
         Route::post('return-order-migrate/{id}', [ReturnOrderController::class, 'orderToFatoraSystem']);
         Route::post('return-orders-migrate', [ReturnOrderController::class, 'migrateMultipleOrders']);
+        Route::post('return-order-with-status/{id}', [ReturnOrderController::class, 'updateWithStatus']);
         Route::resource('return-order', 'ReturnOrderController');
 
         // Invoice Routes.

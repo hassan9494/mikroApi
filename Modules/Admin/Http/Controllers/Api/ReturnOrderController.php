@@ -109,49 +109,20 @@ class ReturnOrderController extends ApiAdminController
         $order = $this->repository->findOrFail($id);
         if ($order->status != 'COMPLETED') {
             $data = $this->validate();
-            if ($order->status == 'PROCESSING' && request()->get('status') == 'PENDING') {
-                $employee = Auth::user();
-//                return response()->json(!$employee->hasRole('super') && !$employee->hasRole('admin') && !$employee->hasRole('Manager'));
-                if (!$employee->hasRole('super') && !$employee->hasRole('admin') && $order->options->taxed) {
-                    throw new BadRequestException('You can\'t update the status please contact admin');
-                }
-            }
 
-            if ($order->status == 'PENDING' && request()->get('status') != 'PENDING') {
-                foreach ($data['products'] as $product) {
-                    $prod = Product::find($product['id']);
-                    if ($prod->stock < $product['quantity']) {
-                        throw new BadRequestException($prod->name . ' has insufficient quantity');
-                    }
-                    if ($prod->options->kit == true) {
-                        $kits = $prod->kit()->get();
-//                        return response()->json($kits);
-                        foreach ($kits as $kit) {
-//                            return response()->json($kit->name);
-                            if ($kit->pivot->quantity * $product['quantity'] > $kit->stock) {
-                                throw new BadRequestException($kit->name . ' Which is kit has insufficient quantity');
-                            }
-                        }
-                    }
-                }
-            }
-//            return \response()->json($data);
-            if ($data['shipping']['status'] == null) {
-                $data['shipping']['status'] = "WAITING";
-            }
             if (request()->get('status') == 'COMPLETED') {
                 $data['completed_by'] = auth()->id();
             }
             $order = $this->repository->saveOrder($id, $data);
             $order->syncMedia($data['attachments'] ?? []);
             $this->repository->status(
-                $id, request()->get('status')
+                $id, request()->get('status'),request()->get('products')
             );
 
         } else {
             if (request()->get('status') != null) {
                 $this->repository->status(
-                    $id, request()->get('status')
+                    $id, request()->get('status'),request()->get('products')
                 );
             }
 
@@ -204,7 +175,7 @@ class ReturnOrderController extends ApiAdminController
         return request()->validate([
             'order_id' => 'nullable|exists:orders,id',
             'discount' => 'required|numeric',
-            'notes' => 'nullable|max:500',
+            'notes' => 'required|max:500',
             'status' => 'required|string',
 
             'products.*.id' => 'exists:products,id',

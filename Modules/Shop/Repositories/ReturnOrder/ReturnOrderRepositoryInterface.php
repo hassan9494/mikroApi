@@ -24,7 +24,7 @@ interface ReturnOrderRepositoryInterface extends BaseRepository
      * @param $status
      * @return mixed
      */
-    public function status($id, $status);
+    public function status($id, $status,$products);
 
     /**
      * @param $id
