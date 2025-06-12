@@ -5,6 +5,7 @@ namespace Modules\Admin\Http\Services;
 use Carbon\Carbon;
 use Modules\Shop\Entities\Order;
 use DOMDocument;
+use Modules\Shop\Entities\ReturnOrder;
 use Ramsey\Uuid\Uuid;
 use Illuminate\Support\Facades\Log;
 
@@ -14,6 +15,18 @@ class UblInvoiceService
     {
         // Generate XML with proper declaration and encoding
         $xmlContent = view('ubl_invoice', [
+            'order' => $orderData,
+            'uuid' => $this->generateUuid(),
+            'issueDate' => Carbon::now()->format('Y-m-d')
+        ])->render();
+
+        // Ensure proper XML formatting
+        return $this->formatXml($xmlContent);
+    }
+    public function generateForReturn(ReturnOrder $orderData): string
+    {
+        // Generate XML with proper declaration and encoding
+        $xmlContent = view('ubl_return_invoice', [
             'order' => $orderData,
             'uuid' => $this->generateUuid(),
             'issueDate' => Carbon::now()->format('Y-m-d')
