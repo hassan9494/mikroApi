@@ -116,13 +116,13 @@ class ReturnOrderController extends ApiAdminController
             $order = $this->repository->saveOrder($id, $data);
             $order->syncMedia($data['attachments'] ?? []);
             $this->repository->status(
-                $id, request()->get('status'),request()->get('products')
+                $id, request()->get('status'), request()->get('products')
             );
 
         } else {
             if (request()->get('status') != null) {
                 $this->repository->status(
-                    $id, request()->get('status'),request()->get('products')
+                    $id, request()->get('status'), request()->get('products')
                 );
             }
 
@@ -197,12 +197,12 @@ class ReturnOrderController extends ApiAdminController
         $orderToFatora = $this->calcOrderFatora($order);
 
         // 1. Generate XML
-        $xml = $service->generate($orderToFatora);
-//        return response()->json([
-//            'status' => 'success',
-//            'invoice_id' => $xml,
-//            'user-id' => auth()->id()
-//        ]);
+        $xml = $service->generateForReturn($orderToFatora);
+        return response()->json([
+            'status' => 'success',
+            'invoice_id' => $xml,
+            'user-id' => auth()->id()
+        ]);
         $payload = $service->prepareForSubmission($xml);
 
         $response = Http::withHeaders([
@@ -267,9 +267,9 @@ class ReturnOrderController extends ApiAdminController
     private function calcOrderFatora(ReturnOrder $order)
     {
 
-        $is_taxed = $order->options->taxed;
-        $is_exempt = $order->options->tax_exempt;
-        $tax_zero = $order->options->tax_zero;
+        $is_taxed = $order->order->options->taxed;
+        $is_exempt = $order->order->options->tax_exempt;
+        $tax_zero = $order->order->options->tax_zero;
         $taxChar = $this->tax($is_taxed, $is_exempt, $tax_zero);
         $taxValue = ($taxChar == 'S') ? 0.16 : 0;
         $totalTax = ($order->total / (1 + $taxValue)) * $taxValue;
@@ -309,11 +309,16 @@ class ReturnOrderController extends ApiAdminController
     {
         $discount = 0;
         foreach ($order->products as $product) {
-            $discount += number_format($product->pivot->discount / (1 + $taxValue), 3, '.', '');
+            if ($product->pivot->returned_quantity > 0) {
+                $discount += number_format($product->pivot->discount / (1 + $taxValue), 3, '.', '');
+            }
+
         }
         if ($order->extra_items != null && count($order->extra_items) > 0) {
             foreach ($order->extra_items as $product) {
-                $discount += number_format($product->discount / (1 + $taxValue), 3, '.', '');
+                if ($product->returned_quantity > 0) {
+                    $discount += number_format($product->discount / (1 + $taxValue), 3, '.', '');
+                }
             }
         }
 
@@ -324,11 +329,15 @@ class ReturnOrderController extends ApiAdminController
     {
         $tax = 0;
         foreach ($order->products as $product) {
-            $tax += number_format((($product->pivot->quantity * number_format(($product->pivot->price / (1 + $taxValue)), 3, '.', '')) - (number_format(($product->pivot->discount / (1 + $taxValue)), 3, '.', ''))) * $taxValue, 3, '.', '');
+            if ($product->pivot->returned_quantity > 0) {
+                $tax += number_format((($product->pivot->returned_quantity * number_format(($product->pivot->price / (1 + $taxValue)), 3, '.', '')) - (number_format(($product->pivot->discount / (1 + $taxValue)), 3, '.', ''))) * $taxValue, 3, '.', '');
+            }
         }
         if ($order->extra_items != null && count($order->extra_items) > 0) {
             foreach ($order->extra_items as $product) {
-                $tax += number_format((($product->quantity * ($product->price / (1 + $taxValue))) - (number_format(($product->discount / (1 + $taxValue)), 3, '.', ''))) * $taxValue, 3, '.', '');
+                if ($product->returned_quantity > 0) {
+                    $tax += number_format((($product->returned_quantity * ($product->price / (1 + $taxValue))) - (number_format(($product->discount / (1 + $taxValue)), 3, '.', ''))) * $taxValue, 3, '.', '');
+                }
             }
         }
 
@@ -339,11 +348,15 @@ class ReturnOrderController extends ApiAdminController
     {
         $total = 0;
         foreach ($order->products as $product) {
-            $total += number_format((number_format(($product->pivot->price / (1 + $taxValue)), 3, '.', '') * $product->pivot->quantity), 3, '.', '');
+            if ($product->pivot->returned_quantity > 0) {
+                $total += number_format((number_format(($product->pivot->price / (1 + $taxValue)), 3, '.', '') * $product->pivot->returned_quantity), 3, '.', '');
+            }
         }
         if ($order->extra_items != null && count($order->extra_items) > 0) {
             foreach ($order->extra_items as $product) {
-                $total += number_format((number_format(($product->price / (1 + $taxValue)), 3, '.', '') * $product->quantity), 3, '.', '');
+                if ($product->returned_quantity > 0) {
+                    $total += number_format((number_format(($product->price / (1 + $taxValue)), 3, '.', '') * $product->returned_quantity), 3, '.', '');
+                }
             }
         }
 
