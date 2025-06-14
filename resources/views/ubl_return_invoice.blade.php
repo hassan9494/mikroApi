@@ -16,7 +16,7 @@
         <cac:InvoiceDocumentReference>
             <cbc:ID>{{$order->order->tax_number}}</cbc:ID>
             <cbc:UUID>{{ $order->order->uuid }}</cbc:UUID>
-            <cbc:DocumentDescription>{{$order->order->total}}</cbc:DocumentDescription>//////////need review
+            <cbc:DocumentDescription>{{$order->old_final_total}}</cbc:DocumentDescription>
         </cac:InvoiceDocumentReference>
     </cac:BillingReference>
     <cac:AdditionalDocumentReference>

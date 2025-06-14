@@ -198,11 +198,11 @@ class ReturnOrderController extends ApiAdminController
 
         // 1. Generate XML
         $xml = $service->generateForReturn($orderToFatora);
-        return response()->json([
-            'status' => 'success',
-            'invoice_id' => $xml,
-            'user-id' => auth()->id()
-        ]);
+//        return response()->json([
+//            'status' => 'success',
+//            'invoice_id' => $xml,
+//            'user-id' => auth()->id()
+//        ]);
         $payload = $service->prepareForSubmission($xml);
 
         $response = Http::withHeaders([
@@ -285,6 +285,7 @@ class ReturnOrderController extends ApiAdminController
         $fixedOrder->final_discount = $this->calcFinalDiscount($order, $taxValue);
         $fixedOrder->final_tax = $this->calcFinalTax($order, $taxValue);
         $fixedOrder->final_total = $this->calcFinalTotal($order, $taxValue);
+        $fixedOrder->old_final_total = $this->calcOldFinalTotal($order->order, $taxValue);
 
         return $fixedOrder;
 
@@ -357,6 +358,20 @@ class ReturnOrderController extends ApiAdminController
                 if ($product->returned_quantity > 0) {
                     $total += number_format((number_format(($product->price / (1 + $taxValue)), 3, '.', '') * $product->returned_quantity), 3, '.', '');
                 }
+            }
+        }
+
+        return $total;
+    }
+    private function calcOldFinalTotal($order, $taxValue)
+    {
+        $total = 0;
+        foreach ($order->products as $product){
+            $total += number_format((number_format(($product->pivot->price / (1+$taxValue)), 3, '.', '') * $product->pivot->quantity), 3, '.', '');
+        }
+        if ($order->extra_items != null && count($order->extra_items) > 0){
+            foreach ($order->extra_items as $product){
+                $total += number_format((number_format(($product->price / (1+$taxValue)), 3, '.', '') * $product->quantity), 3, '.', '');
             }
         }
 
