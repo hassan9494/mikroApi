@@ -169,22 +169,25 @@ class OrderController extends ApiAdminController
             }
 
             if ($order->status == 'PENDING' &&  request()->get('status') != 'PENDING'){
-                foreach ($data['products'] as $product){
-                    $prod = Product::find($product['id']);
-                    if ($prod->stock < $product['quantity']){
-                        throw new BadRequestException($prod->name . ' has insufficient quantity');
-                    }
-                    if ($prod->options->kit == true){
-                        $kits = $prod->kit()->get();
+                if (isset($data['products'])){
+                    foreach ($data['products'] as $product){
+                        $prod = Product::find($product['id']);
+                        if ($prod->stock < $product['quantity']){
+                            throw new BadRequestException($prod->name . ' has insufficient quantity');
+                        }
+                        if ($prod->options->kit == true){
+                            $kits = $prod->kit()->get();
 //                        return response()->json($kits);
-                        foreach ($kits as $kit){
+                            foreach ($kits as $kit){
 //                            return response()->json($kit->name);
-                            if ($kit->pivot->quantity * $product['quantity'] > $kit->stock){
-                                throw new BadRequestException($kit->name . ' Which is kit has insufficient quantity');
+                                if ($kit->pivot->quantity * $product['quantity'] > $kit->stock){
+                                    throw new BadRequestException($kit->name . ' Which is kit has insufficient quantity');
+                                }
                             }
                         }
                     }
                 }
+
             }
 //            return \response()->json($data);
             if ($data['shipping']['status'] == null) {
