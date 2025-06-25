@@ -1,4 +1,25 @@
 <?php return array (
+  'babenkoivan/elastic-client' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Elastic\\Client\\ServiceProvider',
+    ),
+  ),
+  'babenkoivan/elastic-scout-driver' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Elastic\\ScoutDriver\\ServiceProvider',
+    ),
+  ),
+  'babenkoivan/elastic-scout-driver-plus' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Elastic\\ScoutDriverPlus\\ServiceProvider',
+    ),
+  ),
   'barryvdh/laravel-ide-helper' => 
   array (
     'providers' => 
@@ -86,13 +107,13 @@
   ),
   'nwidart/laravel-modules' => 
   array (
-    'providers' => 
-    array (
-      0 => 'Nwidart\\Modules\\LaravelModulesServiceProvider',
-    ),
     'aliases' => 
     array (
       'Module' => 'Nwidart\\Modules\\Facades\\Module',
+    ),
+    'providers' => 
+    array (
+      0 => 'Nwidart\\Modules\\LaravelModulesServiceProvider',
     ),
   ),
   'spatie/laravel-enum' => 

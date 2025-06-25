@@ -35,6 +35,8 @@ use Modules\Shop\Entities\ProductRelated;
 use Modules\Shop\Entities\ShippingProvider;
 use Modules\Shop\Entities\Supplier;
 use Modules\Shop\Http\Resources\ProductResource;
+use Elastic\Elasticsearch\ClientBuilder;
+use Elastic\Elasticsearch\Client;
 
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
 
@@ -517,5 +519,93 @@ class ImportController extends Controller
             }
 
         }
+    }
+
+
+
+    /**
+     * Creates Elasticsearch index with all required fields including meta JSON
+     *
+     * @return array Elasticsearch response
+     * @throws \Exception
+     */
+    function createProductIndex() {
+//        try {
+            $client = app('elasticsearch'); // Use the client from your service provider
+
+            $params = [
+                'index' => 'test_products',
+                'body' => [
+                    'mappings' => [
+                        'properties' => [
+                            'id' => ['type' => 'integer'],
+                            'name' => [
+                                'type' => 'text',
+                                'fields' => [
+                                    'keyword' => ['type' => 'keyword'],
+                                    'ngram' => [
+                                        'type' => 'text',
+                                        'analyzer' => 'ngram_analyzer'
+                                    ]
+                                ]
+                            ],
+                            'sku' => ['type' => 'keyword'],
+                            'source_sku' => ['type' => 'keyword'],
+                            'meta_title' => ['type' => 'text'],
+                            'meta' => ['type' => 'object'],
+                            'meta_keywords' => ['type' => 'text'],
+                            'meta_description' => ['type' => 'text'],
+                            'category_slugs' => ['type' => 'keyword'],
+                            'normal_price' => ['type' => 'float'],
+                            'sale_price' => ['type' => 'float'],
+                            'effective_price' => ['type' => 'float'],
+                            'stock' => ['type' => 'integer'],
+                            'created_at' => ['type' => 'date'],
+                            'featured' => ['type' => 'boolean'],
+                            'available' => ['type' => 'boolean'],
+                            'is_retired' => ['type' => 'boolean'],
+                            'short_description' => ['type' => 'text'],
+                        ]
+                    ],
+                    'settings' => [
+                        'analysis' => [
+                            'analyzer' => [
+                                'ngram_analyzer' => [
+                                    'type' => 'custom',
+                                    'tokenizer' => 'ngram_tokenizer',
+                                    'filter' => ['lowercase', 'asciifolding']
+                                ],
+                                'default' => [
+                                    'type' => 'custom',
+                                    'tokenizer' => 'standard',
+                                    'filter' => ['lowercase', 'asciifolding', 'arabic_normalization']
+                                ]
+                            ],
+                            'tokenizer' => [
+                                'ngram_tokenizer' => [
+                                    'type' => 'ngram',
+                                    'min_gram' => 2,
+                                    'max_gram' => 3,
+                                    'token_chars' => ['letter', 'digit']
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ];
+
+            // Delete existing index if needed
+            try {
+                $client->indices()->delete(['index' => 'test_products']);
+            } catch (\Exception $e) {
+                // Index didn't exist
+            }
+
+            $response = $client->indices()->create($params);
+
+            return $response->asArray();
+//        } catch (\Exception $e) {
+//            throw new \RuntimeException("Elasticsearch error: ".$e->getMessage());
+//        }
     }
 }

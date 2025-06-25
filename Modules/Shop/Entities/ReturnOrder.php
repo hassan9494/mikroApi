@@ -33,6 +33,7 @@ class ReturnOrder extends Model implements HasMedia
         'migrated_by',
         'migrated_at',
         'migrate_error',
+        'fatora_status',
     ];
 
     protected $casts = [
