@@ -3,13 +3,13 @@
 
 use App\Http\Controllers\ImportController;
 use App\Models\OldCategory;
+use Elastic\Elasticsearch\ClientBuilder;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Modules\Shop\Entities\Category;
 use Modules\Shop\Entities\Invoice;
 use Modules\Shop\Entities\Order;
 use Modules\Shop\Entities\Product;
-
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -96,7 +96,280 @@ Route::get('update-products-qty',[ImportController::class,'updateProductsQty']);
 Route::get('slug',[ImportController::class,'slug']);
 Route::get('location',[ImportController::class,'location']);
 Route::get('location2',[ImportController::class,'locationNames']);
+Route::get('elastic',[ImportController::class,'createProductIndex']);
 
+Route::get('/test-elastic', function() {
+    dd([
+        'host' => config('scout.elasticsearch.host'),
+        'user' => config('scout.elasticsearch.user'),
+        'pass' => config('scout.elasticsearch.password')
+    ]);
+});
+
+Route::get('/raw-curl-test', function() {
+    $ch = curl_init();
+
+    curl_setopt_array($ch, [
+        CURLOPT_URL => "http://134.209.88.205:9200",
+        CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
+        CURLOPT_USERPWD => "elastic:MIkro@123",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false
+    ]);
+
+    $response = curl_exec($ch);
+    $error = curl_error($ch);
+    curl_close($ch);
+
+    return $error ? ["cURL error" => $error] : json_decode($response, true);
+});
+Route::get('/product_sear', function() {
+    $product = Product::first();
+    $data = $product->toSearchableArray();
+    $test =  $product->searchable();
+    dd($data);
+});
+
+// routes/web.php
+Route::get('/test-single-index/{id}', function($id) {
+    try {
+        $product = \Modules\Shop\Entities\Product::find($id);
+        $client = app('elasticsearch');
+
+        $params = [
+            'index' => $product->searchableAs(),
+            'id' => $product->id,
+            'body' => $product->toSearchableArray()
+        ];
+
+        $response = $client->index($params);
+
+        return response()->json([
+            'status' => 'success',
+            'response' => $response->asArray()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'params' => $params ?? null
+        ], 500);
+    }
+});
+
+
+
+
+
+
+
+// routes/web.php
+// routes/web.php
+Route::get('/test-es-connection', function() {
+    try {
+        $client = app('elasticsearch');
+        $response = $client->info();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $response->asArray()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'host' => config('scout.elasticsearch.host'),
+            'user' => config('scout.elasticsearch.user'),
+            'password' => config('scout.elasticsearch.password'),
+        ], 500);
+    }
+});
+
+Route::get('/test-elastic', function() {
+    // Test Elasticsearch client
+    try {
+        $client = app('elasticsearch');
+        $info = $client->info()->asArray();
+        $infoResult = "Elasticsearch connected! Version: ".$info['version']['number'];
+    } catch (\Exception $e) {
+        $infoResult = "Elasticsearch connection failed: ".$e->getMessage();
+    }
+
+    // Test indexing
+    try {
+        $product = \Modules\Shop\Entities\Product::first();
+        $product->searchable();
+        $indexResult = "Product #{$product->id} indexed successfully!";
+    } catch (\Exception $e) {
+        $indexResult = "Indexing failed: ".$e->getMessage();
+    }
+
+    return response()->json([
+        'elasticsearch_connection' => $infoResult,
+        'indexing_test' => $indexResult
+    ]);
+});
+
+Route::get('/manual-index', function() {
+    $client = app('elasticsearch');
+    $product = \Modules\Shop\Entities\Product::first();
+
+    $params = [
+        'index' => 'test_products',
+        'id' => $product->id,
+        'body' => $product->toSearchableArray()
+    ];
+
+    try {
+        $response = $client->index($params);
+        return response()->json([
+            'status' => 'success',
+            'data' => $response->asArray()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'params' => $params
+        ], 500);
+    }
+});
+
+Route::get('/debug-connection', function() {
+    $host = config('scout.elasticsearch.host');
+    $user = config('scout.elasticsearch.user');
+    $password = config('scout.elasticsearch.password');
+
+    $diagnostics = [
+        'host' => $host,
+        'user' => $user,
+        'password' => $password,
+        'parsed_host' => parse_url($host),
+        'is_valid_url' => filter_var($host, FILTER_VALIDATE_URL) !== false,
+        'curl_version' => curl_version()['version']
+    ];
+
+    try {
+        $client = app('elasticsearch');
+        $info = $client->info()->asArray();
+        $diagnostics['connection_test'] = 'success';
+        $diagnostics['elasticsearch_version'] = $info['version']['number'];
+    } catch (\Exception $e) {
+        $diagnostics['connection_test'] = 'failed: ' . $e->getMessage();
+    }
+
+    return response()->json($diagnostics);
+});
+
+Route::get('/test-http', function() {
+    $url = config('scout.elasticsearch.host');
+    $context = stream_context_create([
+        'http' => [
+            'header' => 'Authorization: Basic ' . base64_encode(
+                    config('scout.elasticsearch.user') . ':' . config('scout.elasticsearch.password')
+                )
+        ]
+    ]);
+
+    try {
+        $response = file_get_contents($url, false, $context);
+        return response()->json([
+            'status' => 'success',
+            'response' => json_decode($response, true)
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'url' => $url
+        ], 500);
+    }
+});
+
+Route::get('/hardcoded-test', function() {
+    try {
+        $client = ClientBuilder::create()
+            ->setHosts(['http://134.209.88.205:9200'])
+            ->setBasicAuthentication('elastic', 'MIkro@123')
+            ->setSSLVerification(false)
+            ->build();
+
+        $product = \Modules\Shop\Entities\Product::first();
+
+        $params = [
+            'index' => 'test_products',
+            'id' => $product->id,
+            'body' => $product->toSearchableArray()
+        ];
+
+        $response = $client->index($params);
+        return response()->json($response->asArray());
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+// routes/web.php
+
+// Test custom indexing
+Route::get('/test-custom-index', function() {
+    $service = app('custom-elastic');
+    $product = \Modules\Shop\Entities\Product::first();
+
+    $response = $service->indexDocument(
+        'test_products',
+        $product->id,
+        $product->toSearchableArray()
+    );
+
+    return response()->json($response);
+});
+
+Route::get('/test-fixed-index', function() {
+    $service = app('custom-elastic');
+    $product = \Modules\Shop\Entities\Product::first();
+
+    // Get the searchable array with fixes
+    $data = $product->toSearchableArray();
+
+    // Log the data for inspection
+    \Log::debug('Indexing data', $data);
+
+    $response = $service->indexDocument(
+        'test_products',
+        $product->id,
+        $data
+    );
+
+    return response()->json($response);
+});
+
+// Test search
+Route::get('/test-custom-search', function() {
+    $service = app('custom-elastic');
+
+    $response = $service->search('test_products', [
+        'query' => [
+            'match_all' => new \stdClass()
+        ]
+    ]);
+
+    return response()->json($response);
+});
+Route::get('/test-category-slugs', function() {
+    $product = \Modules\Shop\Entities\Product::with('categories')->first();
+
+    return [
+        'product_id' => $product->id,
+        'category_slugs' => $product->categories->pluck('slug'),
+        'in_elastic' => $product->toSearchableArray()['category_slugs']
+    ];
+});
 
 
 

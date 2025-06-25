@@ -26,7 +26,7 @@ use App\Traits\Media;
 class Product extends Model implements HasMedia
 {
     use HasFactory;
-//    use Searchable;
+    use Searchable;
     use Stock;
     use Finance;
     use Media;
@@ -95,15 +95,85 @@ class Product extends Model implements HasMedia
      */
     public function searchableAs(): string
     {
-        return 'mikroelektron-products';
+        return 'test_products';
     }
+
+//    /**
+//     * @return array
+//     */
+//    public function toSearchableArray(): array
+//    {
+//        return $this->only('id', 'name', 'sku','price','categories');
+//    }
 
     /**
      * @return array
      */
-    public function toSearchableArray(): array
+    public function toSearchableArray() {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'sku' => $this->sku,
+            'source_sku' => $this->source_sku,
+            'meta' => $this->meta,
+            'meta_title' => $this->meta_title,
+            'meta_keywords' => $this->meta_keywords,
+            'meta_description' => $this->meta_description,
+            'category_slugs' => $this->categories->pluck('slug')->filter()->values()->toArray(),
+            'normal_price' => (float)($this->price->normal_price ?? 0),
+            'sale_price' => (float)($this->price->sale_price ?? 0),
+            'effective_price' => (float)($this->price->sale_price > 0
+                ? $this->price->sale_price
+                : ($this->price->normal_price ?? 0)),
+            'stock' => (int)$this->stock,
+            'created_at' => $this->created_at->timestamp,
+            'featured' => (bool)($this->options->featured ?? false),
+            'available' => (bool)($this->options->available ?? true),
+            'is_retired' => (bool)$this->is_retired,
+            'short_description' => $this->short_description ?? '',
+        ];
+    }
+
+
+    protected static function booted()
     {
-        return $this->only('id', 'name', 'sku','price','categories');
+        static::saved(function ($product) {
+            try {
+                if (config('scout.driver') === 'elasticsearch') {
+                    // Use direct indexing instead of searchable()
+                    $client = app('elasticsearch');
+                    $params = [
+                        'index' => $product->searchableAs(),
+                        'id' => $product->getScoutKey(),
+                        'body' => $product->toSearchableArray()
+                    ];
+                    $client->index($params);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to sync product to Elasticsearch', [
+                    'product_id' => $product->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        });
+
+        static::deleted(function ($product) {
+            try {
+                if (config('scout.driver') === 'elasticsearch') {
+                    $client = app('elasticsearch');
+                    $params = [
+                        'index' => $product->searchableAs(),
+                        'id' => $product->getScoutKey()
+                    ];
+                    $client->delete($params);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to remove product from Elasticsearch', [
+                    'product_id' => $product->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        });
     }
 
     /**

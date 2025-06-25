@@ -49,6 +49,23 @@ class ProductController extends Controller
         $inStock = request()->get('inStock', false);
 
         // Validate minimum search length
+        if ($search && strlen(trim($search)) < 2) {
+            return ProductShortResource::collection([]);
+        }
+
+        $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
+        return ProductShortResource::collection($items);
+    }
+
+    public function old_index(): AnonymousResourceCollection
+    {
+        $search = request()->get('search', '');
+        $category = request()->get('category', '');
+        $limit = request()->get('limit', 20);
+        $filter = request()->get('filter', false);
+        $inStock = request()->get('inStock', false);
+
+        // Validate minimum search length
         if ($search && strlen(trim(preg_replace('/[-_\.,\/()+=]/', '', $search))) < 2) {
             return ProductShortResource::collection([]);
         }

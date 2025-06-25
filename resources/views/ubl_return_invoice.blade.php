@@ -151,7 +151,7 @@
     @foreach($order->extra_items as $key2=>$extra)
             @if($extra->returned_quantity > 0)
                 <cac:InvoiceLine>
-                    <cbc:ID>{{ $key + 1 }}</cbc:ID>
+                    <cbc:ID>{{ count($order->products) + 1 + $key2 }}</cbc:ID>
                     <cbc:InvoicedQuantity unitCode="PCE">{{ $extra->returned_quantity }}</cbc:InvoicedQuantity>
                     <cbc:LineExtensionAmount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{ number_format((($extra->returned_quantity * number_format(($extra->price / (1 + $order->tax_value)), 3, '.', '')) - number_format(($extra->discount / (1+$order->tax_value)), 3, '.', '')), 3, '.', '')  }}</cbc:LineExtensionAmount><cac:TaxTotal>
                         <cbc:TaxAmount currencyID="{{ config('jo_fotara.currency_attribute') }}">{{ number_format(((($extra->returned_quantity * number_format(($extra->price / (1 + $order->tax_value)), 3, '.', '')) - number_format(($extra->discount / (1+$order->tax_value)), 3, '.', '')) * $order->tax_value), 3, '.', '')}}</cbc:TaxAmount>

@@ -120,7 +120,9 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
         $status = $status ?? OrderStatus::DRAFT()->value;
 
         $order = $this->findOrFail($id, ['products']);
-
+        if ($order->status == $status){
+            return $order;
+        }
 
         if ($order->status != 'COMPLETED' && $status == 'COMPLETED'){
             foreach ($products as $item) {
