@@ -268,7 +268,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             );
         } catch (\Exception $e) {
             // Fallback to SQL search
-            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
+//            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
         }
     }
 
