@@ -117,133 +117,227 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
      */
     public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
-        // Minimum 2 characters
-//        if (strlen(trim($searchWord)) < 2) {
-//            return new LengthAwarePaginator([], 0, $limit);
-//        }
-
         $client = app('elasticsearch');
         $page = request()->get('page', 1);
         $from = ($page - 1) * $limit;
+        $searchWord = trim($searchWord);
 
-        // Preprocess query: ignore case and special characters
-        $cleanQuery = preg_replace('/[-\/]/', ' ', $searchWord);
+        // Handle empty search - return all products
+        if (empty($searchWord)) {
+            $body = [
+                'from' => $from,
+                'size' => $limit,
+                'track_total_hits' => true,
+                'query' => ['match_all' => new \stdClass()],
+                'sort' => [['created_at' => 'desc']]
+            ];
+
+            // Handle category filter for empty search
+            if ($category && $category !== 'new_product') {
+                $body['query'] = [
+                    'bool' => [
+                        'filter' => [['term' => ['category_slugs' => $category]]]
+                    ]
+                ];
+            }
+
+            return $this->executeSearch($client, $body, $limit, $page);
+        }
+
+        // Preprocessing for non-empty search
+        $cleanQuery = preg_replace('/[-\/\\\\]/', ' ', $searchWord);
         $cleanQuery = preg_replace('/[^\p{L}\p{N}\s]/u', '', $cleanQuery);
         $cleanQuery = mb_strtolower(trim(preg_replace('/\s+/', ' ', $cleanQuery)));
+
+        if (strlen($cleanQuery) < 2) {
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $limit);
+        }
+
+        // Build should clauses
+        $shouldClauses = [
+            // ID exact match
+            [
+                'term' => [
+                    'id' => [
+                        'value' => $cleanQuery,
+                        'boost' => 10
+                    ]
+                ]
+            ],
+            // Exact phrase match
+            [
+                'multi_match' => [
+                    'query' => $cleanQuery,
+                    'type' => 'phrase',
+                    'fields' => [
+                        'name^5',
+                        'sku^5',
+                        'source_sku^5',
+                        'location.keyword^5'
+                    ],
+                    'boost' => 6
+                ]
+            ],
+            // All words in any order
+            [
+                'multi_match' => [
+                    'query' => $cleanQuery,
+                    'type' => 'cross_fields',
+                    'operator' => 'and',
+                    'fields' => [
+                        'name^4',
+                        'sku^4',
+                        'source_sku^4',
+                        'location^4'
+                    ],
+                    'boost' => 5
+                ]
+            ],
+            // Partial match in order
+            [
+                'match_phrase' => [
+                    'name.ngram' => [
+                        'query' => $cleanQuery,
+                        'slop' => 5,
+                        'boost' => 4
+                    ]
+                ]
+            ],
+            // Any 2+ words
+            [
+                'multi_match' => [
+                    'query' => $cleanQuery,
+                    'minimum_should_match' => '2<70%',
+                    'fields' => [
+                        'name^3',
+                        'sku^3',
+                        'source_sku^3',
+                        'location^3',
+                        'location.ngram^3',
+                        'meta_title^2',
+                        'meta_keywords',
+                        'meta_description',
+                        'category_slugs',
+                        'short_description'
+                    ],
+                    'boost' => 3
+                ]
+            ],
+            // Any word
+            [
+                'multi_match' => [
+                    'query' => $cleanQuery,
+                    'fields' => [
+                        'name^2',
+                        'sku^2',
+                        'source_sku^2',
+                        'location^2',
+                        'location.ngram^2',
+                        'meta_title',
+                        'meta_keywords',
+                        'meta_description',
+                        'category_slugs',
+                        'short_description'
+                    ],
+                    'boost' => 2
+                ]
+            ],
+            // Category match
+            [
+                'term' => [
+                    'category_slugs' => [
+                        'value' => $cleanQuery,
+                        'boost' => 1
+                    ]
+                ]
+            ]
+        ];
 
         $body = [
             'from' => $from,
             'size' => $limit,
             'track_total_hits' => true,
             'query' => [
-                'bool' => [
-                    'should' => [
-                        // Priority 1: Exact match (case insensitive)
+                'function_score' => [
+                    'query' => [
+                        'bool' => [
+                            'should' => $shouldClauses,
+                            'minimum_should_match' => 1 // Require at least one match
+                        ]
+                    ],
+                    // FIXED: Replaced field_value_factor with script_score
+                    'functions' => [
                         [
-                            'multi_match' => [
-                                'query' => $cleanQuery,
-                                'type' => 'phrase',
-                                'fields' => ['name^5', 'sku^4', 'source_sku^3'],
-                                'boost' => 6
-                            ]
-                        ],
-                        // Priority 2: All words in any order
-                        [
-                            'multi_match' => [
-                                'query' => $cleanQuery,
-                                'type' => 'cross_fields',
-                                'operator' => 'and',
-                                'fields' => ['name^4', 'sku^3', 'source_sku^2'],
-                                'boost' => 5
-                            ]
-                        ],
-                        // Priority 3: Partial match in order
-                        [
-                            'match_phrase' => [
-                                'name.ngram' => [
-                                    'query' => $cleanQuery,
-                                    'slop' => 5,
-                                    'boost' => 4
-                                ]
-                            ]
-                        ],
-                        // Priority 4: Any 2+ words
-                        [
-                            'multi_match' => [
-                                'query' => $cleanQuery,
-                                'minimum_should_match' => '2<70%',
-                                'fields' => [
-                                    'name^3',
-                                    'meta_title^2',
-                                    'meta_keywords',
-                                    'meta_description',
-                                    'category_slugs',
-                                    'short_description'
-                                ],
-                                'boost' => 3
-                            ]
-                        ],
-                        // Priority 5: Any word
-                        [
-                            'multi_match' => [
-                                'query' => $cleanQuery,
-                                'fields' => [
-                                    'name^2',
-                                    'meta_title',
-                                    'meta_keywords',
-                                    'meta_description',
-                                    'category_slugs',
-                                    'short_description'
-                                ],
-                                'boost' => 2
-                            ]
-                        ],
-                        // Priority 6: Category match
-                        [
-                            'term' => [
-                                'category_slugs' => [
-                                    'value' => $cleanQuery,
-                                    'boost' => 1
+                            'script_score' => [
+                                'script' => [
+                                    'source' => "def stock = doc['stock'].value; if (stock < 0) { return 0.0; } else { return Math.log1p(stock * 0.1); }"
                                 ]
                             ]
                         ]
-                    ]
+                    ],
+                    'boost_mode' => 'sum'
                 ]
             ]
         ];
 
         // Handle category filter
         if ($category && $category !== 'new_product') {
-            $body['query']['bool']['filter'][] = [
+            $body['query']['function_score']['query']['bool']['filter'][] = [
                 'term' => ['category_slugs' => $category]
             ];
         }
 
         // Handle in-stock filter
         if ($inStock) {
-            $body['query']['bool']['filter'][] = [
+            $body['query']['function_score']['query']['bool']['filter'][] = [
                 'range' => ['stock' => ['gt' => 0]]
             ];
         }
 
         // Handle sorting
+        $sort = [];
+
+        // Push 0-stock items to the end
+        $sort[] = [
+            '_script' => [
+                'type' => 'number',
+                'script' => [
+                    'lang' => 'painless',
+                    'source' => "doc['stock'].value == 0 ? 1 : 0"
+                ],
+                'order' => 'asc'
+            ]
+        ];
+
         if ($category === 'new_product') {
-            $body['sort'] = [['created_at' => 'desc']];
+            $sort[] = ['created_at' => 'desc'];
             $body['size'] = min($limit * 25, 500);
         } else {
             switch ($filter) {
-                case 'new-item': $body['sort'] = [['created_at' => 'desc']]; break;
-                case 'old-item': $body['sort'] = [['created_at' => 'asc']]; break;
-                case 'price-high': $body['sort'] = [['effective_price' => 'desc']]; break;
-                case 'price-low': $body['sort'] = [['effective_price' => 'asc']]; break;
+                case 'new-item': $sort[] = ['created_at' => 'desc']; break;
+                case 'old-item': $sort[] = ['created_at' => 'asc']; break;
+                case 'price-high': $sort[] = ['effective_price' => 'desc']; break;
+                case 'price-low': $sort[] = ['effective_price' => 'asc']; break;
                 case 'sale':
-                    $body['query']['bool']['filter'][] = [
+                    $body['query']['function_score']['query']['bool']['filter'][] = [
                         'range' => ['sale_price' => ['gt' => 0]]
                     ];
+                    $sort[] = ['_score' => 'desc'];
                     break;
+                default:
+                    $sort[] = ['_score' => 'desc'];
             }
         }
 
+        // Add stock sorting
+        $sort[] = ['stock' => 'desc'];
+        $body['sort'] = $sort;
+
+        return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
+    }
+
+    private function executeSearch($client, $body, $limit, $page, $searchWord = '', $category = '', $filter = '', $inStock = false)
+    {
         try {
             $response = $client->search([
                 'index' => 'test_products',
@@ -267,11 +361,11 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-            // Fallback to SQL search
-//            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
+            dd($e);
+            \Log::error('Elasticsearch error: '.$e->getMessage());
+            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
         }
     }
-
     public function old_elastic_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
         $client = app('elasticsearch');

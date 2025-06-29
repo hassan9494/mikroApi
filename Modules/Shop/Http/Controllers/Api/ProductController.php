@@ -45,6 +45,19 @@ class ProductController extends Controller
         $search = request()->get('search', '');
         $category = request()->get('category', '');
         $limit = request()->get('limit', 20);
+        $filter = request()->get('filter', '');
+        $inStock = request()->get('inStock', false);
+
+        // Remove minimum search length validation to allow empty searches
+        $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
+        return ProductShortResource::collection($items);
+    }
+
+    public function old_index_1(): AnonymousResourceCollection
+    {
+        $search = request()->get('search', '');
+        $category = request()->get('category', '');
+        $limit = request()->get('limit', 20);
         $filter = request()->get('filter', false);
         $inStock = request()->get('inStock', false);
 
@@ -56,6 +69,7 @@ class ProductController extends Controller
         $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
         return ProductShortResource::collection($items);
     }
+
 
     public function old_index(): AnonymousResourceCollection
     {

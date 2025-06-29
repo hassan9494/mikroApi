@@ -136,9 +136,9 @@ return [
 
     'elasticsearch' => [
         'index' => env('ELASTICSEARCH_INDEX', 'test_products'),
-        'host' => env('ELASTICSEARCH_HOST', 'http://134.209.88.205:9200'),
+        'host' => env('ELASTICSEARCH_HOST', 'http://localhost:9200'),
         'user' => env('ELASTICSEARCH_USER', 'elastic'),
-        'password' => env('ELASTICSEARCH_PASSWORD', 'MIkro.123m'),
+        'password' => env('ELASTICSEARCH_PASSWORD', 'MIkro@123'),
     ],
 
 ];

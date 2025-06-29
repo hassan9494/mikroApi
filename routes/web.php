@@ -98,12 +98,9 @@ Route::get('location',[ImportController::class,'location']);
 Route::get('location2',[ImportController::class,'locationNames']);
 Route::get('elastic',[ImportController::class,'createProductIndex']);
 
-Route::get('/test-elastic', function() {
-    dd([
-        'host' => config('scout.elasticsearch.host'),
-        'user' => config('scout.elasticsearch.user'),
-        'pass' => config('scout.elasticsearch.password')
-    ]);
+Route::get('/test-elastic2', function() {
+    $product = Product::first();
+    return $product->meta->title;
 });
 
 Route::get('/raw-curl-test', function() {

@@ -111,14 +111,15 @@ class Product extends Model implements HasMedia
      */
     public function toSearchableArray() {
         return [
-            'id' => $this->id,
+            'id' => (string)$this->id,
             'name' => $this->name,
             'sku' => $this->sku,
+            'location' => $this->location ?? '',
             'source_sku' => $this->source_sku,
             'meta' => $this->meta,
-            'meta_title' => $this->meta_title,
-            'meta_keywords' => $this->meta_keywords,
-            'meta_description' => $this->meta_description,
+            'meta_title' => $this->meta->title,
+            'meta_keywords' => $this->meta->keywords,
+            'meta_description' => $this->meta->description,
             'category_slugs' => $this->categories->pluck('slug')->filter()->values()->toArray(),
             'normal_price' => (float)($this->price->normal_price ?? 0),
             'sale_price' => (float)($this->price->sale_price ?? 0),

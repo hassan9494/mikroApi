@@ -530,82 +530,80 @@ class ImportController extends Controller
      * @throws \Exception
      */
     function createProductIndex() {
-//        try {
-            $client = app('elasticsearch'); // Use the client from your service provider
+        $client = app('elasticsearch');
 
-            $params = [
-                'index' => 'test_products',
-                'body' => [
-                    'mappings' => [
-                        'properties' => [
-                            'id' => ['type' => 'integer'],
-                            'name' => [
-                                'type' => 'text',
-                                'fields' => [
-                                    'keyword' => ['type' => 'keyword'],
-                                    'ngram' => [
-                                        'type' => 'text',
-                                        'analyzer' => 'ngram_analyzer'
-                                    ]
+        $params = [
+            'index' => 'test_products',
+            'body' => [
+                'mappings' => [
+                    'properties' => [
+                        'id' => ['type' => 'keyword'], // Keep as keyword
+                        'location' => [ // Correct mapping
+                            'type' => 'text',
+                            'fields' => [
+                                'keyword' => ['type' => 'keyword'],
+                                'ngram' => [
+                                    'type' => 'text',
+                                    'analyzer' => 'ngram_analyzer'
                                 ]
-                            ],
-                            'sku' => ['type' => 'keyword'],
-                            'source_sku' => ['type' => 'keyword'],
-                            'meta_title' => ['type' => 'text'],
-                            'meta' => ['type' => 'object'],
-                            'meta_keywords' => ['type' => 'text'],
-                            'meta_description' => ['type' => 'text'],
-                            'category_slugs' => ['type' => 'keyword'],
-                            'normal_price' => ['type' => 'float'],
-                            'sale_price' => ['type' => 'float'],
-                            'effective_price' => ['type' => 'float'],
-                            'stock' => ['type' => 'integer'],
-                            'created_at' => ['type' => 'date'],
-                            'featured' => ['type' => 'boolean'],
-                            'available' => ['type' => 'boolean'],
-                            'is_retired' => ['type' => 'boolean'],
-                            'short_description' => ['type' => 'text'],
-                        ]
-                    ],
-                    'settings' => [
-                        'analysis' => [
-                            'analyzer' => [
-                                'ngram_analyzer' => [
-                                    'type' => 'custom',
-                                    'tokenizer' => 'ngram_tokenizer',
-                                    'filter' => ['lowercase', 'asciifolding']
-                                ],
-                                'default' => [
-                                    'type' => 'custom',
-                                    'tokenizer' => 'standard',
-                                    'filter' => ['lowercase', 'asciifolding', 'arabic_normalization']
+                            ]
+                        ],
+                        'name' => [
+                            'type' => 'text',
+                            'fields' => [
+                                'keyword' => ['type' => 'keyword'],
+                                'ngram' => [
+                                    'type' => 'text',
+                                    'analyzer' => 'ngram_analyzer'
                                 ]
-                            ],
-                            'tokenizer' => [
-                                'ngram_tokenizer' => [
-                                    'type' => 'ngram',
-                                    'min_gram' => 2,
-                                    'max_gram' => 3,
-                                    'token_chars' => ['letter', 'digit']
-                                ]
+                            ]
+                        ],
+                        'sku' => ['type' => 'keyword'],
+                        'source_sku' => ['type' => 'keyword'],
+                        'meta_title' => ['type' => 'text'],
+                        'meta' => ['type' => 'object'],
+                        'meta_keywords' => ['type' => 'text'],
+                        'meta_description' => ['type' => 'text'],
+                        'category_slugs' => ['type' => 'keyword'],
+                        'normal_price' => ['type' => 'float'],
+                        'sale_price' => ['type' => 'float'],
+                        'effective_price' => ['type' => 'float'],
+                        'stock' => ['type' => 'integer'],
+                        'created_at' => ['type' => 'date'],
+                        'featured' => ['type' => 'boolean'],
+                        'available' => ['type' => 'boolean'],
+                        'is_retired' => ['type' => 'boolean'],
+                        'short_description' => ['type' => 'text'],
+                    ]
+                ],
+                'settings' => [
+                    'analysis' => [
+                        'analyzer' => [
+                            'ngram_analyzer' => [
+                                'type' => 'custom',
+                                'tokenizer' => 'ngram_tokenizer',
+                                'filter' => ['lowercase', 'asciifolding']
+                            ]
+                        ],
+                        'tokenizer' => [
+                            'ngram_tokenizer' => [
+                                'type' => 'ngram',
+                                'min_gram' => 2,
+                                'max_gram' => 3,
+                                'token_chars' => ['letter', 'digit']
                             ]
                         ]
                     ]
                 ]
-            ];
+            ]
+        ];
 
-            // Delete existing index if needed
-            try {
-                $client->indices()->delete(['index' => 'test_products']);
-            } catch (\Exception $e) {
-                // Index didn't exist
-            }
+        try {
+            $client->indices()->delete(['index' => 'test_products']);
+        } catch (\Exception $e) {
+            // Ignore if index doesn't exist
+        }
 
-            $response = $client->indices()->create($params);
-
-            return $response->asArray();
-//        } catch (\Exception $e) {
-//            throw new \RuntimeException("Elasticsearch error: ".$e->getMessage());
-//        }
+        return $client->indices()->create($params);
     }
 }
