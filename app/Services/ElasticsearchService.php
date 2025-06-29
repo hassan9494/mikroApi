@@ -13,6 +13,7 @@ class ElasticsearchService
 
     public function __construct()
     {
+
         $this->baseUri = config('scout.elasticsearch.host');
         $this->auth = [
             config('scout.elasticsearch.user'),
