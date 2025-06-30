@@ -122,6 +122,255 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $from = ($page - 1) * $limit;
         $searchWord = trim($searchWord);
 
+        // Define search fields with boosts
+        $searchFields = [
+            'name^5',
+            'sku^5',
+            'source_sku^5',
+            'location^3',
+            'stock_location^3',
+            'short_description^2',
+            'meta_title^2',
+            'meta_keywords^2',
+            'meta_description^1'
+        ];
+
+        // Handle empty search
+        if (empty($searchWord)) {
+            $body = [
+                'from' => $from,
+                'size' => $limit,
+                'track_total_hits' => true,
+                'query' => ['match_all' => new \stdClass()],
+                'sort' => [['created_at' => 'desc']]
+            ];
+
+            if ($category && $category !== 'new_product') {
+                $body['query'] = [
+                    'bool' => [
+                        'filter' => [['term' => ['category_slugs' => $category]]]
+                    ]
+                ];
+            }
+
+            return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
+        }
+
+        // Preprocess query
+        $cleanQuery = mb_strtolower(trim(preg_replace('/\s+/', ' ', $searchWord)));
+        $words = array_filter(explode(' ', $cleanQuery));
+        $wordCount = count($words);
+
+        if ($wordCount === 0 || strlen($cleanQuery) < 2) {
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $limit);
+        }
+
+        // Build search clauses
+        $shouldClauses = [];
+
+        // 1. Exact case-sensitive match
+        $shouldClauses[] = [
+            'multi_match' => [
+                'query' => $searchWord,
+                'type' => 'phrase',
+                'fields' => array_map(fn($f) => str_replace('^', '.keyword^', $f), $searchFields),
+                'boost' => 1000
+            ]
+        ];
+
+        // 2. Exact case-insensitive match
+        $shouldClauses[] = [
+            'multi_match' => [
+                'query' => $cleanQuery,
+                'type' => 'phrase',
+                'fields' => $searchFields,
+                'boost' => 900
+            ]
+        ];
+
+        // 3. All words in any order
+        $shouldClauses[] = [
+            'multi_match' => [
+                'query' => $cleanQuery,
+                'type' => 'cross_fields',
+                'operator' => 'and',
+                'fields' => $searchFields,
+                'boost' => 800
+            ]
+        ];
+
+        // 4. Consecutive word pairs
+        if ($wordCount > 1) {
+            for ($i = 0; $i < $wordCount - 1; $i++) {
+                $bigram = $words[$i] . ' ' . $words[$i+1];
+                $shouldClauses[] = [
+                    'match_phrase' => [
+                        'name' => [
+                            'query' => $bigram,
+                            'boost' => 700 - ($i * 100)
+                        ]
+                    ]
+                ];
+            }
+        }
+
+        // 5. Any two words
+        $shouldClauses[] = [
+            'multi_match' => [
+                'query' => $cleanQuery,
+                'minimum_should_match' => 2,
+                'fields' => $searchFields,
+                'boost' => 400
+            ]
+        ];
+
+        // 6. Single word matches
+        foreach ($words as $word) {
+            $shouldClauses[] = [
+                'multi_match' => [
+                    'query' => $word,
+                    'fields' => $searchFields,
+                    'boost' => 300
+                ]
+            ];
+        }
+
+        // Add ID match
+        $shouldClauses[] = [
+            'term' => [
+                'id' => [
+                    'value' => $cleanQuery,
+                    'boost' => 100
+                ]
+            ]
+        ];
+
+        $body = [
+            'from' => $from,
+            'size' => $limit,
+            'track_total_hits' => true,
+            'query' => [
+                'function_score' => [
+                    'query' => [
+                        'bool' => [
+                            'should' => $shouldClauses,
+                            'minimum_should_match' => 1
+                        ]
+                    ],
+                    'functions' => [
+                        [
+                            'script_score' => [
+                                'script' => "Math.log1p(doc['stock'].value + 1)"
+                            ]
+                        ]
+                    ],
+                    'boost_mode' => 'sum'
+                ]
+            ]
+        ];
+
+        // Category filter
+        if ($category && $category !== 'new_product') {
+            $body['query']['function_score']['query']['bool']['filter'][] = [
+                'term' => ['category_slugs' => $category]
+            ];
+        }
+
+        // In-stock filter
+        if ($inStock) {
+            $body['query']['function_score']['query']['bool']['filter'][] = [
+                'range' => ['stock' => ['gt' => 0]]
+            ];
+        }
+
+        // Sorting
+        $sort = [];
+
+        // Push retired/unavailable items to end
+        $sort[] = [
+            '_script' => [
+                'type' => 'number',
+                'script' => "params._source.is_retired || !params._source.available ? 1 : 0",
+                'order' => 'asc'
+            ]
+        ];
+
+        // Apply sorting based on filter
+        if ($category === 'new_product') {
+            $sort[] = ['created_at' => 'desc'];
+            $body['size'] = min($limit * 25, 500);
+        } else {
+            switch ($filter) {
+                case 'new-item': $sort[] = ['created_at' => 'desc']; break;
+                case 'old-item': $sort[] = ['created_at' => 'asc']; break;
+                case 'price-high': $sort[] = ['effective_price' => 'desc']; break;
+                case 'price-low': $sort[] = ['effective_price' => 'asc']; break;
+                case 'sale':
+                    $body['query']['function_score']['query']['bool']['filter'][] = [
+                        'range' => ['sale_price' => ['gt' => 0]]
+                    ];
+                    break;
+                default:
+                    if (!$filter) $sort[] = ['_score' => 'desc'];
+            }
+        }
+
+        $body['sort'] = $sort;
+
+        return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
+    }
+
+
+    private function executeSearch($client, $body, $limit, $page, $searchWord = '', $category = '', $filter = '', $inStock = false)
+    {
+        try {
+            // Log the query for debugging
+            \Log::debug('Elasticsearch Query', [
+                'params' => [
+                    'index' => 'test_products',
+                    'body' => $body
+                ]
+            ]);
+
+            $response = $client->search([
+                'index' => 'test_products',
+                'body' => $body
+            ]);
+
+            // Log successful response
+            \Log::debug('Elasticsearch Response', [
+                'took' => $response['took'],
+                'total' => $response['hits']['total']['value'],
+                'hits' => count($response['hits']['hits'])
+            ]);
+
+            $total = $response['hits']['total']['value'];
+
+            return new \Illuminate\Pagination\LengthAwarePaginator(
+                $response['hits']['hits'],
+                $total,
+                $limit,
+                $page
+            );
+        } catch (\Exception $e) {
+
+            \Log::error('Elasticsearch Error', [
+                'message' => $e->getMessage(),
+                'query' => $body,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
+        }
+    }
+
+    public function search1elastic($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    {
+        $client = app('elasticsearch');
+        $page = request()->get('page', 1);
+        $from = ($page - 1) * $limit;
+        $searchWord = trim($searchWord);
+
         // Handle empty search - return all products
         if (empty($searchWord)) {
             $body = [
@@ -141,7 +390,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 ];
             }
 
-            return $this->executeSearch($client, $body, $limit, $page);
+            return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
         }
 
         // Preprocessing for non-empty search
@@ -298,16 +547,16 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $sort = [];
 
         // Push 0-stock items to the end
-        $sort[] = [
-            '_script' => [
-                'type' => 'number',
-                'script' => [
-                    'lang' => 'painless',
-                    'source' => "doc['stock'].value == 0 ? 1 : 0"
-                ],
-                'order' => 'asc'
-            ]
-        ];
+//        $sort[] = [
+//            '_script' => [
+//                'type' => 'number',
+//                'script' => [
+//                    'lang' => 'painless',
+//                    'source' => "doc['stock'].value == 0 ? 1 : 0"
+//                ],
+//                'order' => 'asc'
+//            ]
+//        ];
 
         if ($category === 'new_product') {
             $sort[] = ['created_at' => 'desc'];
@@ -330,42 +579,176 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }
 
         // Add stock sorting
-        $sort[] = ['stock' => 'desc'];
+//        $sort[] = ['stock' => 'asc'];
         $body['sort'] = $sort;
 
         return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
     }
 
-    private function executeSearch($client, $body, $limit, $page, $searchWord = '', $category = '', $filter = '', $inStock = false)
+
+
+
+    public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
-        try {
-            $response = $client->search([
-                'index' => 'test_products',
-                'body' => $body
+        $query = Product::query();
+        // Remove this line.  It is dangerous
+        // $searchWord = str_replace("'", "\'", $searchWord);
+
+
+        // Handle search by name and meta
+        if ($searchWord) {
+            // Decode URL-encoded characters first
+            $decoded = urldecode($searchWord);
+
+            // Normalize without removing special chars but escape them
+            $normalized = trim(preg_replace('/\s+/', ' ', $decoded));
+            $searchTerms = array_filter(explode(' ', $normalized));
+            $termCount = count($searchTerms);
+
+            if ($termCount === 0) {
+                return $query->paginate($limit);
+            }
+
+            // Escape special characters for SQL
+            $escapedNormalized = addslashes($normalized);
+            $escapedTerms = array_map('addslashes', $searchTerms);
+
+            // Build the CASE statement with escaped values
+            $caseStatements = [];
+            $bindings = [
+                $escapedNormalized, // exact match
+                $escapedNormalized.'%', // starts with
+                '% '.$escapedNormalized.'%' // contains as whole word
+            ];
+
+            $termCases = [];
+            foreach ($escapedTerms as $term) {
+                $termCases[] = "(CASE
+                            WHEN name LIKE ? THEN 100
+                            WHEN meta_title LIKE ? THEN 80
+                            WHEN meta_keywords LIKE ? THEN 60
+                            WHEN meta_description LIKE ? THEN 40
+                            ELSE 0
+                        END)";
+                array_push($bindings,
+                    '%'.$term.'%', // name
+                    '%'.$term.'%', // meta_title
+                    '%'.$term.'%', // meta_keywords
+                    '%'.$term.'%'  // meta_description
+                );
+            }
+
+            $query->select([
+                'products.*',
+                \DB::raw("
+                (CASE
+                    WHEN name = ? THEN 1000
+                    WHEN name LIKE ? THEN 900
+                    WHEN name LIKE ? THEN 800
+                    ELSE
+                        (".implode(' + ', $termCases).")
+                END) as search_rank
+            ")
             ]);
 
-            $total = $response['hits']['total']['value'];
-            $ids = collect($response['hits']['hits'])->pluck('_id')->all();
+            // Add all bindings
+            $query->addBinding($bindings, 'select');
 
-            $products = Product::with('categories', 'media')
-                ->whereIn('id', $ids)
-                ->get()
-                ->sortBy(function ($product) use ($ids) {
-                    return array_search($product->id, $ids);
-                });
+            // Add WHERE conditions with parameterized queries
+            $query->where(function($q) use ($escapedTerms) {
+                foreach ($escapedTerms as $term) {
+                    $q->orWhere('name', 'LIKE', '%'.$term.'%')
+                        ->orWhere('meta_title', 'LIKE', '%'.$term.'%')
+                        ->orWhere('meta_keywords', 'LIKE', '%'.$term.'%')
+                        ->orWhere('meta_description', 'LIKE', '%'.$term.'%')
+                        ->orWhere('sku', 'LIKE', '%'.$term.'%')
+                        ->orWhere('source_sku', 'LIKE', '%'.$term.'%');
+                }
+            });
 
-            return new \Illuminate\Pagination\LengthAwarePaginator(
-                $products,
-                $total,
-                $limit,
-                $page
-            );
-        } catch (\Exception $e) {
-            dd($e);
-            \Log::error('Elasticsearch error: '.$e->getMessage());
-            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
+            $query->orderByDesc('search_rank')
+                ->orderByRaw("CASE WHEN name LIKE ? THEN 0 ELSE 1 END", [$escapedNormalized.'%'])
+                ->orderBy('name');
         }
+        elseif ($category) {
+            // Search by category if no search word is provided
+            if ($category == 'new_product'){
+                $latestIds = Product::query()
+                    ->orderBy('id', 'desc')
+                    ->take(720)
+                    ->pluck('id');
+
+                // Then filter by these IDs
+                $query->whereIn('id', $latestIds)
+                    ->orderBy('id', 'desc');
+
+            }else{
+                $query->whereHas('categories', function (Builder $q) use ($category) {
+                    $q->where('slug', $category);
+                });
+            }
+
+        } else {
+            // Default to featured products if no category or search word is provided
+            $query->where(['options->featured' => true]);
+        }
+
+
+        // Apply filter based on the selected option
+        switch ($filter) {
+            case 'top-sale':
+                $query->withCount(['completedOrders as sales_count' => function ($query) {
+                    $query->select(\DB::raw('SUM(order_products.quantity)'));
+                }])->orderBy('sales_count', 'desc');
+                break;
+            case 'new-item':
+                $query->orderBy('id', 'desc');
+                break;
+            case 'old-item':
+                $query->orderBy('id', 'asc');
+                break;
+            case 'sale':
+                $query->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) > 0');
+                break;
+            case 'price-high':
+                $query->orderByRaw('
+            CAST(
+                CASE
+                    WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
+                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+                END
+            AS DECIMAL(10,2)) DESC
+        ');
+                break;
+            case "price-low":
+                $query->orderByRaw('
+            CAST(
+                CASE
+                    WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
+                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+                END
+            AS DECIMAL(10,2)) ASC
+        ');
+                break;
+            default:
+                // No filter applied
+                break;
+        }
+
+
+        // Check stock availability based on the parameter
+        if ($inStock === true || $inStock === "true") {
+            $query->where('stock', '>', 0);
+        } else {
+            $query->where('stock', '>=', 0);
+        }
+
+        return $query->paginate($limit);
     }
+
+
     public function old_elastic_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
         $client = app('elasticsearch');
@@ -493,161 +876,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         );
     }
 
-
-
-    public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
-    {
-        $query = Product::query();
-        // Remove this line.  It is dangerous
-        // $searchWord = str_replace("'", "\'", $searchWord);
-
-
-        // Handle search by name and meta
-        if ($searchWord) {
-            // Decode URL-encoded characters first
-            $decoded = urldecode($searchWord);
-
-            // Normalize without removing special chars but escape them
-            $normalized = trim(preg_replace('/\s+/', ' ', $decoded));
-            $searchTerms = array_filter(explode(' ', $normalized));
-            $termCount = count($searchTerms);
-
-            if ($termCount === 0) {
-                return $query->paginate($limit);
-            }
-
-            // Escape special characters for SQL
-            $escapedNormalized = addslashes($normalized);
-            $escapedTerms = array_map('addslashes', $searchTerms);
-
-            // Build the CASE statement with escaped values
-            $caseStatements = [];
-            $bindings = [
-                $escapedNormalized, // exact match
-                $escapedNormalized.'%', // starts with
-                '% '.$escapedNormalized.'%' // contains as whole word
-            ];
-
-            $termCases = [];
-            foreach ($escapedTerms as $term) {
-                $termCases[] = "(CASE
-                            WHEN name LIKE ? THEN 100
-                            WHEN meta_title LIKE ? THEN 80
-                            WHEN meta_keywords LIKE ? THEN 60
-                            WHEN meta_description LIKE ? THEN 40
-                            ELSE 0
-                        END)";
-                array_push($bindings,
-                    '%'.$term.'%', // name
-                    '%'.$term.'%', // meta_title
-                    '%'.$term.'%', // meta_keywords
-                    '%'.$term.'%'  // meta_description
-                );
-            }
-
-            $query->select([
-                'products.*',
-                \DB::raw("
-                (CASE
-                    WHEN name = ? THEN 1000
-                    WHEN name LIKE ? THEN 900
-                    WHEN name LIKE ? THEN 800
-                    ELSE
-                        (".implode(' + ', $termCases).")
-                END) as search_rank
-            ")
-            ]);
-
-            // Add all bindings
-            $query->addBinding($bindings, 'select');
-
-            // Add WHERE conditions with parameterized queries
-            $query->where(function($q) use ($escapedTerms) {
-                foreach ($escapedTerms as $term) {
-                    $q->orWhere('name', 'LIKE', '%'.$term.'%')
-                        ->orWhere('meta_title', 'LIKE', '%'.$term.'%')
-                        ->orWhere('meta_keywords', 'LIKE', '%'.$term.'%')
-                        ->orWhere('meta_description', 'LIKE', '%'.$term.'%')
-                        ->orWhere('sku', 'LIKE', '%'.$term.'%')
-                        ->orWhere('source_sku', 'LIKE', '%'.$term.'%');
-                }
-            });
-
-            $query->orderByDesc('search_rank')
-                ->orderByRaw("CASE WHEN name LIKE ? THEN 0 ELSE 1 END", [$escapedNormalized.'%'])
-                ->orderBy('name');
-        }
-        elseif ($category) {
-            // Search by category if no search word is provided
-            if ($category == 'new_product'){
-                $latestIds = Product::query()
-                    ->orderBy('id', 'desc')
-                    ->take(720)
-                    ->pluck('id');
-
-                // Then filter by these IDs
-                $query->whereIn('id', $latestIds)
-                    ->orderBy('id', 'desc');
-
-            }else{
-                $query->whereHas('categories', function (Builder $q) use ($category) {
-                    $q->where('slug', $category);
-                });
-            }
-
-        } else {
-            // Default to featured products if no category or search word is provided
-            $query->where(['options->featured' => true]);
-        }
-
-        // Apply filter based on the selected option
-        switch ($filter) {
-            case 'top-sale':
-                $query->withCount(['completedOrders as sales_count' => function ($query) {
-                    $query->select(\DB::raw('SUM(order_products.quantity)'));
-                }])->orderBy('sales_count', 'desc');
-                break;
-            case 'new-item':
-                $query->orderBy('id', 'desc');
-                break;
-            case 'old-item':
-                $query->orderBy('id', 'asc');
-                break;
-            case 'sale':
-                $query->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) > 0');
-                break;
-            case 'price-high':
-                $query->orderByRaw('
-                CASE
-                    WHEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) = "0"
-                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
-                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
-                END DESC
-            ');
-                break;
-            case 'price-low':
-                $query->orderByRaw('
-                CASE
-                    WHEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) = "0"
-                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
-                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
-                END ASC
-            ');
-                break;
-            default:
-                // No filter applied
-                break;
-        }
-
-        // Check stock availability based on the parameter
-        if ($inStock === true) {
-            $query->where('stock', '>', 0);
-        } else {
-            $query->where('stock', '>=', 0);
-        }
-
-        return $query->paginate($limit);
-    }
 
 
 

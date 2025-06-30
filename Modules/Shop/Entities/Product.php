@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Scout\Searchable;
+use Modules\Shop\Http\Resources\ProductResource;
+use Modules\Shop\Http\Resources\ProductVariantsResource;
 use Modules\Shop\Support\Enums\OrderStatus;
 use Modules\Shop\Traits\Product\Finance;
 use Modules\Shop\Traits\Product\Stock;
@@ -110,27 +112,42 @@ class Product extends Model implements HasMedia
      * @return array
      */
     public function toSearchableArray() {
+        $replacement_item = Product::where('id',$this->replacement_item)->first();
+        $media = $this->getMedia();
+        $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
+        $price = $this->price ?? (object) [
+                'normal_price' => 0,
+                'sale_price' => 0,
+                'distributor_price' => 0
+            ];
         return [
-            'id' => (string)$this->id,
+            'sales' => $this->sales(null, null),
+            'replacement_item' => $replacement_item ? new ProductResource($replacement_item): null,
+            'colors' => ProductVariantsResource::collection($this->product_variants),
+            'meta' => $this->meta,
+            'hasVariants' => $this->hasVariants ? true : false ,
+            'id' => (string) $this->id,
             'name' => $this->name,
             'sku' => $this->sku,
+            'slug' => $this->slug,
+            'image' => $image,
             'location' => $this->location ?? '',
+            'stock_location' => $this->stock_location ?? '',
             'source_sku' => $this->source_sku,
-            'meta' => $this->meta,
-            'meta_title' => $this->meta->title,
-            'meta_keywords' => $this->meta->keywords,
-            'meta_description' => $this->meta->description,
+            'meta_title' => $this->meta->title ?? '',
+            'meta_keywords' => $this->meta->keywords ?? '',
+            'meta_description' => $this->meta->description ?? '',
             'category_slugs' => $this->categories->pluck('slug')->filter()->values()->toArray(),
-            'normal_price' => (float)($this->price->normal_price ?? 0),
-            'sale_price' => (float)($this->price->sale_price ?? 0),
-            'effective_price' => (float)($this->price->sale_price > 0
-                ? $this->price->sale_price
-                : ($this->price->normal_price ?? 0)),
-            'stock' => (int)$this->stock,
+            'normal_price' => (float) ($price->normal_price ?? 0),
+            'sale_price' => (float) ($price->sale_price ?? 0),
+            'effective_price' => (float) (($price->sale_price > 0)
+                ? $price->sale_price
+                : ($price->normal_price ?? 0)),
+            'stock' => (int) $this->stock,
             'created_at' => $this->created_at->timestamp,
-            'featured' => (bool)($this->options->featured ?? false),
-            'available' => (bool)($this->options->available ?? true),
-            'is_retired' => (bool)$this->is_retired,
+            'featured' => $this->options->featured ?true: false,
+            'available' => $this->options->available ? true : false,
+            'is_retired' => $this->is_retired ?true : false,
             'short_description' => $this->short_description ?? '',
         ];
     }

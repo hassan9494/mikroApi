@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Laravel\Sanctum\PersonalAccessToken;
 use Modules\Shop\Entities\Product;
 
-class ProductShortResource extends JsonResource
+class ProductShortResourceSearch extends JsonResource
 {
 
     /**
@@ -121,6 +121,7 @@ class ProductShortResource extends JsonResource
                 ];
             }
         }
+
 
     }
 }
