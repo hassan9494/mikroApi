@@ -7,6 +7,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
 use Modules\Shop\Http\Resources\ProductResource;
 use Modules\Shop\Http\Resources\ProductShortResource;
+use Modules\Shop\Http\Resources\ProductShortResourceSearch;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
 
 class ProductController extends Controller
@@ -51,6 +52,7 @@ class ProductController extends Controller
         // Remove minimum search length validation to allow empty searches
         $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
         return ProductShortResource::collection($items);
+//        return ProductShortResource::collection($items);
     }
 
     public function old_index_1(): AnonymousResourceCollection

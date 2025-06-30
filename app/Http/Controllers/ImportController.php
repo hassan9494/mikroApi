@@ -537,33 +537,70 @@ class ImportController extends Controller
             'body' => [
                 'mappings' => [
                     'properties' => [
-                        'id' => ['type' => 'keyword'], // Keep as keyword
-                        'location' => [ // Correct mapping
-                            'type' => 'text',
-                            'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'ngram' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'ngram_analyzer'
-                                ]
-                            ]
-                        ],
+                        'id' => ['type' => 'keyword'],
                         'name' => [
                             'type' => 'text',
                             'fields' => [
                                 'keyword' => ['type' => 'keyword'],
-                                'ngram' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'ngram_analyzer'
-                                ]
+                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
                             ]
                         ],
-                        'sku' => ['type' => 'keyword'],
-                        'source_sku' => ['type' => 'keyword'],
-                        'meta_title' => ['type' => 'text'],
-                        'meta' => ['type' => 'object'],
-                        'meta_keywords' => ['type' => 'text'],
-                        'meta_description' => ['type' => 'text'],
+                        'location' => [
+                            'type' => 'text',
+                            'fields' => [
+                                'keyword' => ['type' => 'keyword'],
+                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                            ]
+                        ],
+                        'sku' => [
+                            'type' => 'text',
+                            'fields' => [
+                                'keyword' => ['type' => 'keyword'],
+                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                            ]
+                        ],
+                        'source_sku' => [
+                            'type' => 'text',
+                            'fields' => [
+                                'keyword' => ['type' => 'keyword'],
+                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                            ]
+                        ],
+                        'stock_location' => [
+                            'type' => 'text',
+                            'fields' => [
+                                'keyword' => ['type' => 'keyword'],
+                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                            ]
+                        ],
+                        'short_description' => [
+                            'type' => 'text',
+                            'fields' => [
+                                'keyword' => ['type' => 'keyword'],
+                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                            ]
+                        ],
+                        'meta_title' => [
+                            'type' => 'text',
+                            'fields' => [
+                                'keyword' => ['type' => 'keyword'],
+                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                            ]
+                        ],
+                        'meta_keywords' => [
+                            'type' => 'text',
+                            'fields' => [
+                                'keyword' => ['type' => 'keyword'],
+                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                            ]
+                        ],
+                        'meta_description' => [
+                            'type' => 'text',
+                            'fields' => [
+                                'keyword' => ['type' => 'keyword'],
+                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                            ]
+                        ],
                         'category_slugs' => ['type' => 'keyword'],
                         'normal_price' => ['type' => 'float'],
                         'sale_price' => ['type' => 'float'],
@@ -573,7 +610,14 @@ class ImportController extends Controller
                         'featured' => ['type' => 'boolean'],
                         'available' => ['type' => 'boolean'],
                         'is_retired' => ['type' => 'boolean'],
-                        'short_description' => ['type' => 'text'],
+                        'image' => ['type' => 'keyword'],
+                        'slug' => ['type' => 'keyword'],
+                        'meta' => ['type' => 'object'],
+                        'distributor_price' => ['type' => 'float'],
+                        'sales' => ['type' => 'integer'],
+                        'replacement_item' => ['type' => 'object'],
+                        'colors' => ['type' => 'object'],
+                        'hasVariants' => ['type' => 'boolean'],
                     ]
                 ],
                 'settings' => [
