@@ -369,7 +369,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-dd('test');
+//dd('test');
 //            \Log::error('Elasticsearch Error', [
 //                'message' => $e->getMessage(),
 //                'query' => $body,
