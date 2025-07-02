@@ -14,7 +14,7 @@ class ImportProductsToElasticsearch extends Command
     public function handle()
     {
         $client = app('custom-elastic');
-        $index = 'test_products';
+        $index = env('ELASTICSEARCH_INDEX', 'test_productssss');
 
         Product::with('categories')->chunk(200, function ($products) use ($client, $index) {
             foreach ($products as $product) {

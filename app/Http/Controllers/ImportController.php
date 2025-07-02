@@ -533,7 +533,7 @@ class ImportController extends Controller
         $client = app('elasticsearch');
 
         $params = [
-            'index' => 'test_products',
+            'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
             'body' => [
                 'mappings' => [
                     'properties' => [
@@ -643,7 +643,7 @@ class ImportController extends Controller
         ];
 
         try {
-            $client->indices()->delete(['index' => 'test_products']);
+            $client->indices()->delete(['index' => env('ELASTICSEARCH_INDEX', 'test_productssss')]);
         } catch (\Exception $e) {
             // Ignore if index doesn't exist
         }

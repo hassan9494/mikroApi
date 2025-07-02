@@ -97,7 +97,7 @@ class Product extends Model implements HasMedia
      */
     public function searchableAs(): string
     {
-        return 'test_products';
+        return env('ELASTICSEARCH_INDEX', 'test_productssss');
     }
 
 //    /**

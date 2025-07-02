@@ -275,13 +275,18 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'term' => ['category_slugs' => $category]
             ];
         }
-
+//dd($inStock);
         // In-stock filter
-        if ($inStock) {
+        if ($inStock && $inStock != "false") {
             $body['query']['function_score']['query']['bool']['filter'][] = [
                 'range' => ['stock' => ['gt' => 0]]
             ];
         }
+//        if ($inStock && $inStock != "false") {
+            // Add this sort to push out-of-stock items to the end
+
+//        }
+
 
         // Sorting
         $sort = [];
@@ -290,11 +295,20 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $sort[] = [
             '_script' => [
                 'type' => 'number',
-                'script' => "params._source.is_retired || !params._source.available ? 1 : 0",
+                'script' => [
+                    'source' => "doc['stock'].value > 0 ? 0 : 1",
+                    'lang' => 'painless'
+                ],
                 'order' => 'asc'
             ]
         ];
-
+        array_unshift($sort, [
+            '_script' => [
+                'type' => 'number',
+                'script' => "params._source.is_retired || !params._source.available ? 1 : 0",
+                'order' => 'asc'
+            ]
+        ]);
         // Apply sorting based on filter
         if ($category === 'new_product') {
             $sort[] = ['created_at' => 'desc'];
@@ -311,7 +325,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     ];
                     break;
                 default:
-                    if (!$filter) $sort[] = ['_score' => 'desc'];
+                    if (!$filter){
+                        $sort[] = ['_score' => 'desc'];
+                    }
             }
         }
 
@@ -324,25 +340,25 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     private function executeSearch($client, $body, $limit, $page, $searchWord = '', $category = '', $filter = '', $inStock = false)
     {
         try {
-            // Log the query for debugging
-            \Log::debug('Elasticsearch Query', [
-                'params' => [
-                    'index' => 'test_products',
-                    'body' => $body
-                ]
-            ]);
-
+//            // Log the query for debugging
+//            \Log::debug('Elasticsearch Query', [
+//                'params' => [
+//                    'index' => 'test_products',
+//                    'body' => $body
+//                ]
+//            ]);
+//dd($body);
             $response = $client->search([
-                'index' => 'test_products',
+                'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
                 'body' => $body
             ]);
 
-            // Log successful response
-            \Log::debug('Elasticsearch Response', [
-                'took' => $response['took'],
-                'total' => $response['hits']['total']['value'],
-                'hits' => count($response['hits']['hits'])
-            ]);
+//            // Log successful response
+//            \Log::debug('Elasticsearch Response', [
+//                'took' => $response['took'],
+//                'total' => $response['hits']['total']['value'],
+//                'hits' => count($response['hits']['hits'])
+//            ]);
 
             $total = $response['hits']['total']['value'];
 
@@ -353,12 +369,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-
-            \Log::error('Elasticsearch Error', [
-                'message' => $e->getMessage(),
-                'query' => $body,
-                'trace' => $e->getTraceAsString()
-            ]);
+dd('test');
+//            \Log::error('Elasticsearch Error', [
+//                'message' => $e->getMessage(),
+//                'query' => $body,
+//                'trace' => $e->getTraceAsString()
+//            ]);
 
             return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
         }
@@ -538,6 +554,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         // Handle in-stock filter
         if ($inStock) {
+
             $body['query']['function_score']['query']['bool']['filter'][] = [
                 'range' => ['stock' => ['gt' => 0]]
             ];
@@ -547,16 +564,16 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $sort = [];
 
         // Push 0-stock items to the end
-//        $sort[] = [
-//            '_script' => [
-//                'type' => 'number',
-//                'script' => [
-//                    'lang' => 'painless',
-//                    'source' => "doc['stock'].value == 0 ? 1 : 0"
-//                ],
-//                'order' => 'asc'
-//            ]
-//        ];
+        $sort[] = [
+            '_script' => [
+                'type' => 'number',
+                'script' => [
+                    'lang' => 'painless',
+                    'source' => "doc['stock'].value == 0 ? 1 : 0"
+                ],
+                'order' => 'asc'
+            ]
+        ];
 
         if ($category === 'new_product') {
             $sort[] = ['created_at' => 'desc'];
@@ -852,7 +869,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         // Execute search
         $response = $client->search([
-            'index' => 'test_products',
+            'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
             'body' => $body
         ]);
 
