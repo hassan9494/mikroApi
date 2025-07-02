@@ -213,7 +213,7 @@ Route::get('/manual-index', function() {
     $product = \Modules\Shop\Entities\Product::first();
 
     $params = [
-        'index' => 'test_products',
+        'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
         'id' => $product->id,
         'body' => $product->toSearchableArray()
     ];
@@ -295,7 +295,7 @@ Route::get('/hardcoded-test', function() {
         $product = \Modules\Shop\Entities\Product::first();
 
         $params = [
-            'index' => 'test_products',
+            'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
             'id' => $product->id,
             'body' => $product->toSearchableArray()
         ];
@@ -319,7 +319,7 @@ Route::get('/test-custom-index', function() {
     $product = \Modules\Shop\Entities\Product::first();
 
     $response = $service->indexDocument(
-        'test_products',
+        env('ELASTICSEARCH_INDEX', 'test_productssss'),
         $product->id,
         $product->toSearchableArray()
     );
@@ -338,7 +338,7 @@ Route::get('/test-fixed-index', function() {
     \Log::debug('Indexing data', $data);
 
     $response = $service->indexDocument(
-        'test_products',
+        env('ELASTICSEARCH_INDEX', 'test_productssss'),
         $product->id,
         $data
     );
@@ -350,7 +350,7 @@ Route::get('/test-fixed-index', function() {
 Route::get('/test-custom-search', function() {
     $service = app('custom-elastic');
 
-    $response = $service->search('test_products', [
+    $response = $service->search(env('ELASTICSEARCH_INDEX', 'test_productssss'), [
         'query' => [
             'match_all' => new \stdClass()
         ]

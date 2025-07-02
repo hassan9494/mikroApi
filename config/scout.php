@@ -135,7 +135,7 @@ return [
     ],
 
     'elasticsearch' => [
-        'index' => env('ELASTICSEARCH_INDEX', 'test_products'),
+        'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
         'host' => env('ELASTICSEARCH_HOST', 'http://localhost:9200'),
         'user' => env('ELASTICSEARCH_USER', 'elastic'),
         'password' => env('ELASTICSEARCH_PASSWORD', 'MIkro@123'),

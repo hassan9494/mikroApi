@@ -295,17 +295,17 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $sort[] = [
             '_script' => [
                 'type' => 'number',
-                'script' => "params._source.is_retired || !params._source.available ? 1 : 0",
+                'script' => [
+                    'source' => "doc['stock'].value > 0 ? 0 : 1",
+                    'lang' => 'painless'
+                ],
                 'order' => 'asc'
             ]
         ];
         array_unshift($sort, [
             '_script' => [
                 'type' => 'number',
-                'script' => [
-                    'source' => "doc['stock'].value > 0 ? 0 : 1",
-                    'lang' => 'painless'
-                ],
+                'script' => "params._source.is_retired || !params._source.available ? 1 : 0",
                 'order' => 'asc'
             ]
         ]);
@@ -349,7 +349,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 //            ]);
 //dd($body);
             $response = $client->search([
-                'index' => 'test_products',
+                'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
                 'body' => $body
             ]);
 
@@ -869,7 +869,7 @@ dd('test');
 
         // Execute search
         $response = $client->search([
-            'index' => 'test_products',
+            'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
             'body' => $body
         ]);
 
