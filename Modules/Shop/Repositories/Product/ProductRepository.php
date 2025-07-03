@@ -115,7 +115,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
      * @param $inStock
      * @return LengthAwarePaginator
      */
-    public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    public function searchelastic($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
         $client = app('elasticsearch');
         $page = request()->get('page', 1);
@@ -605,6 +605,165 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
 
 
+    public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    {
+        $query = Product::query();
+        // Remove this line.  It is dangerous
+        // $searchWord = str_replace("'", "\'", $searchWord);
+
+
+        // Handle search by name and meta
+        if ($searchWord) {
+            // Decode URL-encoded characters first
+            $decoded = urldecode($searchWord);
+
+            // Normalize without removing special chars but escape them
+            $normalized = trim(preg_replace('/\s+/', ' ', $decoded));
+            $searchTerms = array_filter(explode(' ', $normalized));
+            $termCount = count($searchTerms);
+
+            if ($termCount === 0) {
+                return $query->paginate($limit);
+            }
+
+            // Escape special characters for SQL
+            $escapedNormalized = addslashes($normalized);
+            $escapedTerms = array_map('addslashes', $searchTerms);
+
+            // Build the CASE statement with escaped values
+            $caseStatements = [];
+            $bindings = [
+                $escapedNormalized, // exact match
+                $escapedNormalized.'%', // starts with
+                '% '.$escapedNormalized.'%' // contains as whole word
+            ];
+
+            $termCases = [];
+            foreach ($escapedTerms as $term) {
+                $termCases[] = "(CASE
+                            WHEN name LIKE ? THEN 100
+                            WHEN meta_title LIKE ? THEN 80
+                            WHEN meta_keywords LIKE ? THEN 60
+                            WHEN meta_description LIKE ? THEN 40
+                            ELSE 0
+                        END)";
+                array_push($bindings,
+                    '%'.$term.'%', // name
+                    '%'.$term.'%', // meta_title
+                    '%'.$term.'%', // meta_keywords
+                    '%'.$term.'%'  // meta_description
+                );
+            }
+
+            $query->select([
+                'products.*',
+                \DB::raw("
+                (CASE
+                    WHEN name = ? THEN 1000
+                    WHEN name LIKE ? THEN 900
+                    WHEN name LIKE ? THEN 800
+                    ELSE
+                        (".implode(' + ', $termCases).")
+                END) as search_rank
+            ")
+            ]);
+
+            // Add all bindings
+            $query->addBinding($bindings, 'select');
+
+            // Add WHERE conditions with parameterized queries
+            $query->where(function($q) use ($escapedTerms) {
+                foreach ($escapedTerms as $term) {
+                    $q->orWhere('name', 'LIKE', '%'.$term.'%')
+                        ->orWhere('meta_title', 'LIKE', '%'.$term.'%')
+                        ->orWhere('meta_keywords', 'LIKE', '%'.$term.'%')
+                        ->orWhere('meta_description', 'LIKE', '%'.$term.'%')
+                        ->orWhere('sku', 'LIKE', '%'.$term.'%')
+                        ->orWhere('source_sku', 'LIKE', '%'.$term.'%');
+                }
+            });
+
+            $query->orderByDesc('search_rank')
+                ->orderByRaw("CASE WHEN name LIKE ? THEN 0 ELSE 1 END", [$escapedNormalized.'%'])
+                ->orderBy('name');
+        }
+        elseif ($category) {
+            // Search by category if no search word is provided
+            if ($category == 'new_product'){
+                $latestIds = Product::query()
+                    ->orderBy('id', 'desc')
+                    ->take(720)
+                    ->pluck('id');
+
+                // Then filter by these IDs
+                $query->whereIn('id', $latestIds)
+                    ->orderBy('id', 'desc');
+
+            }else{
+                $query->whereHas('categories', function (Builder $q) use ($category) {
+                    $q->where('slug', $category);
+                });
+            }
+
+        } else {
+            // Default to featured products if no category or search word is provided
+            $query->where(['options->featured' => true]);
+        }
+
+
+        // Apply filter based on the selected option
+        switch ($filter) {
+            case 'top-sale':
+                $query->withCount(['completedOrders as sales_count' => function ($query) {
+                    $query->select(\DB::raw('SUM(order_products.quantity)'));
+                }])->orderBy('sales_count', 'desc');
+                break;
+            case 'new-item':
+                $query->orderBy('id', 'desc');
+                break;
+            case 'old-item':
+                $query->orderBy('id', 'asc');
+                break;
+            case 'sale':
+                $query->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) > 0');
+                break;
+            case 'price-high':
+                $query->orderByRaw('
+            CAST(
+                CASE
+                    WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
+                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+                END
+            AS DECIMAL(10,2)) DESC
+        ');
+                break;
+            case "price-low":
+                $query->orderByRaw('
+            CAST(
+                CASE
+                    WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
+                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+                END
+            AS DECIMAL(10,2)) ASC
+        ');
+                break;
+            default:
+                // No filter applied
+                break;
+        }
+
+
+        // Check stock availability based on the parameter
+        if ($inStock === true || $inStock === "true") {
+            $query->where('stock', '>', 0);
+        } else {
+            $query->where('stock', '>=', 0);
+        }
+
+        return $query->paginate($limit);
+    }
     public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
         $query = Product::query();
