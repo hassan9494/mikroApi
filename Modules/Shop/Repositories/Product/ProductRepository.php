@@ -137,6 +137,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         // Handle empty search
         if (empty($searchWord)) {
+            dd('seeatata');
             $body = [
                 'from' => $from,
                 'size' => $limit,
@@ -158,7 +159,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         // Keep original query with special characters
         $originalQuery = $searchWord;
-        $cleanQuery = preg_replace('/\s+/', ' ', $searchWord);  // Only remove extra spaces
+        $cleanQuery = preg_replace('/\s+/', ' ', $searchWord);
         $words = array_filter(explode(' ', $cleanQuery));
         $wordCount = count($words);
 
@@ -169,15 +170,15 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // Build search clauses
         $shouldClauses = [];
 
-        // 1. Exact match on keyword fields (with special characters, case-sensitive)
+        // 1. Exact match using the 'exact' analyzer (preserves special chars)
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $originalQuery,
                 'type' => 'phrase',
                 'fields' => array_map(function($field) {
-                    return preg_replace('/\^(\d+)/', '.keyword^$1', $field);
+                    return preg_replace('/\^(\d+)/', '.exact^$1', $field);
                 }, $searchFields),
-                'boost' => 10000  // Highest boost for exact match
+                'boost' => 10000
             ]
         ];
 
@@ -187,7 +188,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'name.keyword' => [
                     'value' => "*{$originalQuery}*",
                     'case_insensitive' => true,
-                    'boost' => 5000  // Very high boost
+                    'boost' => 9000
                 ]
             ]
         ];
@@ -196,7 +197,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'sku.keyword' => [
                     'value' => "*{$originalQuery}*",
                     'case_insensitive' => true,
-                    'boost' => 5000  // Very high boost
+                    'boost' => 9000
                 ]
             ]
         ];
@@ -205,33 +206,63 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'source_sku.keyword' => [
                     'value' => "*{$originalQuery}*",
                     'case_insensitive' => true,
-                    'boost' => 5000  // Very high boost
+                    'boost' => 9000
                 ]
             ]
         ];
 
-        // 3. Case-insensitive phrase match (without special character handling)
+        // 3. Case-insensitive phrase match
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $cleanQuery,
                 'type' => 'phrase',
                 'fields' => $searchFields,
-                'boost' => 1000
+                'boost' => 8000
             ]
         ];
 
-        // 4. All words in any order
+        // 4. Exact match for individual words using 'exact' analyzer
+        foreach ($words as $word) {
+            if (strlen($word) >= 2) {
+                $shouldClauses[] = [
+                    'term' => [
+                        'name.exact' => [
+                            'value' => $word,
+                            'boost' => 7000
+                        ]
+                    ]
+                ];
+                $shouldClauses[] = [
+                    'term' => [
+                        'sku.exact' => [
+                            'value' => $word,
+                            'boost' => 7000
+                        ]
+                    ]
+                ];
+                $shouldClauses[] = [
+                    'term' => [
+                        'source_sku.exact' => [
+                            'value' => $word,
+                            'boost' => 7000
+                        ]
+                    ]
+                ];
+            }
+        }
+
+        // 5. All words in any order
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $cleanQuery,
                 'type' => 'cross_fields',
                 'operator' => 'and',
                 'fields' => $searchFields,
-                'boost' => 800
+                'boost' => 1000
             ]
         ];
 
-        // 5. Consecutive word pairs
+        // 6. Consecutive word pairs
         if ($wordCount > 1) {
             for ($i = 0; $i < $wordCount - 1; $i++) {
                 $bigram = $words[$i] . ' ' . $words[$i+1];
@@ -239,14 +270,14 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     'match_phrase' => [
                         'name' => [
                             'query' => $bigram,
-                            'boost' => 700 - ($i * 100)
+                            'boost' => 600 - ($i * 100)
                         ]
                     ]
                 ];
             }
         }
 
-        // 6. Any two words
+        // 7. Any two words
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $cleanQuery,
@@ -256,7 +287,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             ]
         ];
 
-        // 7. Single word matches
+        // 8. Single word matches
         foreach ($words as $word) {
             $shouldClauses[] = [
                 'multi_match' => [
@@ -267,7 +298,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             ];
         }
 
-        // 8. Wildcard substring matches for individual words
+        // 9. Wildcard substring matches for individual words
         foreach ($words as $word) {
             if (strlen($word) >= 2) {
                 $shouldClauses[] = [
