@@ -140,6 +140,9 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                 $product->save();
             }
         }else{
+            if ($invoice->status == InvoiceStatus::COMPLETED()->value && $status == InvoiceStatus::COMPLETED()->value){
+                return $invoice;
+            }
             if ($status == InvoiceStatus::COMPLETED()->value) {
                 $products = $invoice->products;
                 foreach ($products as $product) {
