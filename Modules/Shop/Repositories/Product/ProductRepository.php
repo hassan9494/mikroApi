@@ -135,6 +135,10 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             'meta_description^1'
         ];
 
+        // Special character detection
+        $hasSpecialChars = preg_match('/[^\w\s]/u', $searchWord);
+        $originalWords = array_filter(explode(' ', $searchWord));
+
         // Handle empty search
         if (empty($searchWord)) {
             $body = [
@@ -168,23 +172,50 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // Build search clauses
         $shouldClauses = [];
 
-        // 1. Exact case-sensitive match
-        $shouldClauses[] = [
-            'multi_match' => [
-                'query' => $searchWord,
-                'type' => 'phrase',
-                'fields' => array_map(fn($f) => str_replace('^', '.keyword^', $f), $searchFields),
-                'boost' => 1000
-            ]
-        ];
+        // 1. Special character handling
+        if ($hasSpecialChars) {
+            // Exact match with special characters
+            $shouldClauses[] = [
+                'multi_match' => [
+                    'query' => $searchWord,
+                    'type' => 'phrase',
+                    'fields' => [
+                        'name.special^10',
+                        'sku.special^10',
+                        'source_sku.special^10'
+                    ],
+                    'boost' => 2000
+                ]
+            ];
 
-        // 2. Exact case-insensitive match
+            // Wildcard search
+            $shouldClauses[] = [
+                'wildcard' => [
+                    'name' => [
+                        'value' => "*{$searchWord}*",
+                        'case_insensitive' => true,
+                        'boost' => 1500
+                    ]
+                ]
+            ];
+            $shouldClauses[] = [
+                'wildcard' => [
+                    'sku' => [
+                        'value' => "*{$searchWord}*",
+                        'case_insensitive' => true,
+                        'boost' => 1500
+                    ]
+                ]
+            ];
+        }
+
+        // 2. Exact phrase match (standard analyzer)
         $shouldClauses[] = [
-            'multi_match' => [
-                'query' => $cleanQuery,
-                'type' => 'phrase',
-                'fields' => $searchFields,
-                'boost' => 900
+            'match_phrase' => [
+                'name' => [
+                    'query' => $searchWord,
+                    'boost' => $hasSpecialChars ? 1000 : 1500
+                ]
             ]
         ];
 
@@ -202,7 +233,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // 4. Consecutive word pairs
         if ($wordCount > 1) {
             for ($i = 0; $i < $wordCount - 1; $i++) {
-                $bigram = $words[$i] . ' ' . $words[$i+1];
+                $bigram = $words[$i] . ' ' . $words[$i + 1];
                 $shouldClauses[] = [
                     'match_phrase' => [
                         'name' => [
@@ -214,53 +245,33 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             }
         }
 
-        // 5. Any two words
-        $shouldClauses[] = [
-            'multi_match' => [
-                'query' => $cleanQuery,
-                'minimum_should_match' => 2,
-                'fields' => $searchFields,
-                'boost' => 400
-            ]
-        ];
-
-        // 6. Single word matches
+        // 5. Individual word matches
         foreach ($words as $word) {
+            // Term match for exact words
             $shouldClauses[] = [
-                'multi_match' => [
-                    'query' => $word,
-                    'fields' => $searchFields,
-                    'boost' => 300
+                'term' => [
+                    'name' => [
+                        'value' => $word,
+                        'boost' => 500
+                    ]
                 ]
             ];
-        }
 
-        // 7. Wildcard substring matches (including short words)
-        foreach ($words as $word) {
-            // Apply to all words with length >= 2
+            // Wildcard matches for partial words
             if (strlen($word) >= 2) {
                 $shouldClauses[] = [
                     'wildcard' => [
                         'name' => [
                             'value' => "*{$word}*",
                             'case_insensitive' => true,
-                            'boost' => (strlen($word) < 3 ? 25 : 50) // Higher boost for longer words
-                        ]
-                    ]
-                ];
-                $shouldClauses[] = [
-                    'wildcard' => [
-                        'sku' => [
-                            'value' => "*{$word}*",
-                            'case_insensitive' => true,
-                            'boost' => (strlen($word) < 3 ? 25 : 50)
+                            'boost' => 200
                         ]
                     ]
                 ];
             }
         }
 
-        // Add ID match
+        // 6. ID match
         $shouldClauses[] = [
             'term' => [
                 'id' => [
@@ -287,36 +298,25 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                             'script_score' => [
                                 'script' => "Math.log1p(doc['stock'].value + 1)"
                             ]
-                        ]
-                    ],
-                    'boost_mode' => 'sum'
-                ]
-            ]
-        ];
+                        ],
+                        'boost_mode' => 'sum']]]];
 
         // Category filter
         if ($category && $category !== 'new_product') {
-            $body['query']['function_score']['query']['bool']['filter'][] = [
-                'term' => ['category_slugs' => $category]
-            ];
+            $body['query']['function_score']['query']['bool']['filter'][] = ['term' => ['category_slugs' => $category]];
         }
-//dd($inStock);
-        // In-stock filter
+
+// In-stock filter
         if ($inStock && $inStock != "false") {
             $body['query']['function_score']['query']['bool']['filter'][] = [
                 'range' => ['stock' => ['gt' => 0]]
             ];
         }
-//        if ($inStock && $inStock != "false") {
-            // Add this sort to push out-of-stock items to the end
 
-//        }
-
-
-        // Sorting
+// Sorting
         $sort = [];
 
-        // Push retired/unavailable items to end
+// Push retired/unavailable items to end
         $sort[] = [
             '_script' => [
                 'type' => 'number',
@@ -334,23 +334,32 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'order' => 'asc'
             ]
         ]);
-        // Apply sorting based on filter
+
+// Apply sorting based on filter
         if ($category === 'new_product') {
             $sort[] = ['created_at' => 'desc'];
             $body['size'] = min($limit * 25, 500);
         } else {
             switch ($filter) {
-                case 'new-item': $sort[] = ['created_at' => 'desc']; break;
-                case 'old-item': $sort[] = ['created_at' => 'asc']; break;
-                case 'price-high': $sort[] = ['effective_price' => 'desc']; break;
-                case 'price-low': $sort[] = ['effective_price' => 'asc']; break;
+                case 'new-item':
+                    $sort[] = ['created_at' => 'desc'];
+                    break;
+                case 'old-item':
+                    $sort[] = ['created_at' => 'asc'];
+                    break;
+                case 'price-high':
+                    $sort[] = ['effective_price' => 'desc'];
+                    break;
+                case 'price-low':
+                    $sort[] = ['effective_price' => 'asc'];
+                    break;
                 case 'sale':
                     $body['query']['function_score']['query']['bool']['filter'][] = [
                         'range' => ['sale_price' => ['gt' => 0]]
                     ];
                     break;
                 default:
-                    if (!$filter){
+                    if (!$filter) {
                         $sort[] = ['_score' => 'desc'];
                     }
             }
@@ -360,7 +369,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
     }
-
 
     private function executeSearch($client, $body, $limit, $page, $searchWord = '', $category = '', $filter = '', $inStock = false)
     {
@@ -605,10 +613,18 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $body['size'] = min($limit * 25, 500);
         } else {
             switch ($filter) {
-                case 'new-item': $sort[] = ['created_at' => 'desc']; break;
-                case 'old-item': $sort[] = ['created_at' => 'asc']; break;
-                case 'price-high': $sort[] = ['effective_price' => 'desc']; break;
-                case 'price-low': $sort[] = ['effective_price' => 'asc']; break;
+                case 'new-item':
+                    $sort[] = ['created_at' => 'desc'];
+                    break;
+                case 'old-item':
+                    $sort[] = ['created_at' => 'asc'];
+                    break;
+                case 'price-high':
+                    $sort[] = ['effective_price' => 'desc'];
+                    break;
+                case 'price-low':
+                    $sort[] = ['effective_price' => 'asc'];
+                    break;
                 case 'sale':
                     $body['query']['function_score']['query']['bool']['filter'][] = [
                         'range' => ['sale_price' => ['gt' => 0]]
@@ -626,8 +642,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
     }
-
-
 
 
     public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
@@ -659,8 +673,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $caseStatements = [];
             $bindings = [
                 $escapedNormalized, // exact match
-                $escapedNormalized.'%', // starts with
-                '% '.$escapedNormalized.'%' // contains as whole word
+                $escapedNormalized . '%', // starts with
+                '% ' . $escapedNormalized . '%' // contains as whole word
             ];
 
             $termCases = [];
@@ -673,10 +687,10 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                             ELSE 0
                         END)";
                 array_push($bindings,
-                    '%'.$term.'%', // name
-                    '%'.$term.'%', // meta_title
-                    '%'.$term.'%', // meta_keywords
-                    '%'.$term.'%'  // meta_description
+                    '%' . $term . '%', // name
+                    '%' . $term . '%', // meta_title
+                    '%' . $term . '%', // meta_keywords
+                    '%' . $term . '%'  // meta_description
                 );
             }
 
@@ -688,7 +702,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     WHEN name LIKE ? THEN 900
                     WHEN name LIKE ? THEN 800
                     ELSE
-                        (".implode(' + ', $termCases).")
+                        (" . implode(' + ', $termCases) . ")
                 END) as search_rank
             ")
             ]);
@@ -697,24 +711,23 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $query->addBinding($bindings, 'select');
 
             // Add WHERE conditions with parameterized queries
-            $query->where(function($q) use ($escapedTerms) {
+            $query->where(function ($q) use ($escapedTerms) {
                 foreach ($escapedTerms as $term) {
-                    $q->orWhere('name', 'LIKE', '%'.$term.'%')
-                        ->orWhere('meta_title', 'LIKE', '%'.$term.'%')
-                        ->orWhere('meta_keywords', 'LIKE', '%'.$term.'%')
-                        ->orWhere('meta_description', 'LIKE', '%'.$term.'%')
-                        ->orWhere('sku', 'LIKE', '%'.$term.'%')
-                        ->orWhere('source_sku', 'LIKE', '%'.$term.'%');
+                    $q->orWhere('name', 'LIKE', '%' . $term . '%')
+                        ->orWhere('meta_title', 'LIKE', '%' . $term . '%')
+                        ->orWhere('meta_keywords', 'LIKE', '%' . $term . '%')
+                        ->orWhere('meta_description', 'LIKE', '%' . $term . '%')
+                        ->orWhere('sku', 'LIKE', '%' . $term . '%')
+                        ->orWhere('source_sku', 'LIKE', '%' . $term . '%');
                 }
             });
 
             $query->orderByDesc('search_rank')
-                ->orderByRaw("CASE WHEN name LIKE ? THEN 0 ELSE 1 END", [$escapedNormalized.'%'])
+                ->orderByRaw("CASE WHEN name LIKE ? THEN 0 ELSE 1 END", [$escapedNormalized . '%'])
                 ->orderBy('name');
-        }
-        elseif ($category) {
+        } elseif ($category) {
             // Search by category if no search word is provided
-            if ($category == 'new_product'){
+            if ($category == 'new_product') {
                 $latestIds = Product::query()
                     ->orderBy('id', 'desc')
                     ->take(720)
@@ -724,7 +737,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $query->whereIn('id', $latestIds)
                     ->orderBy('id', 'desc');
 
-            }else{
+            } else {
                 $query->whereHas('categories', function (Builder $q) use ($category) {
                     $q->where('slug', $category);
                 });
@@ -822,8 +835,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     'fuzziness' => 'AUTO'
                 ]
             ];
-        }
-        // Handle category filter
+        } // Handle category filter
         elseif ($category) {
             if ($category == 'new_product') {
                 $body['sort'] = [['created_at' => 'desc']];
@@ -834,9 +846,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     'term' => ['category_slugs' => $category]
                 ];
             }
-        }
-
-            // Default to featured
+        } // Default to featured
         else {
             $body['query'] = [
                 'term' => ['featured' => true]
@@ -919,8 +929,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     }
 
 
-
-
     private function getCombinations($array, $size)
     {
         $result = [];
@@ -971,8 +979,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $query->where(function ($q) use ($searchTerms) {
                 foreach ($searchTerms as $term) {
                     $q->orWhere('name', 'LIKE', '%' . $term . '%')
-                    ->orWhere('sku', 'LIKE', '%' . $term . '%')
-                    ->orWhere('source_sku', 'LIKE', '%' . $term . '%')
+                        ->orWhere('sku', 'LIKE', '%' . $term . '%')
+                        ->orWhere('source_sku', 'LIKE', '%' . $term . '%')
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title')) LIKE ?", ['%' . $term . '%'])
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords')) LIKE ?", ['%' . $term . '%'])
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description')) LIKE ?", ['%' . $term . '%']);
@@ -996,7 +1004,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $rankingQuery = rtrim($rankingQuery, "+ ") . ") END AS search_rank";
 
             // Specify the columns you want to select
-            $query->addSelect(['id', 'name', 'sku', 'slug','location', 'options', 'source_sku','price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]);
+            $query->addSelect(['id', 'name', 'sku', 'slug', 'location', 'options', 'source_sku', 'price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]);
 
             // Order by the new rank and other criteria
             $query->orderByDesc('search_rank')

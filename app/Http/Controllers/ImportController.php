@@ -531,75 +531,81 @@ class ImportController extends Controller
      */
     function createProductIndex() {
         $client = app('elasticsearch');
+        $index = env('ELASTICSEARCH_INDEX', 'test_productssss');
 
         $params = [
-            'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
+            'index' => $index,
             'body' => [
                 'mappings' => [
                     'properties' => [
                         'id' => ['type' => 'keyword'],
                         'name' => [
                             'type' => 'text',
+                            'analyzer' => 'standard',
                             'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
-                            ]
-                        ],
-                        'location' => [
-                            'type' => 'text',
-                            'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                                'keyword' => [
+                                    'type' => 'keyword',
+                                    'normalizer' => 'lowercase_normalizer'
+                                ],
+                                'special' => [
+                                    'type' => 'text',
+                                    'analyzer' => 'special_char_analyzer'
+                                ]
                             ]
                         ],
                         'sku' => [
                             'type' => 'text',
+                            'analyzer' => 'standard',
                             'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                                'keyword' => [
+                                    'type' => 'keyword',
+                                    'normalizer' => 'lowercase_normalizer'
+                                ],
+                                'special' => [
+                                    'type' => 'text',
+                                    'analyzer' => 'special_char_analyzer'
+                                ]
                             ]
                         ],
                         'source_sku' => [
                             'type' => 'text',
+                            'analyzer' => 'standard',
                             'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                                'keyword' => [
+                                    'type' => 'keyword',
+                                    'normalizer' => 'lowercase_normalizer'
+                                ]
+                            ]
+                        ],
+                        'location' => [
+                            'type' => 'text',
+                            'analyzer' => 'standard',
+                            'fields' => [
+                                'keyword' => ['type' => 'keyword']
                             ]
                         ],
                         'stock_location' => [
                             'type' => 'text',
+                            'analyzer' => 'standard',
                             'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
+                                'keyword' => ['type' => 'keyword']
                             ]
                         ],
                         'short_description' => [
                             'type' => 'text',
-                            'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
-                            ]
+                            'analyzer' => 'standard'
                         ],
                         'meta_title' => [
                             'type' => 'text',
-                            'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
-                            ]
+                            'analyzer' => 'standard'
                         ],
                         'meta_keywords' => [
                             'type' => 'text',
-                            'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
-                            ]
+                            'analyzer' => 'standard'
                         ],
                         'meta_description' => [
                             'type' => 'text',
-                            'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
-                            ]
+                            'analyzer' => 'standard'
                         ],
                         'category_slugs' => ['type' => 'keyword'],
                         'normal_price' => ['type' => 'float'],
@@ -623,18 +629,27 @@ class ImportController extends Controller
                 'settings' => [
                     'analysis' => [
                         'analyzer' => [
-                            'ngram_analyzer' => [
+                            'special_char_analyzer' => [
                                 'type' => 'custom',
-                                'tokenizer' => 'ngram_tokenizer',
+                                'tokenizer' => 'special_char_tokenizer',
+                                'filter' => ['lowercase']
+                            ],
+                            'standard' => [
+                                'type' => 'standard',
                                 'filter' => ['lowercase', 'asciifolding']
                             ]
                         ],
                         'tokenizer' => [
-                            'ngram_tokenizer' => [
-                                'type' => 'ngram',
-                                'min_gram' => 2,
-                                'max_gram' => 3,
-                                'token_chars' => ['letter', 'digit']
+                            'special_char_tokenizer' => [
+                                'type' => 'pattern',
+                                'pattern' => "\\s+",
+                                'group' => 0
+                            ]
+                        ],
+                        'normalizer' => [
+                            'lowercase_normalizer' => [
+                                'type' => 'custom',
+                                'filter' => ['lowercase']
                             ]
                         ]
                     ]
@@ -643,7 +658,7 @@ class ImportController extends Controller
         ];
 
         try {
-            $client->indices()->delete(['index' => env('ELASTICSEARCH_INDEX', 'test_productssss')]);
+            $client->indices()->delete(['index' => $index]);
         } catch (\Exception $e) {
             // Ignore if index doesn't exist
         }

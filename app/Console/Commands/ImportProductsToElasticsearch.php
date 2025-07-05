@@ -13,13 +13,20 @@ class ImportProductsToElasticsearch extends Command
 
     public function handle()
     {
-        $client = app('custom-elastic');
+        $client = app('elasticsearch');
         $index = env('ELASTICSEARCH_INDEX', 'test_productssss');
 
         Product::with('categories')->chunk(200, function ($products) use ($client, $index) {
             foreach ($products as $product) {
                 $data = $product->toSearchableArray();
-                $client->indexDocument($index, $product->id, $data);
+
+                $params = [
+                    'index' => $index,
+                    'id' => $product->id,
+                    'body' => $data
+                ];
+
+                $client->index($params);
             }
             $this->info('Imported '.count($products).' products');
         });
