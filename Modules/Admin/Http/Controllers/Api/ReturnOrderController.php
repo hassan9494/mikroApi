@@ -198,11 +198,11 @@ class ReturnOrderController extends ApiAdminController
 
         // 1. Generate XML
         $xml = $service->generateForReturn($orderToFatora);
-        return response()->json([
-            'status' => 'success',
-            'invoice_id' => $xml,
-            'user-id' => auth()->id()
-        ]);
+//        return response()->json([
+//            'status' => 'success',
+//            'invoice_id' => $xml,
+//            'user-id' => auth()->id()
+//        ]);
         $payload = $service->prepareForSubmission($xml);
 
         $response = Http::withHeaders([
