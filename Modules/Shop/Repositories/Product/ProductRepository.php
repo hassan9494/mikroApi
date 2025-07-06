@@ -122,38 +122,50 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $from = ($page - 1) * $limit;
         $searchWord = trim($searchWord);
 
-        // Define search fields with boosts
+        // Define search fields with boosts - short_description removed from main fields
         $searchFields = [
             'name^5',
             'sku^5',
             'source_sku^5',
             'location^3',
             'stock_location^3',
-            'short_description^2',
+
             'meta_title^2',
             'meta_keywords^2',
             'meta_description^1'
         ];
 
-        // Handle empty search
-//        dd(empty($searchWord));
+        // Handle empty search - show featured products only
         if (empty($searchWord)) {
-//            dd('seeatata');
+            // Start with the base query for featured products
+            $query = [
+                'bool' => [
+                    'filter' => [
+                        ['term' => ['featured' => true]]
+                    ]
+                ]
+            ];
+
+            // Add category filter if needed
+            if ($category && $category !== 'new_product') {
+                $query['bool']['filter'][] = ['term' => ['category_slugs' => $category]];
+            }
+
             $body = [
                 'from' => $from,
                 'size' => $limit,
                 'track_total_hits' => true,
-                'query' => ['match_all' => new \stdClass()],
+                'query' => $query,
                 'sort' => [['created_at' => 'desc']]
             ];
 
-            if ($category && $category !== 'new_product') {
-                $body['query'] = [
-                    'bool' => [
-                        'filter' => [['term' => ['category_slugs' => $category]]]
-                    ]
-                ];
-            }
+
+
+
+
+
+
+
 
             return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
         }
@@ -332,7 +344,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             }
         }
 
-        // Add ID match
+        // 10. Add ID match
         $shouldClauses[] = [
             'term' => [
                 'id' => [
@@ -341,6 +353,35 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 ]
             ]
         ];
+
+        // 11. SHORT DESCRIPTION - Added as last priority with very low boost
+        $shouldClauses[] = [
+            'multi_match' => [
+                'query' => $cleanQuery,
+                'type' => 'phrase',
+                'fields' => ['short_description'],
+                'boost' => 0.5  // Very low boost for last priority
+            ]
+        ];
+        $shouldClauses[] = [
+            'multi_match' => [
+                'query' => $cleanQuery,
+                'type' => 'cross_fields',
+                'operator' => 'and',
+                'fields' => ['short_description'],
+                'boost' => 0.3
+            ]
+        ];
+        foreach ($words as $word) {
+            $shouldClauses[] = [
+                'match' => [
+                    'short_description' => [
+                        'query' => $word,
+                        'boost' => 0.1
+                    ]
+                ]
+            ];
+        }
 
         $body = [
             'from' => $from,
@@ -699,7 +740,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
-
+//dd('test');
         $query = Product::query();
         // Remove this line.  It is dangerous
         // $searchWord = str_replace("'", "\'", $searchWord);
@@ -904,7 +945,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             }
         }
 
-            // Default to featured
+        // Default to featured
         else {
             $body['query'] = [
                 'term' => ['featured' => true]
@@ -1039,8 +1080,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $query->where(function ($q) use ($searchTerms) {
                 foreach ($searchTerms as $term) {
                     $q->orWhere('name', 'LIKE', '%' . $term . '%')
-                    ->orWhere('sku', 'LIKE', '%' . $term . '%')
-                    ->orWhere('source_sku', 'LIKE', '%' . $term . '%')
+                        ->orWhere('sku', 'LIKE', '%' . $term . '%')
+                        ->orWhere('source_sku', 'LIKE', '%' . $term . '%')
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title')) LIKE ?", ['%' . $term . '%'])
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords')) LIKE ?", ['%' . $term . '%'])
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description')) LIKE ?", ['%' . $term . '%']);
