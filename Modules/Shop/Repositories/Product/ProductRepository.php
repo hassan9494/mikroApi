@@ -124,15 +124,22 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         // Define search fields with boosts - short_description removed from main fields
         $searchFields = [
-            'name^5',
-            'sku^5',
-            'source_sku^5',
-            'location^3',
-            'stock_location^3',
-            'meta_title^2',
-            'meta_keywords^2',
-            'meta_description^1'
+            'name.exact^8',
+            'name.keyword^8',
+            'sku.exact^8',
+            'sku.keyword^8',
+            'source_sku.exact^8',
+            'source_sku.keyword^8',
+            'name^2',
+            'sku^2',
+            'source_sku^2',
+            'location^1',
+            'stock_location^1',
+            'meta_title^0.5',
+            'meta_keywords^0.5',
+            'meta_description^0.2'
         ];
+
 
         // Handle empty search - show featured products only
         if (empty($searchWord)) {
@@ -175,16 +182,23 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $shouldClauses = [];
 
         // 1. Exact match using the 'exact' analyzer (preserves special chars)
+        $exactFields = array_map(function($field) {
+            return preg_replace('/\^(\d+)/', '.exact^$1', $field);
+        }, $searchFields);
+
+        $keywordFields = array_map(function($field) {
+            return preg_replace('/\^(\d+)/', '.keyword^$1', $field);
+        }, $searchFields);
+
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $originalQuery,
                 'type' => 'phrase',
-                'fields' => array_map(function($field) {
-                    return preg_replace('/\^(\d+)/', '.exact^$1', $field);
-                }, $searchFields),
+                'fields' => array_merge($exactFields, $keywordFields),
                 'boost' => 10000
             ]
         ];
+
 
         // 2. Wildcard match for exact special character sequence
         $shouldClauses[] = [
@@ -493,7 +507,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-//dd($e);
+dd($e);
 //            \Log::error('Elasticsearch Error', [
 //                'message' => $e->getMessage(),
 //                'query' => $body,
@@ -731,7 +745,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
-
+dd('test');
         $query = Product::query();
         // Remove this line.  It is dangerous
         // $searchWord = str_replace("'", "\'", $searchWord);
