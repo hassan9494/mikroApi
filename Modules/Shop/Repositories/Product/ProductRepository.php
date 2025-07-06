@@ -165,7 +165,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
 
 
-
+            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
 
             return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
         }
