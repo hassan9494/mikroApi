@@ -122,28 +122,29 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $from = ($page - 1) * $limit;
         $searchWord = trim($searchWord);
 
-        // Define search fields with boosts - short_description removed from main fields
         $searchFields = [
-            'name.exact^8',
-            'name.keyword^8',
-            'sku.exact^8',
-            'sku.keyword^8',
-            'source_sku.exact^8',
-            'source_sku.keyword^8',
-            'name^2',
-            'sku^2',
-            'source_sku^2',
-            'location^1',
-            'stock_location^1',
-            'meta_title^0.5',
-            'meta_keywords^0.5',
-            'meta_description^0.2'
+            'name^5',
+            'sku^5',
+            'source_sku^5',
+            'location^3',
+            'stock_location^3',
+            'meta_title^2',
+            'meta_keywords^2',
+            'meta_description^1'
         ];
 
+        $highPriorityFields = [
+            'name',
+            'sku',
+            'source_sku',
+            'location',
+            'stock_location',
+            'meta_keywords',
+            'meta_title',
+            'meta_description'
+        ];
 
-        // Handle empty search - show featured products only
         if (empty($searchWord)) {
-            // Start with the base query for featured products
             $query = [
                 'bool' => [
                     'filter' => [
@@ -151,12 +152,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     ]
                 ]
             ];
-
-            // Add category filter if needed
             if ($category && $category !== 'new_product') {
                 $query['bool']['filter'][] = ['term' => ['category_slugs' => $category]];
             }
-
             $body = [
                 'from' => $from,
                 'size' => $limit,
@@ -164,11 +162,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'query' => $query,
                 'sort' => [['created_at' => 'desc']]
             ];
-
             return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
         }
 
-        // Keep original query with special characters
         $originalQuery = $searchWord;
         $cleanQuery = preg_replace('/\s+/', ' ', $searchWord);
         $words = array_filter(explode(' ', $cleanQuery));
@@ -178,194 +174,184 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $limit);
         }
 
-        // Build search clauses
         $shouldClauses = [];
 
-        // 1. Exact match using the 'exact' analyzer (preserves special chars)
-        $exactFields = array_map(function($field) {
-            return preg_replace('/\^(\d+)/', '.exact^$1', $field);
-        }, $searchFields);
+        // Detect if query contains any punctuation, symbol, or digit (including quotes, slashes, etc.)
+        $hasSpecialCharOrDigit = preg_match('/[\p{P}\p{S}\d]+/u', $cleanQuery);
 
-        $keywordFields = array_map(function($field) {
-            return preg_replace('/\^(\d+)/', '.keyword^$1', $field);
-        }, $searchFields);
+        if ($hasSpecialCharOrDigit) {
+            // STRICT matching for queries with special chars or digits
 
-        $shouldClauses[] = [
-            'multi_match' => [
-                'query' => $originalQuery,
-                'type' => 'phrase',
-                'fields' => array_merge($exactFields, $keywordFields),
-                'boost' => 10000
-            ]
-        ];
-
-
-        // 2. Wildcard match for exact special character sequence
-        $shouldClauses[] = [
-            'wildcard' => [
-                'name.keyword' => [
-                    'value' => "*{$originalQuery}*",
-                    'case_insensitive' => true,
-                    'boost' => 9000
-                ]
-            ]
-        ];
-        $shouldClauses[] = [
-            'wildcard' => [
-                'sku.keyword' => [
-                    'value' => "*{$originalQuery}*",
-                    'case_insensitive' => true,
-                    'boost' => 9000
-                ]
-            ]
-        ];
-        $shouldClauses[] = [
-            'wildcard' => [
-                'source_sku.keyword' => [
-                    'value' => "*{$originalQuery}*",
-                    'case_insensitive' => true,
-                    'boost' => 9000
-                ]
-            ]
-        ];
-
-        // 3. Case-insensitive phrase match
-        $shouldClauses[] = [
-            'multi_match' => [
-                'query' => $cleanQuery,
-                'type' => 'phrase',
-                'fields' => $searchFields,
-                'boost' => 8000
-            ]
-        ];
-
-        // 4. Exact match for individual words using 'exact' analyzer
-        foreach ($words as $word) {
-            if (strlen($word) >= 2) {
+            // 1. Wildcard substring match on .keyword fields (case-insensitive)
+            foreach ($highPriorityFields as $field) {
                 $shouldClauses[] = [
-                    'term' => [
-                        'name.exact' => [
-                            'value' => $word,
-                            'boost' => 7000
-                        ]
-                    ]
-                ];
-                $shouldClauses[] = [
-                    'term' => [
-                        'sku.exact' => [
-                            'value' => $word,
-                            'boost' => 7000
-                        ]
-                    ]
-                ];
-                $shouldClauses[] = [
-                    'term' => [
-                        'source_sku.exact' => [
-                            'value' => $word,
-                            'boost' => 7000
+                    'wildcard' => [
+                        "{$field}.keyword" => [
+                            'value' => "*{$cleanQuery}*",
+                            'case_insensitive' => true,
+                            'boost' => 100000  // VERY HIGH boost for exact substring match
                         ]
                     ]
                 ];
             }
-        }
 
-        // 5. All words in any order
-        $shouldClauses[] = [
-            'multi_match' => [
-                'query' => $cleanQuery,
-                'type' => 'cross_fields',
-                'operator' => 'and',
-                'fields' => $searchFields,
-                'boost' => 1000
-            ]
-        ];
-
-        // 6. Consecutive word pairs
-        if ($wordCount > 1) {
-            for ($i = 0; $i < $wordCount - 1; $i++) {
-                $bigram = $words[$i] . ' ' . $words[$i+1];
+            // 2. Exact phrase match on text fields (lower boost, fallback)
+            foreach ($highPriorityFields as $field) {
                 $shouldClauses[] = [
                     'match_phrase' => [
-                        'name' => [
-                            'query' => $bigram,
-                            'boost' => 600 - ($i * 100)
+                        $field => [
+                            'query' => $cleanQuery,
+                            'boost' => 5000
                         ]
                     ]
                 ];
             }
-        }
 
-        // 7. Any two words
-        $shouldClauses[] = [
-            'multi_match' => [
-                'query' => $cleanQuery,
-                'minimum_should_match' => 2,
-                'fields' => $searchFields,
-                'boost' => 400
-            ]
-        ];
+            // 3. Exact id match
+            $shouldClauses[] = [
+                'term' => [
+                    'id' => [
+                        'value' => $cleanQuery,
+                        'boost' => 3000
+                    ]
+                ]
+            ];
+        } else {
+            // ORIGINAL logic for simple word queries (no special chars)
 
-        // 8. Single word matches
-        foreach ($words as $word) {
+            // 1. Exact phrase match with exact analyzer
             $shouldClauses[] = [
                 'multi_match' => [
-                    'query' => $word,
+                    'query' => $originalQuery,
+                    'type' => 'phrase',
+                    'fields' => array_map(function ($field) {
+                        return preg_replace('/\^(\d+)/', '.exact^$1', $field);
+                    }, $searchFields),
+                    'boost' => 10000
+                ]
+            ];
+
+            // 2. Wildcard match on keyword fields for main fields
+            foreach (['name', 'sku', 'source_sku', 'meta_keywords', 'meta_title', 'meta_description'] as $field) {
+                $shouldClauses[] = [
+                    'wildcard' => [
+                        "{$field}.keyword" => [
+                            'value' => "*{$originalQuery}*",
+                            'case_insensitive' => true,
+                            'boost' => 9000
+                        ]
+                    ]
+                ];
+            }
+
+            // 3. Phrase match on all search fields
+            $shouldClauses[] = [
+                'multi_match' => [
+                    'query' => $cleanQuery,
+                    'type' => 'phrase',
                     'fields' => $searchFields,
-                    'boost' => 300
+                    'boost' => 8000
+                ]
+            ];
+
+            // 4. Exact term match for individual words on exact analyzers
+            foreach ($words as $word) {
+                if (strlen($word) >= 2) {
+                    foreach (['name', 'sku', 'source_sku', 'meta_keywords', 'meta_title', 'meta_description'] as $field) {
+                        $shouldClauses[] = [
+                            'term' => [
+                                "{$field}.exact" => [
+                                    'value' => $word,
+                                    'boost' => 7000
+                                ]
+                            ]
+                        ];
+                    }
+                }
+            }
+
+            // 5. Cross-fields all words match
+            $shouldClauses[] = [
+                'multi_match' => [
+                    'query' => $cleanQuery,
+                    'type' => 'cross_fields',
+                    'operator' => 'and',
+                    'fields' => $searchFields,
+                    'boost' => 1000
+                ]
+            ];
+
+            // 6. Consecutive word pairs in name field
+            if ($wordCount > 1) {
+                for ($i = 0; $i < $wordCount - 1; $i++) {
+                    $bigram = $words[$i] . ' ' . $words[$i + 1];
+                    $shouldClauses[] = [
+                        'match_phrase' => [
+                            'name' => [
+                                'query' => $bigram,
+                                'boost' => 600 - ($i * 100)
+                            ]
+                        ]
+                    ];
+                }
+            }
+
+            // 7. Any two words match
+            $shouldClauses[] = [
+                'multi_match' => [
+                    'query' => $cleanQuery,
+                    'minimum_should_match' => 2,
+                    'fields' => $searchFields,
+                    'boost' => 400
+                ]
+            ];
+
+            // 8. Single word matches
+            foreach ($words as $word) {
+                $shouldClauses[] = [
+                    'multi_match' => [
+                        'query' => $word,
+                        'fields' => $searchFields,
+                        'boost' => 300
+                    ]
+                ];
+            }
+
+            // 9. Wildcard substring matches for individual words
+            foreach ($words as $word) {
+                if (strlen($word) >= 2) {
+                    foreach (['name', 'sku', 'source_sku', 'meta_keywords', 'meta_title', 'meta_description'] as $field) {
+                        $shouldClauses[] = [
+                            'wildcard' => [
+                                "{$field}.keyword" => [
+                                    'value' => "*{$word}*",
+                                    'case_insensitive' => true,
+                                    'boost' => (strlen($word) < 3 ? 25 : 50)
+                                ]
+                            ]
+                        ];
+                    }
+                }
+            }
+
+            // 10. ID exact match
+            $shouldClauses[] = [
+                'term' => [
+                    'id' => [
+                        'value' => $cleanQuery,
+                        'boost' => 100
+                    ]
                 ]
             ];
         }
 
-        // 9. Wildcard substring matches for individual words
-        foreach ($words as $word) {
-            if (strlen($word) >= 2) {
-                $shouldClauses[] = [
-                    'wildcard' => [
-                        'name.keyword' => [
-                            'value' => "*{$word}*",
-                            'case_insensitive' => true,
-                            'boost' => (strlen($word) < 3 ? 25 : 50)
-                        ]
-                    ]
-                ];
-                $shouldClauses[] = [
-                    'wildcard' => [
-                        'sku.keyword' => [
-                            'value' => "*{$word}*",
-                            'case_insensitive' => true,
-                            'boost' => (strlen($word) < 3 ? 25 : 50)
-                        ]
-                    ]
-                ];
-                $shouldClauses[] = [
-                    'wildcard' => [
-                        'source_sku.keyword' => [
-                            'value' => "*{$word}*",
-                            'case_insensitive' => true,
-                            'boost' => (strlen($word) < 3 ? 25 : 50)
-                        ]
-                    ]
-                ];
-            }
-        }
-
-        // 10. Add ID match
-        $shouldClauses[] = [
-            'term' => [
-                'id' => [
-                    'value' => $cleanQuery,
-                    'boost' => 100
-                ]
-            ]
-        ];
-
-        // 11. SHORT DESCRIPTION - Added as last priority with very low boost
+        // Short description low priority matches
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $cleanQuery,
                 'type' => 'phrase',
                 'fields' => ['short_description'],
-                'boost' => 0.5  // Very low boost for last priority
+                'boost' => 0.5
             ]
         ];
         $shouldClauses[] = [
@@ -412,21 +398,18 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             ]
         ];
 
-        // Category filter
         if ($category && $category !== 'new_product') {
             $body['query']['function_score']['query']['bool']['filter'][] = [
                 'term' => ['category_slugs' => $category]
             ];
         }
 
-        // In-stock filter
         if ($inStock && $inStock != "false") {
             $body['query']['function_score']['query']['bool']['filter'][] = [
                 'range' => ['stock' => ['gt' => 0]]
             ];
         }
 
-        // Sorting
         $sort = [];
 
         // Push retired/unavailable items to end
@@ -448,7 +431,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             ]
         ]);
 
-        // Apply sorting based on filter
         if ($category === 'new_product') {
             $sort[] = ['created_at' => 'desc'];
             $body['size'] = min($limit * 25, 500);
@@ -464,7 +446,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     ];
                     break;
                 default:
-                    if (!$filter){
+                    if (!$filter) {
                         $sort[] = ['_score' => 'desc'];
                     }
             }
@@ -474,6 +456,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
     }
+
 
     private function executeSearch($client, $body, $limit, $page, $searchWord = '', $category = '', $filter = '', $inStock = false)
     {
@@ -507,7 +490,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-dd($e);
+//dd($e);
 //            \Log::error('Elasticsearch Error', [
 //                'message' => $e->getMessage(),
 //                'query' => $body,
@@ -745,7 +728,7 @@ dd($e);
 
     public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
-dd('test');
+//dd('test');
         $query = Product::query();
         // Remove this line.  It is dangerous
         // $searchWord = str_replace("'", "\'", $searchWord);
