@@ -165,7 +165,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
 
 
-
+            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
 
             return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
         }
@@ -740,7 +740,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
-//dd('test');
+dd('test');
         $query = Product::query();
         // Remove this line.  It is dangerous
         // $searchWord = str_replace("'", "\'", $searchWord);
