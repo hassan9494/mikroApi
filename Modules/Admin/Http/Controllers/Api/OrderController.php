@@ -306,11 +306,11 @@ class OrderController extends ApiAdminController
 
         // 1. Generate XML
         $xml = $service->generate($orderToFatora);
-        return response()->json([
+        re/*turn response()->json([
             'status' => 'success',
             'invoice_id' => $xml,
             'user-id' => auth()->id()
-        ]);
+        ]);*/
         $payload = $service->prepareForSubmission($xml);
 
         $response = Http::withHeaders([
