@@ -138,7 +138,7 @@ return [
         'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
         'host' => env('ELASTICSEARCH_HOST', 'http://localhost:9200'),
         'user' => env('ELASTICSEARCH_USER', 'elastic'),
-        'password' => env('ELASTICSEARCH_PASSWORD', 'MIkro@123'),
+        'password' => env('ELASTICSEARCH_PASSWORD', 'MIkroelectron@123mikro'),
     ],
 
 ];
