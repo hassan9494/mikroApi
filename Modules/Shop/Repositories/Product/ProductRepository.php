@@ -473,25 +473,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     private function executeSearch($client, $body, $limit, $page, $searchWord = '', $category = '', $filter = '', $inStock = false)
     {
         try {
-//            // Log the query for debugging
-//            \Log::debug('Elasticsearch Query', [
-//                'params' => [
-//                    'index' => 'test_products',
-//                    'body' => $body
-//                ]
-//            ]);
-//dd($body);
+
             $response = $client->search([
                 'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
                 'body' => $body
             ]);
 
-//            // Log successful response
-//            \Log::debug('Elasticsearch Response', [
-//                'took' => $response['took'],
-//                'total' => $response['hits']['total']['value'],
-//                'hits' => count($response['hits']['hits'])
-//            ]);
 
             $total = $response['hits']['total']['value'];
 
@@ -502,12 +489,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-//dd($e);
-//            \Log::error('Elasticsearch Error', [
-//                'message' => $e->getMessage(),
-//                'query' => $body,
-//                'trace' => $e->getTraceAsString()
-//            ]);
+
 
             return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
         }
