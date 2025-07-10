@@ -122,14 +122,13 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $from = ($page - 1) * $limit;
         $searchWord = trim($searchWord);
 
-        // Define search fields with boosts - short_description removed from main fields
+        // Define search fields with boosts
         $searchFields = [
             'name^5',
             'sku^5',
             'source_sku^5',
             'location^3',
             'stock_location^3',
-
             'meta_title^2',
             'meta_keywords^2',
             'meta_description^1'
@@ -137,7 +136,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         // Handle empty search - show featured products only
         if (empty($searchWord)) {
-            // Start with the base query for featured products
             $query = [
                 'bool' => [
                     'filter' => [
@@ -146,7 +144,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 ]
             ];
 
-            // Add category filter if needed
             if ($category && $category !== 'new_product') {
                 $query['bool']['filter'][] = ['term' => ['category_slugs' => $category]];
             }
@@ -158,14 +155,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'query' => $query,
                 'sort' => [['created_at' => 'desc']]
             ];
-
-
-
-
-
-
-
-            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
 
             return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
         }
@@ -314,12 +303,13 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // 9. Wildcard substring matches for individual words
         foreach ($words as $word) {
             if (strlen($word) >= 2) {
+                $boost = strlen($word) < 3 ? 25 : 50;
                 $shouldClauses[] = [
                     'wildcard' => [
                         'name.keyword' => [
                             'value' => "*{$word}*",
                             'case_insensitive' => true,
-                            'boost' => (strlen($word) < 3 ? 25 : 50)
+                            'boost' => $boost
                         ]
                     ]
                 ];
@@ -328,7 +318,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                         'sku.keyword' => [
                             'value' => "*{$word}*",
                             'case_insensitive' => true,
-                            'boost' => (strlen($word) < 3 ? 25 : 50)
+                            'boost' => $boost
                         ]
                     ]
                 ];
@@ -337,7 +327,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                         'source_sku.keyword' => [
                             'value' => "*{$word}*",
                             'case_insensitive' => true,
-                            'boost' => (strlen($word) < 3 ? 25 : 50)
+                            'boost' => $boost
                         ]
                     ]
                 ];
@@ -360,7 +350,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'query' => $cleanQuery,
                 'type' => 'phrase',
                 'fields' => ['short_description'],
-                'boost' => 0.5  // Very low boost for last priority
+                'boost' => 0.5
             ]
         ];
         $shouldClauses[] = [
@@ -383,6 +373,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             ];
         }
 
+        // Build main query body with fixed script_score
         $body = [
             'from' => $from,
             'size' => $limit,
@@ -398,7 +389,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     'functions' => [
                         [
                             'script_score' => [
-                                'script' => "Math.log1p(doc['stock'].value + 1)"
+                                'script' => [
+                                    'source' => "def stock = doc.containsKey('stock') ? doc['stock'].value : 0;
+                                             def adjusted = stock + 1;
+                                             adjusted <= 0 ? 0 : Math.log1p(adjusted);",
+                                    'lang' => 'painless'
+                                ]
                             ]
                         ]
                     ],
@@ -421,30 +417,35 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             ];
         }
 
-        // Sorting
+        // Sorting with fixed scripts
         $sort = [];
 
-        // Push retired/unavailable items to end
+        // 1. Retired/unavailable items (fixed)
         $sort[] = [
             '_script' => [
                 'type' => 'number',
                 'script' => [
-                    'source' => "doc['stock'].value > 0 ? 0 : 1",
+                    'source' => "def retired = doc.containsKey('is_retired') ? doc['is_retired'].value : false;
+                             def available = doc.containsKey('available') ? doc['available'].value : true;
+                             (retired || !available) ? 1 : 0;",
                     'lang' => 'painless'
                 ],
                 'order' => 'asc'
             ]
         ];
-        array_unshift($sort, [
+
+        // 2. Stock status (fixed)
+        $sort[] = [
             '_script' => [
                 'type' => 'number',
                 'script' => [
-                    'source' => "doc['is_retired'].value || !doc['available'].value",
+                    'source' => "def stock = doc.containsKey('stock') ? doc['stock'].value : 0;
+                             stock > 0 ? 0 : 1;",
                     'lang' => 'painless'
                 ],
                 'order' => 'asc'
             ]
-        ]);
+        ];
 
         // Apply sorting based on filter
         if ($category === 'new_product') {
@@ -452,17 +453,25 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $body['size'] = min($limit * 25, 500);
         } else {
             switch ($filter) {
-                case 'new-item': $sort[] = ['created_at' => 'desc']; break;
-                case 'old-item': $sort[] = ['created_at' => 'asc']; break;
-                case 'price-high': $sort[] = ['effective_price' => 'desc']; break;
-                case 'price-low': $sort[] = ['effective_price' => 'asc']; break;
+                case 'new-item':
+                    $sort[] = ['created_at' => 'desc'];
+                    break;
+                case 'old-item':
+                    $sort[] = ['created_at' => 'asc'];
+                    break;
+                case 'price-high':
+                    $sort[] = ['effective_price' => 'desc'];
+                    break;
+                case 'price-low':
+                    $sort[] = ['effective_price' => 'asc'];
+                    break;
                 case 'sale':
                     $body['query']['function_score']['query']['bool']['filter'][] = [
                         'range' => ['sale_price' => ['gt' => 0]]
                     ];
                     break;
                 default:
-                    if (!$filter){
+                    if (!$filter) {
                         $sort[] = ['_score' => 'desc'];
                     }
             }
@@ -492,7 +501,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-
+//dd($e);
 
             return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
         }
