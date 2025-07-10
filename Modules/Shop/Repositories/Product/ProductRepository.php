@@ -143,8 +143,13 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     ]
                 ]
             ];
+            if ($category){
+//                dd($category);
+                return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
+            }
 
             if ($category && $category !== 'new_product') {
+
                 $query['bool']['filter'][] = ['term' => ['category_slugs' => $category]];
             }
 
