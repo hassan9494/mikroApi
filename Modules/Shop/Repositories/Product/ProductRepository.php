@@ -438,7 +438,10 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         array_unshift($sort, [
             '_script' => [
                 'type' => 'number',
-                'script' => "params._source.is_retired || !params._source.available ? 1 : 0",
+                'script' => [
+                    'source' => "doc['is_retired'].value || !doc['available'].value",
+                    'lang' => 'painless'
+                ],
                 'order' => 'asc'
             ]
         ]);
