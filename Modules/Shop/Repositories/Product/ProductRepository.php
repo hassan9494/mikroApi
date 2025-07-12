@@ -115,7 +115,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
      * @param $inStock
      * @return LengthAwarePaginator
      */
-    public function search1($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
         $client = app('elasticsearch');
         $page = request()->get('page', 1);
@@ -391,18 +391,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                             'minimum_should_match' => 1
                         ]
                     ],
-                    'functions' => [
-                        [
-                            'script_score' => [
-                                'script' => [
-                                    'source' => "def stock = doc.containsKey('stock') ? doc['stock'].value : 0;
-                                             def adjusted = stock + 1;
-                                             adjusted <= 0 ? 0 : Math.log1p(adjusted);",
-                                    'lang' => 'painless'
-                                ]
-                            ]
-                        ]
-                    ],
                     'boost_mode' => 'sum'
                 ]
             ]
@@ -416,11 +404,11 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }
 
         // In-stock filter
-        if ($inStock && $inStock != "false") {
-            $body['query']['function_score']['query']['bool']['filter'][] = [
-                'range' => ['stock' => ['gt' => 0]]
-            ];
-        }
+//        if ($inStock && $inStock != "false") {
+//            $body['query']['function_score']['query']['bool']['filter'][] = [
+//                'range' => ['stock' => ['gt' => 0]]
+//            ];
+//        }
 
         // Sorting with fixed scripts
         $sort = [];
@@ -439,18 +427,18 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             ]
         ];
 
-        // 2. Stock status (fixed)
-        $sort[] = [
-            '_script' => [
-                'type' => 'number',
-                'script' => [
-                    'source' => "def stock = doc.containsKey('stock') ? doc['stock'].value : 0;
-                             stock > 0 ? 0 : 1;",
-                    'lang' => 'painless'
-                ],
-                'order' => 'asc'
-            ]
-        ];
+//        // 2. Stock status (fixed)
+//        $sort[] = [
+//            '_script' => [
+//                'type' => 'number',
+//                'script' => [
+//                    'source' => "def stock = doc.containsKey('stock') ? doc['stock'].value : 0;
+//                             stock > 0 ? 0 : 1;",
+//                    'lang' => 'painless'
+//                ],
+//                'order' => 'asc'
+//            ]
+//        ];
 
         // Apply sorting based on filter
         if ($category === 'new_product') {
@@ -506,7 +494,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-//dd($e);
+dd($e);
 
             return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
         }
@@ -737,9 +725,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
 
 
-    public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
-//dd('test');
+dd('test');
         $query = Product::query();
         // Remove this line.  It is dangerous
         // $searchWord = str_replace("'", "\'", $searchWord);
