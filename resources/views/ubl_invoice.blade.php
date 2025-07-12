@@ -65,7 +65,7 @@
             </cac:PartyLegalEntity>
         </cac:Party>
         <cac:AccountingContact>
-            <cbc:Telephone> {{$order->customer->phone}}</cbc:Telephone>
+            <cbc:Telephone>{{$order->customer->phone}}</cbc:Telephone>
         </cac:AccountingContact>
     </cac:AccountingCustomerParty>
 
