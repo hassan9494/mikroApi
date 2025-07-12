@@ -28,6 +28,11 @@ class ElasticsearchEngine extends Engine
                     'id' => $model->getScoutKey(),
                     'body' => $model->toSearchableArray()
                 ];
+                \Log::info('Elasticsearch update function', [
+                    'index' => $model->searchableAs(),
+                    'id' => $model->getScoutKey(),
+                    'body' => $model->toSearchableArray()
+                ]);
 
                 $this->client->index($params);
             });
