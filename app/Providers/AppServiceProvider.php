@@ -53,12 +53,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         // Log Elasticsearch configuration on every request
-        \Log::debug('Elasticsearch Configuration', [
-            'host' => config('scout.elasticsearch.host'),
-            'user' => config('scout.elasticsearch.user'),
-            'index' => config('scout.elasticsearch.index'),
-            'password_length' => strlen(config('scout.elasticsearch.password'))
-        ]);
+//        \Log::debug('Elasticsearch Configuration', [
+//            'host' => config('scout.elasticsearch.host'),
+//            'user' => config('scout.elasticsearch.user'),
+//            'index' => config('scout.elasticsearch.index'),
+//            'password_length' => strlen(config('scout.elasticsearch.password'))
+//        ]);
         //
         if($this->app->environment('production'))
         {
