@@ -13,6 +13,9 @@ class ElasticsearchEngine extends Engine
 
     public function __construct()
     {
+        \Log::info('Elasticsearch client', [
+            'client' => app('elasticsearch')
+        ]);
         $this->client = app('elasticsearch'); // Use the bound instance
     }
 
@@ -20,6 +23,9 @@ class ElasticsearchEngine extends Engine
 
     public function update($models)
     {
+        \Log::info('Elasticsearch update', [
+            'models' => $models
+        ]);
         try {
             // Process each model individually instead of bulk
             $models->each(function ($model) {
