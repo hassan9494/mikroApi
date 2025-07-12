@@ -494,7 +494,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-dd($e);
+//dd($e);
 
             return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
         }
@@ -727,7 +727,7 @@ dd($e);
 
     public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
-dd('test');
+//dd('test');
         $query = Product::query();
         // Remove this line.  It is dangerous
         // $searchWord = str_replace("'", "\'", $searchWord);
