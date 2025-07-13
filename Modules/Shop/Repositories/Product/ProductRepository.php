@@ -340,8 +340,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'script' => [
                     'source' => "def r = doc.containsKey('is_retired') ? doc['is_retired'].value : false;
                              def a = doc.containsKey('available') ? doc['available'].value : true;
-                             def s = doc.containsKey('stock') ? doc['stock'].value : 0;
-                             return (r || !a || s <= 0) ? 1 : 0;",
+                             return (r || !a ) ? 1 : 0;",
                     'lang' => 'painless'
                 ],
                 'order' => 'asc'
