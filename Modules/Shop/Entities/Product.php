@@ -143,7 +143,7 @@ class Product extends Model implements HasMedia
             'effective_price' => (float) (($price->sale_price > 0)
                 ? $price->sale_price
                 : ($price->normal_price ?? 0)),
-            'stock' => (int) $this->stock,
+            'stock' => (int) floatval($this->stock),
             'created_at' => $this->created_at->timestamp,
             'featured' => $this->options->featured ? true: false,
             'available' => $this->options->available ? true : false,

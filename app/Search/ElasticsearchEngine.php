@@ -13,9 +13,6 @@ class ElasticsearchEngine extends Engine
 
     public function __construct()
     {
-        \Log::info('Elasticsearch client', [
-            'client' => app('elasticsearch')
-        ]);
         $this->client = app('elasticsearch'); // Use the bound instance
     }
 
@@ -23,9 +20,7 @@ class ElasticsearchEngine extends Engine
 
     public function update($models)
     {
-        \Log::info('Elasticsearch update', [
-            'models' => $models
-        ]);
+
         try {
             // Process each model individually instead of bulk
             $models->each(function ($model) {
@@ -34,21 +29,12 @@ class ElasticsearchEngine extends Engine
                     'id' => $model->getScoutKey(),
                     'body' => $model->toSearchableArray()
                 ];
-                \Log::info('Elasticsearch update function', [
-                    'index' => $model->searchableAs(),
-                    'id' => $model->getScoutKey(),
-                    'body' => $model->toSearchableArray()
-                ]);
 
                 $this->client->index($params);
             });
 
             return true;
         } catch (\Exception $e) {
-            \Log::error('Elasticsearch update failed', [
-                'error' => $e->getMessage(),
-                'models' => $models->pluck('id')->toArray()
-            ]);
             throw $e;
         }
     }

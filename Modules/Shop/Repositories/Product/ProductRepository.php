@@ -64,6 +64,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function update($id, $data)
     {
+        $data['stock'] = (int)$data['stock'];
         // Extract the ID of the first replacement item if it exists
         if (!empty($data['replacement_item'])) {
             $data['replacement_item'] = $data['replacement_item'][0]['id'];
@@ -122,7 +123,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $from = ($page - 1) * $limit;
         $searchWord = trim($searchWord);
 
-        // Define search fields with boosts
         $searchFields = [
             'name^5',
             'sku^5',
@@ -134,7 +134,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             'meta_description^1'
         ];
 
-        // Handle empty search - show featured products only
         if (empty($searchWord)) {
             $query = [
                 'bool' => [
@@ -143,28 +142,15 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     ]
                 ]
             ];
-            if ($category){
-//                dd($category);
-                return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
-            }
-
-            if ($category && $category !== 'new_product') {
-
-                $query['bool']['filter'][] = ['term' => ['category_slugs' => $category]];
-            }
-
-            $body = [
+            return $this->executeSearch($client, [
                 'from' => $from,
                 'size' => $limit,
                 'track_total_hits' => true,
                 'query' => $query,
                 'sort' => [['created_at' => 'desc']]
-            ];
-
-            return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
+            ], $limit, $page, $searchWord, $category, $filter, $inStock);
         }
 
-        // Keep original query with special characters
         $originalQuery = $searchWord;
         $cleanQuery = preg_replace('/\s+/', ' ', $searchWord);
         $words = array_filter(explode(' ', $cleanQuery));
@@ -174,102 +160,69 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $limit);
         }
 
-        // Build search clauses
         $shouldClauses = [];
 
-        // 1. Exact match using the 'exact' analyzer (preserves special chars)
+        // Exact phrase with exact analyzer
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $originalQuery,
                 'type' => 'phrase',
-                'fields' => array_map(function($field) {
-                    return preg_replace('/\^(\d+)/', '.exact^$1', $field);
-                }, $searchFields),
-                'boost' => 10000
+                'fields' => array_map(fn($field) => preg_replace('/\^(\d+)/', '.exact^$1', $field), $searchFields),
+                'boost' => 1000
             ]
         ];
 
-        // 2. Wildcard match for exact special character sequence
-        $shouldClauses[] = [
-            'wildcard' => [
-                'name.keyword' => [
-                    'value' => "*{$originalQuery}*",
-                    'case_insensitive' => true,
-                    'boost' => 9000
-                ]
-            ]
-        ];
-        $shouldClauses[] = [
-            'wildcard' => [
-                'sku.keyword' => [
-                    'value' => "*{$originalQuery}*",
-                    'case_insensitive' => true,
-                    'boost' => 9000
-                ]
-            ]
-        ];
-        $shouldClauses[] = [
-            'wildcard' => [
-                'source_sku.keyword' => [
-                    'value' => "*{$originalQuery}*",
-                    'case_insensitive' => true,
-                    'boost' => 9000
-                ]
-            ]
-        ];
-
-        // 3. Case-insensitive phrase match
+        // Phrase match
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $cleanQuery,
                 'type' => 'phrase',
                 'fields' => $searchFields,
-                'boost' => 8000
+                'boost' => 800
             ]
         ];
 
-        // 4. Exact match for individual words using 'exact' analyzer
+        // Wildcards
+        foreach (['name', 'sku', 'source_sku'] as $key) {
+            $shouldClauses[] = [
+                'wildcard' => [
+                    "{$key}.keyword" => [
+                        'value' => "{$originalQuery}",
+                        'case_insensitive' => true,
+                        'boost' => 600
+                    ]
+                ]
+            ];
+        }
+
+        // Individual words exact
         foreach ($words as $word) {
             if (strlen($word) >= 2) {
-                $shouldClauses[] = [
-                    'term' => [
-                        'name.exact' => [
-                            'value' => $word,
-                            'boost' => 7000
+                foreach (['name.exact', 'sku.exact', 'source_sku.exact'] as $field) {
+                    $shouldClauses[] = [
+                        'term' => [
+                            $field => [
+                                'value' => $word,
+                                'boost' => 500
+                            ]
                         ]
-                    ]
-                ];
-                $shouldClauses[] = [
-                    'term' => [
-                        'sku.exact' => [
-                            'value' => $word,
-                            'boost' => 7000
-                        ]
-                    ]
-                ];
-                $shouldClauses[] = [
-                    'term' => [
-                        'source_sku.exact' => [
-                            'value' => $word,
-                            'boost' => 7000
-                        ]
-                    ]
-                ];
+                    ];
+                }
             }
         }
 
-        // 5. All words in any order
+        // All words any order
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $cleanQuery,
                 'type' => 'cross_fields',
                 'operator' => 'and',
                 'fields' => $searchFields,
-                'boost' => 1000
+                'boost' => 400
             ]
         ];
 
-        // 6. Consecutive word pairs
+        // Bigrams
         if ($wordCount > 1) {
             for ($i = 0; $i < $wordCount - 1; $i++) {
                 $bigram = $words[$i] . ' ' . $words[$i+1];
@@ -277,85 +230,59 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     'match_phrase' => [
                         'name' => [
                             'query' => $bigram,
-                            'boost' => 600 - ($i * 100)
+                            'boost' => 300
                         ]
                     ]
                 ];
             }
         }
 
-        // 7. Any two words
+        // At least half words match
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $cleanQuery,
-                'minimum_should_match' => 2,
+                'minimum_should_match' => (int)min(max(1, floor($wordCount / 2)), 3),
                 'fields' => $searchFields,
-                'boost' => 400
+                'boost' => 200
             ]
         ];
 
-        // 8. Single word matches
+        // Single word matches
         foreach ($words as $word) {
             $shouldClauses[] = [
                 'multi_match' => [
                     'query' => $word,
                     'fields' => $searchFields,
-                    'boost' => 300
+                    'boost' => 100
                 ]
             ];
         }
 
-        // 9. Wildcard substring matches for individual words
+        // Single word wildcards
         foreach ($words as $word) {
             if (strlen($word) >= 2) {
                 $boost = strlen($word) < 3 ? 25 : 50;
-                $shouldClauses[] = [
-                    'wildcard' => [
-                        'name.keyword' => [
-                            'value' => "*{$word}*",
-                            'case_insensitive' => true,
-                            'boost' => $boost
+                foreach (['name', 'sku', 'source_sku'] as $key) {
+                    $shouldClauses[] = [
+                        'wildcard' => [
+                            "{$key}.keyword" => [
+                                'value' => "{$word}",
+                                'case_insensitive' => true,
+                                'boost' => $boost
+                            ]
                         ]
-                    ]
-                ];
-                $shouldClauses[] = [
-                    'wildcard' => [
-                        'sku.keyword' => [
-                            'value' => "*{$word}*",
-                            'case_insensitive' => true,
-                            'boost' => $boost
-                        ]
-                    ]
-                ];
-                $shouldClauses[] = [
-                    'wildcard' => [
-                        'source_sku.keyword' => [
-                            'value' => "*{$word}*",
-                            'case_insensitive' => true,
-                            'boost' => $boost
-                        ]
-                    ]
-                ];
+                    ];
+                }
             }
         }
 
-        // 10. Add ID match
-        $shouldClauses[] = [
-            'term' => [
-                'id' => [
-                    'value' => $cleanQuery,
-                    'boost' => 100
-                ]
-            ]
-        ];
-
-        // 11. SHORT DESCRIPTION - Added as last priority with very low boost
+        // Short description fallback
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $cleanQuery,
                 'type' => 'phrase',
                 'fields' => ['short_description'],
-                'boost' => 0.5
+                'boost' => 1
             ]
         ];
         $shouldClauses[] = [
@@ -364,7 +291,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'type' => 'cross_fields',
                 'operator' => 'and',
                 'fields' => ['short_description'],
-                'boost' => 0.3
+                'boost' => 1
             ]
         ];
         foreach ($words as $word) {
@@ -372,13 +299,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'match' => [
                     'short_description' => [
                         'query' => $word,
-                        'boost' => 0.1
+                        'boost' => 1
                     ]
                 ]
             ];
         }
 
-        // Build main query body with fixed script_score
         $body = [
             'from' => $from,
             'size' => $limit,
@@ -396,81 +322,53 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             ]
         ];
 
-        // Category filter
         if ($category && $category !== 'new_product') {
             $body['query']['function_score']['query']['bool']['filter'][] = [
                 'term' => ['category_slugs' => $category]
             ];
         }
 
-        // In-stock filter
-//        if ($inStock && $inStock != "false") {
-//            $body['query']['function_score']['query']['bool']['filter'][] = [
-//                'range' => ['stock' => ['gt' => 0]]
-//            ];
-//        }
+        if ($inStock && $inStock != "false") {
+            $body['query']['function_score']['query']['bool']['filter'][] = [
+                'range' => ['stock' => ['gt' => 0]]
+            ];
+        }
 
-        // Sorting with fixed scripts
-        $sort = [];
-
-        // 1. Retired/unavailable items (fixed)
-        $sort[] = [
+        $body['sort'][] = [
             '_script' => [
                 'type' => 'number',
                 'script' => [
-                    'source' => "def retired = doc.containsKey('is_retired') ? doc['is_retired'].value : false;
-                             def available = doc.containsKey('available') ? doc['available'].value : true;
-                             (retired || !available) ? 1 : 0;",
+                    'source' => "def r = doc.containsKey('is_retired') ? doc['is_retired'].value : false;
+                             def a = doc.containsKey('available') ? doc['available'].value : true;
+                             def s = doc.containsKey('stock') ? doc['stock'].value : 0;
+                             return (r || !a || s <= 0) ? 1 : 0;",
                     'lang' => 'painless'
                 ],
                 'order' => 'asc'
             ]
         ];
 
-//        // 2. Stock status (fixed)
-//        $sort[] = [
-//            '_script' => [
-//                'type' => 'number',
-//                'script' => [
-//                    'source' => "def stock = doc.containsKey('stock') ? doc['stock'].value : 0;
-//                             stock > 0 ? 0 : 1;",
-//                    'lang' => 'painless'
-//                ],
-//                'order' => 'asc'
-//            ]
-//        ];
-
-        // Apply sorting based on filter
-        if ($category === 'new_product') {
-            $sort[] = ['created_at' => 'desc'];
-            $body['size'] = min($limit * 25, 500);
-        } else {
-            switch ($filter) {
-                case 'new-item':
-                    $sort[] = ['created_at' => 'desc'];
-                    break;
-                case 'old-item':
-                    $sort[] = ['created_at' => 'asc'];
-                    break;
-                case 'price-high':
-                    $sort[] = ['effective_price' => 'desc'];
-                    break;
-                case 'price-low':
-                    $sort[] = ['effective_price' => 'asc'];
-                    break;
-                case 'sale':
-                    $body['query']['function_score']['query']['bool']['filter'][] = [
-                        'range' => ['sale_price' => ['gt' => 0]]
-                    ];
-                    break;
-                default:
-                    if (!$filter) {
-                        $sort[] = ['_score' => 'desc'];
-                    }
-            }
+        switch ($filter) {
+            case 'new-item':
+                $body['sort'][] = ['created_at' => 'desc'];
+                break;
+            case 'old-item':
+                $body['sort'][] = ['created_at' => 'asc'];
+                break;
+            case 'price-high':
+                $body['sort'][] = ['effective_price' => 'desc'];
+                break;
+            case 'price-low':
+                $body['sort'][] = ['effective_price' => 'asc'];
+                break;
+            case 'sale':
+                $body['query']['function_score']['query']['bool']['filter'][] = [
+                    'range' => ['sale_price' => ['gt' => 0]]
+                ];
+                break;
+            default:
+                $body['sort'][] = ['_score' => 'desc'];
         }
-
-        $body['sort'] = $sort;
 
         return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
     }
@@ -478,7 +376,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     private function executeSearch($client, $body, $limit, $page, $searchWord = '', $category = '', $filter = '', $inStock = false)
     {
         try {
-
+//dd($body);
             $response = $client->search([
                 'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
                 'body' => $body
@@ -494,7 +392,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-//dd($e);
+dd($e);
 
             return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
         }
