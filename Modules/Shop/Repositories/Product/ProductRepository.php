@@ -195,6 +195,21 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             ];
         }
 
+        // NEW: Wildcard substring search for all fields (boost 50)
+        $wildcardValue = '*' . str_replace(['\\', '*', '?'], ['\\\\', '\\*', '\\?'], $cleanQuery) . '*';
+        foreach ($searchFields as $field) {
+            $baseField = preg_replace('/\^(\d+)/', '', $field);
+            $shouldClauses[] = [
+                'wildcard' => [
+                    "{$baseField}.keyword" => [
+                        'value' => $wildcardValue,
+                        'case_insensitive' => true,
+                        'boost' => 50
+                    ]
+                ]
+            ];
+        }
+
         // Individual words exact
         foreach ($words as $word) {
             if (strlen($word) >= 2) {
@@ -339,8 +354,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 'type' => 'number',
                 'script' => [
                     'source' => "def r = doc.containsKey('is_retired') ? doc['is_retired'].value : false;
-                             def a = doc.containsKey('available') ? doc['available'].value : true;
-                             return (r || !a ) ? 1 : 0;",
+                         def a = doc.containsKey('available') ? doc['available'].value : true;
+                         return (r || !a ) ? 1 : 0;",
                     'lang' => 'painless'
                 ],
                 'order' => 'asc'
