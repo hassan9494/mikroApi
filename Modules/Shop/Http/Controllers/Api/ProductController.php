@@ -5,6 +5,7 @@ namespace Modules\Shop\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
+use Modules\Shop\Entities\Product;
 use Modules\Shop\Http\Resources\ProductResource;
 use Modules\Shop\Http\Resources\ProductShortResource;
 use Modules\Shop\Http\Resources\ProductShortResourceSearch;
@@ -89,6 +90,15 @@ class ProductController extends Controller
         $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
         return ProductShortResource::collection($items);
     }
+
+
+//    public function allProducts(): AnonymousResourceCollection
+//    {
+//dd('test');
+//        return ProductShortResource::collection(Product::all());
+//    }
+
+
 
     /**
      * @param $sku

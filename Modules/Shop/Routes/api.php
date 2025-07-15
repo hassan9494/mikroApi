@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Http\Request;
+use Modules\Shop\Entities\Category;
+use Modules\Shop\Entities\Product;
 use Modules\Shop\Http\Controllers\Api\AddressController;
 use Modules\Shop\Http\Controllers\Api\CategoryController;
 use Modules\Shop\Http\Controllers\Api\CityController;
@@ -9,6 +11,7 @@ use Modules\Shop\Http\Controllers\Api\EmailController;
 use Modules\Shop\Http\Controllers\Api\OrderController;
 use Modules\Shop\Http\Controllers\Api\ProductController;
 use Modules\Shop\Http\Controllers\Api\TagController;
+use Modules\Shop\Http\Resources\ProductShortResource;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,7 +32,7 @@ Route::namespace('Api')
             '/user/me',
             function (Request $request) {
                 $user = $request->user();
-                $user = \App\Models\User::with('roles')->where('id',$user->id)->firstOrFail();
+                $user = \App\Models\User::with('roles')->where('id', $user->id)->firstOrFail();
                 return $user;
             }
         );
@@ -40,7 +43,7 @@ Route::namespace('Api')
         Route::resource('address', 'AddressController');
         Route::post('address/primary/{id}', [AddressController::class, 'primary']);
 
-});
+    });
 
 
 Route::namespace('Api')->group(function () {
@@ -52,6 +55,86 @@ Route::namespace('Api')->group(function () {
         'product/build',
         [ProductController::class, 'build']
     );
+    Route::get('allProducts', function () {
+        ini_set('max_execution_time', 100);
+        $data = [
+            'data' => Product::select(['id', 'slug'])->get(),
+            'links' => [
+                "first" => "/?page=1",
+                "last" => "/?page=1",
+                "prev" => null,
+                "next" > null
+            ],
+            'meta' => [
+                "current_page" => 1,
+                "from" => 1,
+                "last_page" > 1,
+                "links" => [
+                    [
+                        "url" => null,
+                        "label" => "&laquo; Previous",
+                        "active" => false
+                    ],
+                    [
+                        "url" => "/?page=1",
+                        "label" => "1",
+                        "active" => true
+                    ],
+                    [
+                        "url" => null,
+                        "label" => "Next &raquo;",
+                        "active" => false
+                    ]
+                ],
+                "path" => "/",
+                "per_page" => 50,
+                "to" => 13,
+                "total" => 13
+            ]
+        ];
+        return $data;
+    });
+    Route::get('allCategoris', function () {
+        ini_set('max_execution_time', 100);
+        $data = [
+            'data' =>Category::select(['id', 'slug'])->get(),
+            'links' => [
+                "first" => "/?page=1",
+                "last" => "/?page=1",
+                "prev" => null,
+                "next" > null
+            ],
+            'meta' => [
+                "current_page" => 1,
+                "from" => 1,
+                "last_page" > 1,
+                "links" => [
+                    [
+                        "url" => null,
+                        "label" => "&laquo; Previous",
+                        "active" => false
+                    ],
+                    [
+                        "url" => "/?page=1",
+                        "label" => "1",
+                        "active" => true
+                    ],
+                    [
+                        "url" => null,
+                        "label" => "Next &raquo;",
+                        "active" => false
+                    ]
+                ],
+                "path" => "/",
+                "per_page" => 50,
+                "to" => 13,
+                "total" => 13
+            ]
+        ];
+        return $data;
+    });
+
+
     Route::get(
         'product',
         [ProductController::class, 'index']
