@@ -125,6 +125,7 @@ class ProductController extends Controller
             $x['name'] = $product->name;
             $x['sku'] = $product->sku;
             $x['short_description'] = $product->short_description;
+        $x['short_description_ar'] = $product->short_description_ar;
             $x['description'] = $product->description;
             $x['features'] = $product->features;
             $x['code'] = $product->code;
@@ -337,10 +338,10 @@ class ProductController extends Controller
             'sub_categories' => 'nullable',
             //'gallery' => 'nullable',
             'short_description' => 'nullable',
+            'short_description_ar' => 'nullable',
             'description' => 'nullable',
             'packageInclude' => 'nullable',
             'location' => 'nullable',
-            'stock_location' => 'nullable',
             'stock_location' => 'nullable',
             'features' => 'nullable',
             'code' => 'nullable',

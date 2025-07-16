@@ -32,6 +32,14 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function create($data)
     {
+        // Preserve newlines in short description
+        if (isset($data['short_description'])) {
+            $data['short_description'] = str_replace("\n", '<br>', $data['short_description']);
+        }
+        if (isset($data['short_description_ar'])) {
+            $data['short_description_ar'] = str_replace("\n", '<br>', $data['short_description_ar']);
+        }
+
         // Extract the ID of the first replacement item if it exists
         if (!empty($data['replacement_item'])) {
             $data['replacement_item'] = $data['replacement_item'][0]['id'];
@@ -64,6 +72,13 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function update($id, $data)
     {
+        if (isset($data['short_description'])) {
+            $data['short_description'] = str_replace("\n", '<br>', $data['short_description']);
+        }
+        if (isset($data['short_description_ar'])) {
+            $data['short_description_ar'] = str_replace("\n", '<br>', $data['short_description_ar']);
+        }
+
         $data['stock'] = (int)$data['stock'];
         // Extract the ID of the first replacement item if it exists
         if (!empty($data['replacement_item'])) {
@@ -135,20 +150,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         ];
 
         if (empty($searchWord)) {
-            $query = [
-                'bool' => [
-                    'filter' => [
-                        ['term' => ['featured' => true]]
-                    ]
-                ]
-            ];
-            return $this->executeSearch($client, [
-                'from' => $from,
-                'size' => $limit,
-                'track_total_hits' => true,
-                'query' => $query,
-                'sort' => [['created_at' => 'desc']]
-            ], $limit, $page, $searchWord, $category, $filter, $inStock);
+            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
+
         }
 
         $originalQuery = $searchWord;

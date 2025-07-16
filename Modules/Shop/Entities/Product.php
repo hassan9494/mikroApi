@@ -43,6 +43,7 @@ class Product extends Model implements HasMedia
         'name',
         'source_sku',
         'short_description',
+        'short_description_ar',
         'description',
         'documents',
         'features',
@@ -149,6 +150,7 @@ class Product extends Model implements HasMedia
             'available' => $this->options->available ? true : false,
             'is_retired' => $this->is_retired ?true : false,
             'short_description' => $this->short_description ?? '',
+
         ];
     }
 

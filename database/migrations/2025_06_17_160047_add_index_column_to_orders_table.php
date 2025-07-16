@@ -14,13 +14,13 @@ class AddIndexColumnToOrdersTable extends Migration
     public function up()
     {
         Schema::table('products', function (Blueprint $table) {
-                $table->index(['sku']);
-                $table->index([ 'name']);
-                $table->index(['meta_title']);
-                $table->index(['meta_keywords']);
-                $table->index(['meta_description']);
-                $table->index(['meta']);
-                $table->index(['source_sku']);
+//                $table->index(['sku']);
+//                $table->index([ 'name']);
+//                $table->index(['meta_title']);
+//                $table->index(['meta_keywords']);
+//                $table->index(['meta_description']);
+//                $table->index(['meta']);
+//                $table->index(['source_sku']);
 
         });
     }
