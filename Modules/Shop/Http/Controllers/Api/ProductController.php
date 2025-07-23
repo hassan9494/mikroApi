@@ -50,6 +50,12 @@ class ProductController extends Controller
         $filter = request()->get('filter', '');
         $inStock = request()->get('inStock', false);
 
+        // Handle back in stock category
+        if ($category === 'back_in_stock') {
+            $items = $this->repository->getBackinStockProducts($limit);
+            return ProductShortResource::collection($items);
+        }
+
         // Remove minimum search length validation to allow empty searches
         $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
         return ProductShortResource::collection($items);

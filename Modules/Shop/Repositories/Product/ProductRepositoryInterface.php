@@ -18,5 +18,6 @@ interface ProductRepositoryInterface extends BaseRepository
     public function search($searchWord, $category, $limit = 20,$filter,$inStock);
 
     public function autocomplete($searchWord, $limit = 20);
+    public function getBackinStockProducts($limit = 20);
 
 }
