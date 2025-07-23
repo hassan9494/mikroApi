@@ -409,7 +409,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-dd($e);
+//dd($e);
 
             return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
         }

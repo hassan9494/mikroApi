@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Scout\Searchable;
+use Modules\Shop\Http\Resources\ProductElasticResource;
 use Modules\Shop\Http\Resources\ProductResource;
+use Modules\Shop\Http\Resources\ProductVariantsElasticResource;
 use Modules\Shop\Http\Resources\ProductVariantsResource;
 use Modules\Shop\Support\Enums\OrderStatus;
 use Modules\Shop\Traits\Product\Finance;
@@ -123,8 +125,8 @@ class Product extends Model implements HasMedia
             ];
         return [
             'sales' => $this->sales(null, null),
-            'replacement_item' => $replacement_item ? new ProductResource($replacement_item): null,
-            'colors' => ProductVariantsResource::collection($this->product_variants),
+            'replacement_item' => $replacement_item ? new ProductElasticResource($replacement_item): null,
+            'colors' => ProductVariantsElasticResource::collection($this->product_variants),
             'meta' => $this->meta,
             'hasVariants' => $this->hasVariants ? true : false ,
             'id' => (string) $this->id,

@@ -167,6 +167,7 @@ Route::prefix('admin')
         Route::get('report/product-stock', [ReportController::class, 'productStock']);
         Route::get('report/product-need', [ReportController::class, 'productNeed']);
         Route::get('report/order', [ReportController::class, 'order']);
+        Route::get('report/return_order', [ReportController::class, 'return_order']);
         Route::get('report/product', [ReportController::class, 'product']);
         Route::get('report/product-orders', [ReportController::class, 'products_order']);
         Route::get('report/zemam', [ReportController::class, 'zemam']);
