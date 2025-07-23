@@ -14,11 +14,13 @@ use Modules\Admin\Http\Resources\OrderResource;
 use Modules\Admin\Http\Resources\OutlayResource;
 use Modules\Admin\Http\Resources\ProductSalesReportResource;
 use Modules\Admin\Http\Resources\ProductStocksReportResource;
+use Modules\Admin\Http\Resources\ReturnOrderResource;
 use Modules\Common\Repositories\CustomsStatement\CustomsStatementRepositoryInterface;
 use Modules\Common\Repositories\Dept\DeptRepositoryInterface;
 use Modules\Common\Repositories\Outlay\OutlayRepositoryInterface;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
+use Modules\Shop\Repositories\ReturnOrder\ReturnOrderRepositoryInterface;
 use Modules\Shop\Repositories\Product\ProductRepository;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
 
@@ -52,12 +54,17 @@ class ReportController extends Controller
      * @var OrderRepositoryInterface
      */
     private OrderRepositoryInterface $orderRepository;
+    /**
+     * @var ReturnOrderRepositoryInterface
+     */
+    private ReturnOrderRepositoryInterface $returnOrderRepository;
     private ProductRepository $pr;
 
     /**
      * ReportController constructor.
      * @param ProductRepositoryInterface $productRepositoryInterface
      * @param OrderRepositoryInterface $orderRepository
+     * @param ReturnOrderRepositoryInterface $returnOrderRepository
      * @param OutlayRepositoryInterface $outlayRepositoryInterface
      * @param DeptRepositoryInterface $deptRepositoryInterface
      * @param CustomsStatementRepositoryInterface $customsStatementRepositoryInterface
@@ -65,6 +72,7 @@ class ReportController extends Controller
     public function __construct(
         ProductRepositoryInterface $productRepositoryInterface,
         OrderRepositoryInterface $orderRepository,
+        ReturnOrderRepositoryInterface $returnOrderRepository,
         OutlayRepositoryInterface $outlayRepositoryInterface,
         DeptRepositoryInterface $deptRepositoryInterface,
         CustomsStatementRepositoryInterface $customsStatementRepositoryInterface,
@@ -73,6 +81,7 @@ class ReportController extends Controller
     {
         $this->productRepositoryInterface = $productRepositoryInterface;
         $this->orderRepository = $orderRepository;
+        $this->returnOrderRepository = $returnOrderRepository;
         $this->outlayRepositoryInterface = $outlayRepositoryInterface;
         $this->deptRepositoryInterface = $deptRepositoryInterface;
         $this->customsStatementRepositoryInterface = $customsStatementRepositoryInterface;
@@ -110,6 +119,31 @@ class ReportController extends Controller
 //        dd($orWhere);
         $data = $this->orderRepository->get($where, ['products'])->sortBy('tax_number');
         return OrderResource::collection($data);
+    }
+
+    /**
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     */
+    public function return_order()
+    {
+
+        $where = [
+            [
+                'created_at', '>=', request('from', now()->startOfMonth())
+            ],
+            [
+                'created_at', '<=', request('newTo', now()->endOfMonth())
+            ],
+            [
+                'status', 'COMPLETED'
+            ]
+        ];
+        $status = request('status');
+        if ($status == 0 || $status == 1 || $status == "0" || $status == "1" ) {
+            $where[] = ['is_migrated', $status];
+        }
+        $data = $this->returnOrderRepository->get($where, ['products','order'])->sortBy('id');
+        return ReturnOrderResource::collection($data);
     }
 
 

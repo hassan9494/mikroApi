@@ -327,7 +327,7 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
 
     public function get($wheres = [], $with = [], $orWhere = [])
     {
-        return $this->model->latest()->with($with)->where($wheres)->orWhere($orWhere)->orderBy('taxed_at')->orderBy('tax_number')->get();
+        return $this->model->latest()->with($with)->where($wheres)->orWhere($orWhere)->orderBy('id')->get();
     }
 
 }
