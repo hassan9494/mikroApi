@@ -34,6 +34,8 @@ class ReturnOrderResource extends JsonResource
             'status' => $this->status,
             'attachments' => MediaResource::collection($this->getMedia()),
             'is_migrated' => $this->is_migrated,
+            'migrated_at' => $this->migrated_at,
+            'tax_amount' => $this->tax_amount,
             'fatora_status' => $this->fatora_status,
             'qr_code' => $this->qr_code,
         ];

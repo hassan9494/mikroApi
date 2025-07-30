@@ -58,5 +58,16 @@ class ReturnOrder extends Model implements HasMedia
         return $this->belongsTo(Order::class, 'order_id');
     }
 
+    /**
+     * @return mixed
+     */
+    public function getTaxAmountAttribute(): mixed
+    {
+        if ($this->order->options?->tax_exempt) return 0;
+        $totalAfterDiscount = $this->subtotal - $this->discount;
+        $realPrice = $totalAfterDiscount / 1.16;
+        return $totalAfterDiscount - $realPrice;
+    }
+
 
 }
