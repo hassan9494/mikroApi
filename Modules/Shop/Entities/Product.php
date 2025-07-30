@@ -271,6 +271,21 @@ class Product extends Model implements HasMedia
         return $this->orders()->where('status', OrderStatus::COMPLETED()->value);
     }
 
+    public function invoices(): BelongsToMany
+    {
+        return $this->belongsToMany(Invoice::class, 'invoice_products', 'product_id', 'invoice_id')
+            ->withPivot([
+                'purchases_price',
+                'distributer_price',
+                'quantity',
+                'source_sku',
+                'normal',
+                'sale_price',
+                'product_name'
+            ]);
+    }
+
+
     /**
      * @param $from
      * @param $to

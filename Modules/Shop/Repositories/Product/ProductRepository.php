@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Modules\Shop\Entities\Product;
+use Modules\Shop\Support\Enums\InvoiceStatus;
 
 /**
  * Class EloquentDevice
@@ -1038,6 +1039,23 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // Restore the soft-deleted record
         return $product->restore();
     }
+
+
+    public function getBackinStockProducts($limit = 20)
+    {
+        return $this->model
+            ->whereHas('invoices', function($query) {
+                $query->where('status', 'COMPLETED')
+                    ->where(function($q) {
+                        $q->where('completed_at', '>=', now()->subDays(30))
+                            ->orWhereNull('completed_at');
+                    });
+            })
+            ->with(['categories', 'media'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($limit); // Changed from get() to paginate()
+    }
+
 
 
 }

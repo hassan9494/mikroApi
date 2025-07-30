@@ -18,7 +18,7 @@ class OrderForReturnResource extends JsonResource
             'number' => $this->number,
             'discount' => $this->discount,
             'discount_percentage' => $this->discount_percentage,
-
+            'customer' => $this->customer,
             'products' => $this->getItems(),
             'extra_items' => $this->extra_items,
             'tax_number' => $this->tax_number,

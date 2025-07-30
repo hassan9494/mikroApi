@@ -156,6 +156,7 @@ class ImportController extends Controller
             $newProduct->gallery = $product->images;
             $newProduct->short_description = Str::limit(strip_tags($product->Description), 400);
             $newProduct->short_description_ar = Str::limit(strip_tags($product->Description), 400);
+
             $newProduct->description = $product->Description;
             $newProduct->features = $product->Feature;
             $newProduct->documents = $product->Documents;
