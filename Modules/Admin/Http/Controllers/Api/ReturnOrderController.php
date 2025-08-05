@@ -183,6 +183,7 @@ class ReturnOrderController extends ApiAdminController
             'products.*.returned_quantity' => 'required|numeric',
             'products.*.quantity' => 'required|numeric',
             'products.*.discount' => 'required|numeric',
+            'products.*.main_discount' => 'required|numeric',
 
             'extra_items' => 'nullable|array',
 
@@ -198,11 +199,12 @@ class ReturnOrderController extends ApiAdminController
 
         // 1. Generate XML
         $xml = $service->generateForReturn($orderToFatora);
-//        return response()->json([
-//            'status' => 'success',
-//            'invoice_id' => $xml,
-//            'user-id' => auth()->id()
-//        ]);
+        return response()->json([
+            'status' => 'success',
+            'invoice_id' => $xml,
+            'orderToFatora' => $orderToFatora,
+            'user-id' => auth()->id()
+        ]);
         $payload = $service->prepareForSubmission($xml);
 
         $response = Http::withHeaders([

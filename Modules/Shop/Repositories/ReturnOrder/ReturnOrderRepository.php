@@ -209,7 +209,8 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
             $id = $item['id'];
             $returned_quantity = $item['returned_quantity'];
             $quantity = $item['quantity'];
-            $discount = $item['discount'];
+            $main_discount = $item['main_discount'];
+            $discount = $main_discount * ($item['returned_quantity'] / $item['quantity']);
 
             $product = $this->products->findOrFail($id);
             if ($item['quantity'] <$item['returned_quantity'] ){
@@ -238,6 +239,7 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
                 'quantity' => $quantity,
                 'price' => $price,
                 'discount' => $discount,
+                'main_discount' => $main_discount,
                 'name' => $product_name,
             ];
         }
@@ -247,7 +249,7 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
                     $id = $item['id'];
                     $returned_quantity = $item['returned_quantity'];
                     $quantity = $item['quantity'];
-                    $discount = $item['discount'];
+                    $discount = $item['discount'] * ($item['returned_quantity'] / $item['quantity']);
 
                     if ($item['quantity'] <$item['returned_quantity'] ){
                         throw new BadRequestException($product->name . ': You can not return quantity more than in the main order.');
