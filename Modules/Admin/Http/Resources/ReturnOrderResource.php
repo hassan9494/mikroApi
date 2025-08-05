@@ -56,6 +56,7 @@ class ReturnOrderResource extends JsonResource
                 'product_name' => $product->pivot->product_name,
                 'price' => $product->pivot->price,
                 'discount' => $product->pivot->discount,
+                'main_discount' => $product->pivot->main_discount,
                 'real_price' => $product->pivot->real_price,
                 'normal_price' => $product->calcPrice(),
                 'min_price' => $product->calcMinPrice(),

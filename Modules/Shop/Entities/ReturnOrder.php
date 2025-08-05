@@ -47,7 +47,7 @@ class ReturnOrder extends Model implements HasMedia
             'return_order_products',
             'return_order_id',
             'product_id'
-        )->withTrashed()->withPivot('price','discount', 'returned_quantity','quantity','name');
+        )->withTrashed()->withPivot('price','discount', 'returned_quantity','quantity','name','main_discount');
     }
 
     /**
