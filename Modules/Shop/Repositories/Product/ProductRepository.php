@@ -400,7 +400,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     {
         try {
 
-            Log::info('body'. json_encode($body));
+//            Log::info('body'. json_encode($body));
             $response = $client->search([
                 'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
                 'body' => $body
