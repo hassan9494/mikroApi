@@ -468,7 +468,7 @@ class ReportController extends Controller
     {
         $from = request('from');
         $to = request('to');
-        $whereHas['completedOrders'] = function ($q) use ($from, $to) {
+        $whereHas['proccessingAndCompletedOrders'] = function ($q) use ($from, $to) {
             if ($from) $q->whereDate('inspection_date', '>=', $from);
             if ($to) $q->whereDate('inspection_date', '<=', $to);
         };

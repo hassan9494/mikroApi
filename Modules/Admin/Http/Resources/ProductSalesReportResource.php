@@ -37,6 +37,7 @@ class ProductSalesReportResource extends JsonResource
             'price' => $this->price,
             'image' => $this->getFirstMediaUrl(),
             'sales' => $this->sales($from, $to),
+            'all_sales' => $this->allSales($from, $to),
             'untaxed_sales' => $this->untaxed_sales($from, $to),
             'taxed_sales' => $this->taxed_sales($from, $to),
         ];

@@ -6,6 +6,7 @@ use App\Repositories\Base\EloquentRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Support\Enums\InvoiceStatus;
@@ -80,7 +81,11 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $data['short_description_ar'] = str_replace("\n", '<br>', $data['short_description_ar']);
         }
 
-        $data['stock'] = (int)$data['stock'];
+        if (!empty($data['stock'])){
+            $data['stock'] = (int)$data['stock'];
+        }
+
+
         // Extract the ID of the first replacement item if it exists
         if (!empty($data['replacement_item'])) {
             $data['replacement_item'] = $data['replacement_item'][0]['id'];
@@ -394,7 +399,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     private function executeSearch($client, $body, $limit, $page, $searchWord = '', $category = '', $filter = '', $inStock = false)
     {
         try {
-//dd($body);
+
+            Log::info('body'. json_encode($body));
             $response = $client->search([
                 'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
                 'body' => $body

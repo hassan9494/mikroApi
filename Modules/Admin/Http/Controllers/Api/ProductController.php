@@ -253,7 +253,8 @@ class ProductController extends Controller
             'products.*.stock' => 'numeric|min:0',
             'products.*.brand_id' => 'nullable|numeric|min:0',
             'products.*.source_id' => 'nullable|numeric|min:0',
-            'products.*.min_qty' => 'numeric|min:0',
+            'products.*.stock_location' => 'sometimes|string|nullable',
+            'products.*.location' => 'sometimes|string|nullable',
             'products.*.sku' => 'sometimes|string|nullable',
             'products.*.source_sku' => 'sometimes|string|nullable',
 
@@ -268,7 +269,7 @@ class ProductController extends Controller
             }
             $this->repository->update(
                 $item['id'],
-                \Arr::only($item, ['stock', 'min_qty', 'sku', 'source_sku','brand_id','source_id']))
+                \Arr::only($item, ['stock', 'stock_location', 'location', 'sku', 'source_sku','brand_id','source_id']))
             ;
         }
         return $this->success();
@@ -279,11 +280,10 @@ class ProductController extends Controller
         $data = request()->validate([
             'products.*.id' => 'exists:products,id',
             'products.*.min_qty' => 'numeric|min:0',
+            'products.*.purchases_qty' => 'numeric|min:0',
             'products.*.order_qty' => 'numeric|nullable',
             'products.*.stock_available' => 'numeric|nullable',
             'products.*.store_available' => 'numeric|nullable',
-            'products.*.location' => 'sometimes|string|nullable',
-            'products.*.stock_location' => 'sometimes|string|nullable',
 
         ]);
 
@@ -291,7 +291,7 @@ class ProductController extends Controller
 
             $this->repository->update(
                 $item['id'],
-                \Arr::only($item, ['order_qty', 'min_qty', 'stock_available', 'store_available','location','stock_location']))
+                \Arr::only($item, ['order_qty', 'min_qty', 'stock_available', 'store_available','purchases_qty']))
             ;
         }
         return $this->success();
