@@ -4,6 +4,7 @@ namespace Modules\Shop\Repositories\Order;
 
 use App\Models\User;
 use App\Repositories\Base\EloquentRepository;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Shop\Entities\Address;
 use Modules\Shop\Entities\Coupon;
@@ -245,6 +246,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
      */
     private function prepareUserProducts(array $items = [], $user = null): array
     {
+//        Log::info('order : ' . json_encode($items));
         $products = [];
         $subtotal = 0;
         foreach ($items as $item) {
