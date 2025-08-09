@@ -50,18 +50,21 @@ class Datatable
         foreach ($this->request['conditions'] as $key => $value) {
 
             if (is_array($value)) {
-
-                if (isset($value['col']))
-                    if(str_contains($value['col'], '|')){
-                        $column = explode('|',$value['col']) ;
+                if (isset($value['col'])) {
+                    if(str_contains($value['col'], '|')) {
+                        $column = explode('|', $value['col']);
                         $where[] = [$column[0], $value['op'] ?? '=', $value['val']];
-//                        $orWhere[] = [$column[1], $value['op']?? '=', $value['val']];
-                    }else{
-                        $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
-//                        $orWhere[] = [$value['col'], $value['op'] ?? '=', $value['val']];
+                    } else {
+                        // Handle "in" operator
+                        if (isset($value['op']) && strtolower($value['op']) === 'in') {
+                            $where[] = [$value['col'], $value['op'], $value['val']];
+                        } else {
+                            $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
+                        }
                     }
-
-            }elseif ($value === "need"){
+                }
+            }
+            elseif ($value === "need"){
                 $where[0] = ['stock','<',DB::raw('min_qty')];
                 $where[1] = ['min_qty','>',0];
                 $where[2] = [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
@@ -87,6 +90,18 @@ class Datatable
         }
 //        dd($where);
         $this->query = $this->model->where($where)->orWhere($orWhere);
+
+        $this->query = $this->model->where(function($query) use ($where) {
+            foreach ($where as $condition) {
+                if (is_callable($condition)) {
+                    $condition($query);
+                } elseif (count($condition) === 3 && $condition[1] === 'in') {
+                    $query->whereIn($condition[0], $condition[2]);
+                } else {
+                    $query->where([$condition]);
+                }
+            }
+        })->orWhere($orWhere);
     }
 
     private function order()

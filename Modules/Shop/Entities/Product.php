@@ -72,7 +72,8 @@ class Product extends Model implements HasMedia
         'store_available',
         'stock_available',
         'stock_location',
-        'store_location'
+        'store_location',
+        'purchases_qty'
     ];
 
     protected $attributes = [
@@ -271,6 +272,14 @@ class Product extends Model implements HasMedia
         return $this->orders()->where('status', OrderStatus::COMPLETED()->value);
     }
 
+    /**
+     * @return BelongsToMany
+     */
+    public function proccessingAndCompletedOrders(): BelongsToMany
+    {
+        return $this->orders()->whereIn('status', [OrderStatus::PROCESSING()->value,OrderStatus::COMPLETED()->value]);
+    }
+
     public function invoices(): BelongsToMany
     {
         return $this->belongsToMany(Invoice::class, 'invoice_products', 'product_id', 'invoice_id')
@@ -294,6 +303,17 @@ class Product extends Model implements HasMedia
     public function sales($from, $to): mixed
     {
         return OrderProduct::sales($this->id, $from, $to);
+    }
+
+
+    /**
+     * @param $from
+     * @param $to
+     * @return mixed
+     */
+    public function allSales($from, $to): mixed
+    {
+        return OrderProduct::allSales($this->id, $from, $to);
     }
 
     /**
