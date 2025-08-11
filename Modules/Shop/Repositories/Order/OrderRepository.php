@@ -67,7 +67,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
         $cart = $this->prepareUserProducts($data['products']);
 
-        $data['shipping']['cost'] = $city->shipping_cost;
+        $shippingCost = $cart['subtotal'] >= 20 ? 0 : $city->shipping_cost;
+
+        $data['shipping']['cost'] = $shippingCost;
         $data['shipping']['city'] = $city->name;
         $data['shipping']['status'] = 'WAITING';
         $data['uuid'] = Str::uuid();
@@ -113,6 +115,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
 
         $cart = $this->prepareUserProducts($data['products'], $user);
+        $shippingCost = $cart['subtotal'] >= 20 ? 0 : $address->shipping['cost'];
+        $data['shipping']['cost'] = $shippingCost;
         $data['uuid'] = Str::uuid();
         $order = $this->model->create($data);
 
