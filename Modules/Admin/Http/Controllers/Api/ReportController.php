@@ -7,6 +7,8 @@ use App\Traits\Datatable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Modules\Admin\Http\Resources\CustomsStatementResource;
 use Modules\Admin\Http\Resources\DeptResource;
 use Modules\Admin\Http\Resources\NeedStocksReportResource;
@@ -23,6 +25,12 @@ use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Repositories\ReturnOrder\ReturnOrderRepositoryInterface;
 use Modules\Shop\Repositories\Product\ProductRepository;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use ZipArchive;
 
 class ReportController extends Controller
 {
@@ -394,14 +402,13 @@ class ReportController extends Controller
 
 
 
-
-
     /**
      * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
     public function productStock(): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
-        if (request('needConditionReport') != null && request('needConditionReport') == 'need') {
+        if (request('needConditionReport') != null && request('needConditionReport') == 'need')
+        {
             $where = [
                 [
                     'min_qty', '>', 0
@@ -416,7 +423,8 @@ class ReportController extends Controller
         }elseif (request('needConditionReport') != null && request('needConditionReport') == 'stock'){
             $where = [];
             $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
-        } else {
+        }
+        else {
             ////test
             $where = [
                 [
@@ -436,6 +444,243 @@ class ReportController extends Controller
 
         $data = $this->productRepositoryInterface->get($where)->sortBy('date');
         return NeedStocksReportResource::collection($data);
+    }
+
+
+
+    private function buildConditions()
+    {
+        try {
+            $needCondition = request('needConditionReport');
+
+            if ($needCondition === 'need') {
+                return [
+                    ['min_qty', '>', 0],
+                    ['stock', '<', DB::raw('min_qty')],
+                    [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false']
+                ];
+            } elseif ($needCondition === 'stock') {
+                return [
+                    [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false']
+                ];
+            } else {
+                return [
+                    ['min_qty', '>', 0],
+                    ['is_retired', 0],
+                    ['stock', '<', DB::raw('min_qty')],
+                    [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false']
+                ];
+            }
+        } catch (\Exception $e) {
+            \Log::error('Condition build failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function exportImagesZip()
+    {
+        try {
+            $conditions = $this->buildConditions();
+            $chunkSize = 100;
+            $totalProducts = Product::where($conditions)->count();
+            $totalChunks = ceil($totalProducts / $chunkSize);
+
+            $exportId = 'export_' . time() . '_' . uniqid();
+            $exportDir = "exports/{$exportId}";
+
+            if (!Storage::exists($exportDir)) {
+                Storage::makeDirectory($exportDir);
+            }
+
+            $manifest = [
+                'total_chunks' => $totalChunks,
+                'chunk_size' => $chunkSize,
+                'created_at' => now()->toDateTimeString(),
+                'conditions' => $conditions
+            ];
+
+            Storage::put("{$exportDir}/manifest.json", json_encode($manifest));
+
+            return response()->json([
+                'export_id' => $exportId,
+                'total_chunks' => $totalChunks,
+                'chunk_size' => $chunkSize,
+                'download_base' => url("/api/admin/reports/download-chunk/{$exportId}")
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Export failed: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Export failed',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function downloadChunk($exportId, $chunkIndex)
+    {
+        $manifest = json_decode(Storage::get("exports/{$exportId}/manifest.json"), true);
+        $totalChunks = $manifest['total_chunks'];
+
+        if ($chunkIndex < 0 || $chunkIndex >= $totalChunks) {
+            abort(404, 'Invalid chunk index');
+        }
+
+        $excelPath = "exports/{$exportId}/chunk_{$chunkIndex}.xlsx";
+        if (!Storage::exists($excelPath)) {
+            $this->generateChunk($exportId, $chunkIndex, $manifest);
+        }
+
+        return Storage::download($excelPath, "products_chunk_{$chunkIndex}.xlsx");
+    }
+
+    private function generateChunk($exportId, $chunkIndex, $manifest)
+    {
+        $chunkSize = $manifest['chunk_size'];
+        $offset = $chunkIndex * $chunkSize;
+        $website = config('app.url');
+
+        $products = Product::with(['source', 'media'])
+            ->where($manifest['conditions'])
+            ->offset($offset)
+            ->limit($chunkSize)
+            ->get();
+
+        $exportDir = storage_path("app/exports/{$exportId}");
+        if (!File::exists($exportDir)) {
+            File::makeDirectory($exportDir, 0755, true);
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Set headers to match your needsToExcel structure
+        $headers = [
+            'Id',
+            'Image',
+            'NAME',
+            'Stock',
+            'Price',
+            'Real_Price',
+            'Min_Quantity',
+            'Order_Quantity',
+            'Purchases_Quantity',
+            'PriceAll',
+            'Real_Price_All',
+            'Source_Sku',
+            'Link',
+            'source'
+        ];
+
+        $sheet->fromArray($headers, null, 'A1');
+
+        // Set row height for image rows
+        $sheet->getDefaultRowDimension()->setRowHeight(80);
+
+        // Add products
+        $row = 2;
+        foreach ($products as $product) {
+            // Calculate prices
+            $price = $product->price->normal_price ?? 0;
+            $realPrice = $product->price->real_price ?? 0;
+            $stock = $product->stock ?? 0;
+
+            $priceAll = $stock * $price;
+            $realPriceAll = $stock * $realPrice;
+
+            // Use sales for purchases quantity as in your resource
+            $purchasesQty = $product->sales(null, null) ?? 0;
+
+            // Add product data - matching your frontend structure
+            $sheet->fromArray([
+                $product->id,
+                '', // Placeholder for image
+                $product->name,
+                $stock,
+                $price,
+                $realPrice,
+                $product->min_qty,
+                $product->order_qty,
+                $product->order_qty,
+                $priceAll,
+                $realPriceAll,
+                $product->source_sku,
+                "{$website}/product/{$product->sku}",
+                $product->source ? $product->source->name : ''
+            ], null, "A{$row}");
+
+            // Add image as the second column (Column B)
+            if ($product->media->isNotEmpty()) {
+                $media = $product->media->first();
+                $imagePath = $media->getPath();
+
+                if ($imagePath && file_exists($imagePath)) {
+                    $drawing = new Drawing();
+                    $drawing->setName("Product_{$product->id}");
+                    $drawing->setDescription($product->name);
+                    $drawing->setPath($imagePath);
+                    $drawing->setHeight(70);
+                    $drawing->setWidth(70);
+                    $drawing->setCoordinates("B{$row}"); // Column B
+                    $drawing->setOffsetX(5);
+                    $drawing->setOffsetY(5);
+                    $drawing->setWorksheet($sheet);
+                }
+            }
+
+            $row++;
+        }
+
+        // Auto-size columns
+        foreach(range('A', 'N') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        // Style header row
+        $headerStyle = [
+            'font' => ['bold' => true],
+            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_MEDIUM]]
+        ];
+        $sheet->getStyle('A1:N1')->applyFromArray($headerStyle);
+
+        // Center align all cells
+        $sheet->getStyle('A2:N'.($row-1))
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        // Save Excel file
+        $writer = new Xlsx($spreadsheet);
+        $excelPath = storage_path("app/exports/{$exportId}/chunk_{$chunkIndex}.xlsx");
+        $writer->save($excelPath);
+    }
+
+    public function downloadAllChunks($exportId)
+    {
+        $manifest = json_decode(Storage::get("exports/{$exportId}/manifest.json"), true);
+        $zipPath = storage_path("app/exports/{$exportId}/all_products.zip");
+
+        $zip = new ZipArchive;
+        $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+        // Generate any missing chunks first
+        for ($i = 0; $i < $manifest['total_chunks']; $i++) {
+            $excelPath = "exports/{$exportId}/chunk_{$i}.xlsx";
+
+            if (!Storage::exists($excelPath)) {
+                $this->generateChunk($exportId, $i, $manifest);
+            }
+
+            $zip->addFile(
+                storage_path("app/{$excelPath}"),
+                "products_chunk_{$i}.xlsx"
+            );
+        }
+
+        $zip->close();
+
+        return response()->download($zipPath, "all_products_{$exportId}.zip")
+            ->deleteFileAfterSend(true);
     }
 
     /**

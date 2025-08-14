@@ -165,6 +165,7 @@ Route::prefix('admin')
         Route::get('report/product-sales', [ReportController::class, 'productSales']);
         Route::get('report/product-sale', [ReportController::class, 'productSale']);
         Route::get('report/product-stock', [ReportController::class, 'productStock']);
+
         Route::get('report/product-need', [ReportController::class, 'productNeed']);
         Route::get('report/order', [ReportController::class, 'order']);
         Route::get('report/return_order', [ReportController::class, 'return_order']);
@@ -209,6 +210,16 @@ Route::prefix('admin')
         Route::get('file/datatable', [FileController::class, 'datatable']);
         Route::resource('file', 'FileController');
     });
+
+Route::prefix('admin')
+    ->namespace('Api')
+    ->group(function (){
+        Route::get('/reports/stock/export-images-zip', [ReportController::class, 'exportImagesZip']);
+        Route::get('/reports/download-chunk/{exportId}/{chunkIndex}', [ReportController::class, 'downloadChunk']);
+        Route::get('/reports/download-all/{exportId}', [ReportController::class, 'downloadAllChunks']);
+
+    });
+
 
 
 Route::prefix('admin')

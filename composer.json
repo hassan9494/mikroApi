@@ -6,6 +6,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.0",
+        "ext-zip": "*",
         "algolia/algoliasearch-client-php": "^3.0",
         "babenkoivan/elastic-scout-driver-plus": "4.0",
         "elasticsearch/elasticsearch": "8.0",
@@ -22,6 +23,8 @@
         "nwidart/laravel-modules": "^8.2",
         "nyholm/psr7": "1.5",
         "php-http/guzzle7-adapter": "^1.1",
+        "phpoffice/phpspreadsheet": "^5.0",
+        "predis/predis": "^3.2",
         "spatie/laravel-enum": "^2.5",
         "spatie/laravel-medialibrary": "^9.6",
         "spatie/laravel-permission": "^4.0",
