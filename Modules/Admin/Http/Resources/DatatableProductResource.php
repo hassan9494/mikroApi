@@ -32,6 +32,7 @@ class DatatableProductResource extends JsonResource
             'stock_available' => $this->stock_available,
             'store_available' => $this->store_available,
             'order_qty' => $this->order_qty,
+            'purchases_qty' => $this->purchases_qty,
             'meta' => $this->meta,
             'location' => $this->location,
             'stock_location' => $this->stock_location,

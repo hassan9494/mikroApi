@@ -407,40 +407,88 @@ class ReportController extends Controller
      */
     public function productStock(): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
-        if (request('needConditionReport') != null && request('needConditionReport') == 'need')
-        {
-            $where = [
-                [
-                    'min_qty', '>', 0
-                ],
-                [
-                    'stock', '<', DB::raw('min_qty')
-                ],
-                [
-                    DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
-                ]
-            ];
-        }elseif (request('needConditionReport') != null && request('needConditionReport') == 'stock'){
-            $where = [];
-            $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+
+        if (request('source_id')){
+            if (request('needConditionReport') != null && request('needConditionReport') == 'need') {
+                $where = [
+                    [
+                        'min_qty', '>', 0
+                    ],
+                    [
+                        'stock', '<', DB::raw('min_qty')
+                    ],
+                    [
+                        'source_id', request('source_id')
+                    ],
+                    [
+                        DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
+                    ]
+                ];
+            }
+            elseif (request('needConditionReport') != null && request('needConditionReport') == 'stock'){
+                $where = [];
+                $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+                $where[]= ['source_id', '=', request('source_id')];
+            }
+            else {
+                ////test
+                $where = [
+                    [
+                        'min_qty', '>', 0
+                    ],
+                    [
+                        'is_retired', 0
+                    ],
+                    [
+                        'source_id', request('source_id')
+                    ],
+                    [
+                        'stock', '<', DB::raw('min_qty')
+                    ],
+                    [
+                        DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
+                    ]
+                ];
+            }
         }
-        else {
-            ////test
-            $where = [
-                [
-                    'min_qty', '>', 0
-                ],
-                [
-                    'is_retired', 0
-                ],
-                [
-                    'stock', '<', DB::raw('min_qty')
-                ],
-                [
-                    DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
-                ]
-            ];
+        else{
+            if (request('needConditionReport') != null && request('needConditionReport') == 'need') {
+                $where = [
+                    [
+                        'min_qty', '>', 0
+                    ],
+                    [
+                        'stock', '<', DB::raw('min_qty')
+                    ],
+                    [
+                        DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
+                    ]
+                ];
+            }
+            elseif (request('needConditionReport') != null && request('needConditionReport') == 'stock'){
+                $where = [];
+                $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+            }
+            else {
+                ////test
+                $where = [
+                    [
+                        'min_qty', '>', 0
+                    ],
+                    [
+                        'is_retired', 0
+                    ],
+                    [
+                        'stock', '<', DB::raw('min_qty')
+                    ],
+                    [
+                        DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
+                    ]
+                ];
+            }
+>>>>>>> 2957ccbc2e14e2b28a9112b6c63765416a3bf6c1
         }
+
 
         $data = $this->productRepositoryInterface->get($where)->sortBy('date');
         return NeedStocksReportResource::collection($data);
@@ -713,7 +761,7 @@ class ReportController extends Controller
     {
         $from = request('from');
         $to = request('to');
-        $whereHas['completedOrders'] = function ($q) use ($from, $to) {
+        $whereHas['proccessingAndCompletedOrders'] = function ($q) use ($from, $to) {
             if ($from) $q->whereDate('inspection_date', '>=', $from);
             if ($to) $q->whereDate('inspection_date', '<=', $to);
         };
