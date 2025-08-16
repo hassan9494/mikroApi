@@ -486,7 +486,7 @@ class ReportController extends Controller
                     ]
                 ];
             }
->>>>>>> 2957ccbc2e14e2b28a9112b6c63765416a3bf6c1
+
         }
 
 
@@ -500,25 +500,53 @@ class ReportController extends Controller
     {
         try {
             $needCondition = request('needConditionReport');
+            $where = [];
 
-            if ($needCondition === 'need') {
-                return [
-                    ['min_qty', '>', 0],
-                    ['stock', '<', DB::raw('min_qty')],
-                    [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false']
-                ];
-            } elseif ($needCondition === 'stock') {
-                return [
-                    [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false']
-                ];
+            if (request('source_id')) {
+                if ($needCondition === 'need') {
+                    $where = [
+                        ['min_qty', '>', 0],
+                        ['stock', '<', 'min_qty'], // Changed from DB::raw to string
+                        ['source_id', request('source_id')],
+                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false'] // Changed from DB::raw to string
+                    ];
+                } elseif ($needCondition === 'stock') {
+                    $where = [
+                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false'],
+                        ['source_id', request('source_id')],
+                    ];
+                } else {
+                    $where = [
+                        ['min_qty', '>', 0],
+                        ['is_retired', 0],
+                        ['stock', '<', 'min_qty'],
+                        ['source_id', request('source_id')],
+                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false']
+                    ];
+                }
             } else {
-                return [
-                    ['min_qty', '>', 0],
-                    ['is_retired', 0],
-                    ['stock', '<', DB::raw('min_qty')],
-                    [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false']
-                ];
+                if ($needCondition === 'need') {
+                    $where = [
+                        ['min_qty', '>', 0],
+                        ['stock', '<', 'min_qty'],
+                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false']
+                    ];
+                } elseif ($needCondition === 'stock') {
+                    $where = [
+                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false']
+                    ];
+                } else {
+                    $where = [
+                        ['min_qty', '>', 0],
+                        ['is_retired', 0],
+                        ['stock', '<', 'min_qty'],
+                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false']
+                    ];
+                }
             }
+
+            return $where;
+
         } catch (\Exception $e) {
             \Log::error('Condition build failed: ' . $e->getMessage());
             return [];
@@ -530,7 +558,30 @@ class ReportController extends Controller
         try {
             $conditions = $this->buildConditions();
             $chunkSize = 100;
-            $totalProducts = Product::where($conditions)->count();
+
+            // Build the query with proper handling of raw conditions
+            $query = Product::query();
+
+            foreach ($conditions as $condition) {
+                if (count($condition) === 3) {
+                    // Handle JSON condition
+                    if (is_string($condition[0]) && str_contains($condition[0], 'JSON_UNQUOTE')) {
+                        $query->whereRaw("{$condition[0]} {$condition[1]} ?", [$condition[2]]);
+                    }
+                    // Handle column comparison (stock < min_qty)
+                    elseif (is_string($condition[0]) && is_string($condition[2])) {
+                        $query->whereRaw("{$condition[0]} {$condition[1]} {$condition[2]}");
+                    }
+                    // Handle normal conditions
+                    else {
+                        $query->where($condition[0], $condition[1], $condition[2]);
+                    }
+                } elseif (count($condition) === 2) {
+                    $query->where($condition[0], $condition[1]);
+                }
+            }
+
+            $totalProducts = $query->count();
             $totalChunks = ceil($totalProducts / $chunkSize);
 
             $exportId = 'export_' . time() . '_' . uniqid();
@@ -567,6 +618,7 @@ class ReportController extends Controller
 
     public function downloadChunk($exportId, $chunkIndex)
     {
+
         $manifest = json_decode(Storage::get("exports/{$exportId}/manifest.json"), true);
         $totalChunks = $manifest['total_chunks'];
 
@@ -575,6 +627,7 @@ class ReportController extends Controller
         }
 
         $excelPath = "exports/{$exportId}/chunk_{$chunkIndex}.xlsx";
+
         if (!Storage::exists($excelPath)) {
             $this->generateChunk($exportId, $chunkIndex, $manifest);
         }
@@ -586,11 +639,30 @@ class ReportController extends Controller
     {
         $chunkSize = $manifest['chunk_size'];
         $offset = $chunkIndex * $chunkSize;
-        $website = config('app.url');
+        $website = config('app.front_url');
 
-        $products = Product::with(['source', 'media'])
-            ->where($manifest['conditions'])
-            ->offset($offset)
+        $query = Product::with(['source', 'media']);
+
+        foreach ($manifest['conditions'] as $condition) {
+            if (count($condition) === 3) {
+                // Handle raw SQL expressions
+                if (is_string($condition[0]) && str_contains($condition[0], 'JSON_UNQUOTE')) {
+                    $query->whereRaw("{$condition[0]} {$condition[1]} ?", [$condition[2]]);
+                }
+                // Handle column comparisons
+                elseif (is_string($condition[0]) && is_string($condition[2])) {
+                    $query->whereRaw("{$condition[0]} {$condition[1]} {$condition[2]}");
+                }
+                // Handle normal conditions
+                else {
+                    $query->where($condition[0], $condition[1], $condition[2]);
+                }
+            } elseif (count($condition) === 2) {
+                $query->where($condition[0], $condition[1]);
+            }
+        }
+
+        $products = $query->offset($offset)
             ->limit($chunkSize)
             ->get();
 
@@ -644,14 +716,14 @@ class ReportController extends Controller
                 $product->id,
                 '', // Placeholder for image
                 $product->name,
-                $stock,
-                $price,
-                $realPrice,
-                $product->min_qty,
-                $product->order_qty,
-                $product->order_qty,
-                $priceAll,
-                $realPriceAll,
+                $stock == 0 ? "0" : $stock,
+                $price == 0 ? "0" : $price,
+                $realPrice == 0 ? "0" : $realPrice,
+                $product->min_qty == 0 ? "0" : $product->min_qty,
+                $product->order_qty == 0 ? "0" : $product->order_qty,
+                $product->purchases_qty == 0 ? "0" : $product->purchases_qty,
+                $priceAll == 0 ? "0" : $priceAll,
+                $realPriceAll == 0 ? "0" : $realPriceAll,
                 $product->source_sku,
                 "{$website}/product/{$product->sku}",
                 $product->source ? $product->source->name : ''

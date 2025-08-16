@@ -90,7 +90,7 @@ class Datatable
         }
 //        dd($where);
         $this->query = $this->model->where($where)->orWhere($orWhere);
-
+//        dd($where);
         $this->query = $this->model->where(function($query) use ($where) {
             foreach ($where as $condition) {
                 if (is_callable($condition)) {
