@@ -4,6 +4,7 @@ use Modules\Admin\Http\Controllers\Api\ArticleController;
 use Modules\Admin\Http\Controllers\Api\AuthController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
+use Modules\Admin\Http\Controllers\Api\TaxExemptController;
 use Modules\Admin\Http\Controllers\Api\LocationController;
 use Modules\Admin\Http\Controllers\Api\CouponController;
 use Modules\Admin\Http\Controllers\Api\CourseController;
@@ -73,6 +74,10 @@ Route::prefix('admin')
         Route::get('brand/datatable', [BrandController::class, 'datatable']);
         Route::resource('brand', 'BrandController');
 
+        // tax_exempt Routes.
+        Route::get('tax_exempt/datatable', [TaxExemptController::class, 'datatable']);
+        Route::resource('tax_exempt', 'TaxExemptController');
+
         // Location Routes.
         Route::get('location/datatable', [LocationController::class, 'datatable']);
         Route::resource('location', 'LocationController');
@@ -119,7 +124,9 @@ Route::prefix('admin')
         Route::get('user/datatable', [UserController::class, 'datatable']);
         Route::get('user/employee', [UserController::class, 'employee']);
         Route::get('user/autocomplete', [UserController::class, 'autocomplete']);
+        Route::get('user/autocompleteUserForTaxExempt', [UserController::class, 'autocompleteUserForTaxExempt']);
         Route::get('user/autocompletecashier', [UserController::class, 'autocompletecashier']);
+        Route::get('user/autocompleteTaxExempt', [TaxExemptController::class, 'autocomplete']);
 
         // Product Routes.
         Route::get('product/datatable', [ProductController::class, 'datatable']);

@@ -148,6 +148,25 @@ class UserController extends ApiAdminController
                 'name' => $model->name,
                 'email' => $model->email,
                 'phone' => $model->phone,
+                'taxExempt' => $model->taxExempt,
+            ];
+        }
+        return $this->success($response);
+    }
+
+    public function autocompleteUserForTaxExempt(): JsonResponse
+    {
+        $q = request()->get('q');
+        $models = $this->repository->autocompleteUserForTaxExempt($q);
+        $response = [];
+        foreach ($models as $model)
+        {
+            $response[] = [
+                'id' => $model->id,
+                'name' => $model->name,
+                'email' => $model->email,
+                'phone' => $model->phone,
+                'taxExempt' => $model->taxExempt,
             ];
         }
         return $this->success($response);

@@ -96,6 +96,23 @@ class UserRepository extends EloquentRepository implements UserRepositoryInterfa
     /**
      * @inheritdoc
      */
+    public function autocompleteUserForTaxExempt($q, $limit = 20)
+    {
+        $query = $this->model
+            ->where(function($query) use ($q) {
+                $query->where('name', 'LIKE', '%'.$q.'%')
+                    ->orWhere('email', 'LIKE', '%'.$q.'%')
+                    ->orWhere('phone', 'LIKE', '%'.$q.'%');
+            })
+            ->doesntHave('taxExempt') // This excludes users with tax exempt records
+            ->limit($limit);
+
+        return $query->get();
+    }
+
+    /**
+     * @inheritdoc
+     */
     public function autocompletecashier($q, $limit = 20)
     {
         $query = $this->model

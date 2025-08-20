@@ -49,6 +49,7 @@ class Order extends Model implements HasMedia
     protected $fillable=[
         'user_id',
         'cashier_id',
+        'tax_exempt_id',
         'shipping_provider_id',
         'coupon_id',
         'customer',
@@ -188,6 +189,11 @@ class Order extends Model implements HasMedia
     public function coupon(): BelongsTo
     {
         return $this->belongsTo(Coupon::class, 'coupon_id');
+    }
+
+    public function taxExempt()
+    {
+        return $this->belongsTo(TaxExempt::class,'tax_exempt_id');
     }
 
     /**
