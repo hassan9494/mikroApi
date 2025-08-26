@@ -4,6 +4,7 @@ use Modules\Admin\Http\Controllers\Api\ArticleController;
 use Modules\Admin\Http\Controllers\Api\AuthController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
+use Modules\Admin\Http\Controllers\Api\SettingController;
 use Modules\Admin\Http\Controllers\Api\TaxExemptController;
 use Modules\Admin\Http\Controllers\Api\LocationController;
 use Modules\Admin\Http\Controllers\Api\CouponController;
@@ -200,6 +201,9 @@ Route::prefix('admin')
         // Link Routes.
         Route::get('links/datatable', [LinksController::class, 'datatable']);
         Route::resource('links', 'LinksController');
+
+        Route::get('settings/{id}',[SettingController::class,'show']);
+        Route::post('/settings/fix-cluster-health', [SettingController::class, 'fixClusterHealth']);
 
         // Shipping Provider Routes.
         Route::get('shipping-provider/datatable', [ShippingProviderController::class, 'datatable']);
