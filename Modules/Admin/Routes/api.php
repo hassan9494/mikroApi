@@ -202,7 +202,8 @@ Route::prefix('admin')
         Route::get('links/datatable', [LinksController::class, 'datatable']);
         Route::resource('links', 'LinksController');
 
-        Route::get('settings/{id}',[SettingController::class,'show']);
+//        Route::get('settings/{id}',[SettingController::class,'show']);
+        Route::resource('settings', 'SettingController');
         Route::post('/settings/fix-cluster-health', [SettingController::class, 'fixClusterHealth']);
 
         // Shipping Provider Routes.

@@ -137,7 +137,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
      * @param $inStock
      * @return LengthAwarePaginator
      */
-    public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
         $client = app('elasticsearch');
         $page = request()->get('page', 1);
@@ -647,7 +647,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
 
 
-    public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
 //dd('test');
         $query = Product::query();

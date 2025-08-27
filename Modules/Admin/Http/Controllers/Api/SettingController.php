@@ -94,6 +94,16 @@ class SettingController extends ApiAdminController
         }
     }
 
+
+    public function update($id): JsonResponse
+    {
+        $data = $this->validate();
+        $setting = Setting::find($id);
+        $setting->value = $data['searchType'];
+        $setting->save();
+        return $this->success($setting);
+    }
+
     // Add this method to your SettingController.php
     public function fixClusterHealth(Request $request)
     {
@@ -151,8 +161,7 @@ class SettingController extends ApiAdminController
     public function validate(): array
     {
         return request()->validate([
-            'name' => 'required|max:255',
-            'guard' => 'nullable',
+            'searchType' => 'required|max:255',
         ]);
     }
 
