@@ -5,10 +5,12 @@ namespace Modules\Shop\Entities;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Spatie\MediaLibrary\HasMedia;
+use App\Traits\Media;
 
-class TaxExempt extends Model
+class TaxExempt extends Model implements HasMedia
 {
-    use HasFactory;
+    use Media;
 
     protected $fillable = [
         'user_id',
@@ -19,7 +21,7 @@ class TaxExempt extends Model
         'identity_number',
         'tax_exempt',
         'tax_zero',
-        'exemption_expiration_date',
+        'exemption_expiration_date'
     ];
 
     public function user()

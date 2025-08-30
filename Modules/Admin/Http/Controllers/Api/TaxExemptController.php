@@ -47,6 +47,16 @@ class TaxExemptController extends ApiAdminController
         return ['id', 'name', 'email'];
     }
 
+    public function update($id): JsonResponse
+    {
+        $data = $this->validate();
+        $model = $this->repository->update($id, $data);
+        $model->syncMedia($data['media'] ?? []);
+        return $this->success(
+            $model
+        );
+    }
+
     /**
      * @return array
      */
@@ -62,6 +72,7 @@ class TaxExemptController extends ApiAdminController
             'identity_number' => 'required|max:255',
             'user_id' => 'sometimes',
             'exemption_expiration_date' => 'required',
+            'media' => 'nullable|array',
         ]);
     }
 

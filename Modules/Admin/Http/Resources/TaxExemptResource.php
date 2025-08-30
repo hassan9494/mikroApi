@@ -17,10 +17,10 @@ class TaxExemptResource extends JsonResource
             'id' => $this->id,
             'user_id' => $this->user_id,
             'user' => [
-                'id' => $this->user?->id,
-                'name' => $this->user?->name,
-                'email' => $this->user?->email,
-                'phone' => $this->user?->phone,
+                'id' => $this->user ?->id,
+                'name' => $this->user ?->name,
+                'email' => $this->user ?->email,
+                'phone' => $this->user ?->phone,
             ],
             'name' => $this->name,
             'phone' => $this->phone,
@@ -33,6 +33,7 @@ class TaxExemptResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'exemption_expiration_date' => $this->exemption_expiration_date,
+            'media' => MediaResource::collection($this->media)
 
 
         ];
