@@ -57,6 +57,16 @@ class TaxExemptController extends ApiAdminController
         );
     }
 
+    public function store(): JsonResponse
+    {
+        $data = $this->validate();
+        $model = $this->repository->create($data);
+        $model->syncMedia($data['media'] ?? []);
+        return $this->success(
+            $model
+        );
+    }
+
     /**
      * @return array
      */
