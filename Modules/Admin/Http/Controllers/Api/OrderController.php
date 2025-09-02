@@ -307,11 +307,15 @@ class OrderController extends ApiAdminController
 
         // 1. Generate XML
         $xml = $service->generate($orderToFatora);
-//        return response()->json([
-//            'status' => 'success',
-//            'invoice_id' => $xml,
-//            'user-id' => auth()->id()
-//        ]);
+//        return config('app_phase');
+        if (config('jo_fotara.app_phase') == 'testing'){
+            return response()->json([
+                'status' => 'fail',
+                'invoice_id' => $xml,
+                'phase' => config('jo_fotara.app_phase'),
+                'user-id' => auth()->id()
+            ],500);
+        }
         $payload = $service->prepareForSubmission($xml);
 
         $response = Http::withHeaders([
