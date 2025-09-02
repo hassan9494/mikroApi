@@ -9,6 +9,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Modules\Shop\Entities\Address;
+use Modules\Shop\Entities\TaxExempt;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -60,6 +61,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function primaryAddress()
     {
         return $this->hasOne(Address::class)->where(['is_primary' => true]);
+    }
+
+    public function taxExempt()
+    {
+        return $this->hasOne(TaxExempt::class,'user_id');
     }
 
     public function getUserByRole($roles = []){

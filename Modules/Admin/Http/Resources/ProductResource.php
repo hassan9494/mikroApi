@@ -72,6 +72,7 @@ class ProductResource extends JsonResource
             'hasVariants' => $this->hasVariants,
             'location' => $this->location,
             'stock_location' => $this->stock_location,
+            'order_qty' => $this->order_qty,
 
         ];
     }

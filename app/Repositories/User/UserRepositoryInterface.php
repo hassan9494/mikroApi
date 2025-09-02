@@ -37,6 +37,13 @@ interface UserRepositoryInterface extends BaseRepository
      * @param int $limit
      * @return mixed
      */
+    public function autocompleteUserForTaxExempt($q, $limit = 20);
+
+    /**
+     * @param $q
+     * @param int $limit
+     * @return mixed
+     */
     public function autocompletecashier($q, $limit = 20);
 
 }

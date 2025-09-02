@@ -6,10 +6,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
 use Modules\Shop\Entities\Product;
+use Modules\Shop\Entities\Setting;
 use Modules\Shop\Http\Resources\ProductResource;
 use Modules\Shop\Http\Resources\ProductShortResource;
 use Modules\Shop\Http\Resources\ProductShortResourceSearch;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
+use function OpenTelemetry\API\Logs\setEventName;
 
 class ProductController extends Controller
 {
@@ -56,8 +58,15 @@ class ProductController extends Controller
             return ProductShortResource::collection($items);
         }
 
-        // Remove minimum search length validation to allow empty searches
-        $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
+        $setting = Setting::where('key','search')->first();
+        if ($setting->value == 'elastic'){
+            $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
+        }else if ($setting->value == 'normalWithPriority'){
+            $items = $this->repository->old_search2($search, $category, $limit, $filter, $inStock);
+        }else{
+            $items = $this->repository->old_search($search, $category, $limit, $filter, $inStock);
+        }
+
         return ProductShortResource::collection($items);
 //        return ProductShortResource::collection($items);
     }

@@ -202,6 +202,7 @@ class ReturnOrderController extends ApiAdminController
 //        return response()->json([
 //            'status' => 'success',
 //            'invoice_id' => $xml,
+//            'orderToFatora' => $orderToFatora,
 //            'user-id' => auth()->id()
 //        ]);
         $payload = $service->prepareForSubmission($xml);

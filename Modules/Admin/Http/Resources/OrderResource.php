@@ -16,12 +16,19 @@ class OrderResource extends JsonResource
         return [
             'id' => $this->id,
             'user_id' => $this->user_id,
+            'tax_exempt_id' => $this->tax_exempt_id,
             'cashier_id' => $this->user_id,
             'user' => [
                 'id' => $this->user?->id,
                 'name' => $this->user?->name,
                 'email' => $this->user?->email,
                 'phone' => $this->user?->phone,
+            ],
+            'taxExempt' => [
+                'id' => $this->taxExempt?->id,
+                'name' => $this->taxExempt?->name,
+                'email' => $this->taxExempt?->email,
+                'phone' => $this->taxExempt?->phone,
             ],
             'cashier' => [
                 'id' => $this->cashier?->id,

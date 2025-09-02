@@ -4,6 +4,8 @@ use Modules\Admin\Http\Controllers\Api\ArticleController;
 use Modules\Admin\Http\Controllers\Api\AuthController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
+use Modules\Admin\Http\Controllers\Api\SettingController;
+use Modules\Admin\Http\Controllers\Api\TaxExemptController;
 use Modules\Admin\Http\Controllers\Api\LocationController;
 use Modules\Admin\Http\Controllers\Api\CouponController;
 use Modules\Admin\Http\Controllers\Api\CourseController;
@@ -73,6 +75,10 @@ Route::prefix('admin')
         Route::get('brand/datatable', [BrandController::class, 'datatable']);
         Route::resource('brand', 'BrandController');
 
+        // tax_exempt Routes.
+        Route::get('tax_exempt/datatable', [TaxExemptController::class, 'datatable']);
+        Route::resource('tax_exempt', 'TaxExemptController');
+
         // Location Routes.
         Route::get('location/datatable', [LocationController::class, 'datatable']);
         Route::resource('location', 'LocationController');
@@ -119,7 +125,9 @@ Route::prefix('admin')
         Route::get('user/datatable', [UserController::class, 'datatable']);
         Route::get('user/employee', [UserController::class, 'employee']);
         Route::get('user/autocomplete', [UserController::class, 'autocomplete']);
+        Route::get('user/autocompleteUserForTaxExempt', [UserController::class, 'autocompleteUserForTaxExempt']);
         Route::get('user/autocompletecashier', [UserController::class, 'autocompletecashier']);
+        Route::get('user/autocompleteTaxExempt', [TaxExemptController::class, 'autocomplete']);
 
         // Product Routes.
         Route::get('product/datatable', [ProductController::class, 'datatable']);
@@ -165,6 +173,7 @@ Route::prefix('admin')
         Route::get('report/product-sales', [ReportController::class, 'productSales']);
         Route::get('report/product-sale', [ReportController::class, 'productSale']);
         Route::get('report/product-stock', [ReportController::class, 'productStock']);
+
         Route::get('report/product-need', [ReportController::class, 'productNeed']);
         Route::get('report/order', [ReportController::class, 'order']);
         Route::get('report/return_order', [ReportController::class, 'return_order']);
@@ -193,6 +202,10 @@ Route::prefix('admin')
         Route::get('links/datatable', [LinksController::class, 'datatable']);
         Route::resource('links', 'LinksController');
 
+//        Route::get('settings/{id}',[SettingController::class,'show']);
+        Route::resource('settings', 'SettingController');
+        Route::post('/settings/fix-cluster-health', [SettingController::class, 'fixClusterHealth']);
+
         // Shipping Provider Routes.
         Route::get('shipping-provider/datatable', [ShippingProviderController::class, 'datatable']);
         Route::resource('shipping-provider', 'ShippingProviderController');
@@ -209,6 +222,16 @@ Route::prefix('admin')
         Route::get('file/datatable', [FileController::class, 'datatable']);
         Route::resource('file', 'FileController');
     });
+
+Route::prefix('admin')
+    ->namespace('Api')
+    ->group(function (){
+        Route::get('/reports/stock/export-images-zip', [ReportController::class, 'exportImagesZip']);
+        Route::get('/reports/download-chunk/{exportId}/{chunkIndex}', [ReportController::class, 'downloadChunk']);
+        Route::get('/reports/download-all/{exportId}', [ReportController::class, 'downloadAllChunks']);
+
+    });
+
 
 
 Route::prefix('admin')
