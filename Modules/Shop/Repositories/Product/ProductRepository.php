@@ -718,6 +718,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $query->where(function($q) use ($escapedTerms) {
                 foreach ($escapedTerms as $term) {
                     $q->orWhere('name', 'LIKE', '%'.$term.'%')
+                        ->orWhere('location', 'LIKE', '%'.$term.'%')
+                        ->orWhere('stock_location', 'LIKE', '%'.$term.'%')
                         ->orWhere('meta_title', 'LIKE', '%'.$term.'%')
                         ->orWhere('meta_keywords', 'LIKE', '%'.$term.'%')
                         ->orWhere('meta_description', 'LIKE', '%'.$term.'%')
@@ -797,6 +799,233 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 break;
         }
 
+
+        // Check stock availability based on the parameter
+        if ($inStock === true || $inStock === "true") {
+            $query->where('stock', '>', 0);
+        } else {
+            $query->where('stock', '>=', 0);
+        }
+
+        return $query->paginate($limit);
+    }
+
+    public function old_search2($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    {
+        $query = Product::query();
+        $searchWord = trim($searchWord);
+
+        // Handle search by name and meta
+        if ($searchWord) {
+            // Normalize the search query
+            $normalized = trim(preg_replace('/\s+/', ' ', $searchWord));
+            $searchTerms = array_filter(explode(' ', $normalized));
+            $termCount = count($searchTerms);
+
+            if ($termCount === 0) {
+                return $query->paginate($limit);
+            }
+
+            // Build the complex ranking system
+            $rankingCases = [];
+            $bindings = [];
+
+            // 1. Exact phrase match with highest priority (boost: 1000)
+            $exactFields = [
+                'name' => 5, 'sku' => 5, 'source_sku' => 5,
+                'location' => 3, 'stock_location' => 3,
+                'meta_title' => 2, 'meta_keywords' => 2, 'meta_description' => 1
+            ];
+
+            foreach ($exactFields as $field => $boost) {
+                $rankingCases[] = "WHEN $field = ? THEN " . (1000 * $boost);
+                $bindings[] = $normalized;
+            }
+
+            // 2. Phrase match (boost: 800)
+            foreach ($exactFields as $field => $boost) {
+                $rankingCases[] = "WHEN $field LIKE ? THEN " . (800 * $boost);
+                $bindings[] = "%{$normalized}%";
+            }
+
+            // 3. Wildcard matches on key fields (boost: 600)
+            $wildcardFields = ['name', 'sku', 'source_sku'];
+            foreach ($wildcardFields as $field) {
+                $rankingCases[] = "WHEN $field LIKE ? THEN 600";
+                $bindings[] = "%{$normalized}%";
+            }
+
+            // 4. Individual exact word matches (boost: 500)
+            foreach ($searchTerms as $term) {
+                if (strlen($term) >= 2) {
+                    $exactWordFields = ['name', 'sku', 'source_sku'];
+                    foreach ($exactWordFields as $field) {
+                        $rankingCases[] = "WHEN $field = ? THEN 500";
+                        $bindings[] = $term;
+                    }
+                }
+            }
+
+            // 5. All words in any order (boost: 400)
+            $allWordsConditions = [];
+            foreach ($searchTerms as $term) {
+                $fieldConditions = [];
+                foreach ($exactFields as $field => $boost) {
+                    $fieldConditions[] = "$field LIKE ?";
+                    $bindings[] = "%{$term}%";
+                }
+                $allWordsConditions[] = "(" . implode(" OR ", $fieldConditions) . ")";
+            }
+
+            $rankingCases[] = "WHEN " . implode(" AND ", $allWordsConditions) . " THEN 400";
+
+            // 6. Bigrams for multi-word searches (boost: 300)
+            if ($termCount > 1) {
+                for ($i = 0; $i < $termCount - 1; $i++) {
+                    $bigram = $searchTerms[$i] . ' ' . $searchTerms[$i + 1];
+                    $rankingCases[] = "WHEN name LIKE ? THEN 300";
+                    $bindings[] = "%{$bigram}%";
+                }
+            }
+
+            // 7. At least half words match (boost: 200)
+            $minShouldMatch = max(1, floor($termCount / 2));
+            $halfMatchConditions = [];
+            foreach ($searchTerms as $term) {
+                $fieldConditions = [];
+                foreach ($exactFields as $field => $boost) {
+                    $fieldConditions[] = "$field LIKE ?";
+                    $bindings[] = "%{$term}%";
+                }
+                $halfMatchConditions[] = "(" . implode(" OR ", $fieldConditions) . ")";
+            }
+
+            $rankingCases[] = "WHEN (" . implode(" + ", array_map(function($cond) {
+                    return "CASE WHEN $cond THEN 1 ELSE 0 END";
+                }, $halfMatchConditions)) . ") >= $minShouldMatch THEN 200";
+
+            // 8. Single word matches (boost: 100)
+            foreach ($searchTerms as $term) {
+                foreach ($exactFields as $field => $boost) {
+                    $rankingCases[] = "WHEN $field LIKE ? THEN " . (100 * $boost);
+                    $bindings[] = "%{$term}%";
+                }
+            }
+
+            // 9. Single word wildcards (boost: 25-50 based on length)
+            foreach ($searchTerms as $term) {
+                if (strlen($term) >= 2) {
+                    $boost = strlen($term) < 3 ? 25 : 50;
+                    $wildcardFields = ['name', 'sku', 'source_sku'];
+                    foreach ($wildcardFields as $field) {
+                        $rankingCases[] = "WHEN $field LIKE ? THEN $boost";
+                        $bindings[] = "%{$term}%";
+                    }
+                }
+            }
+
+            // 10. Short description fallback (boost: 1)
+            $rankingCases[] = "WHEN short_description LIKE ? THEN 1";
+            $bindings[] = "%{$normalized}%";
+
+            foreach ($searchTerms as $term) {
+                $rankingCases[] = "WHEN short_description LIKE ? THEN 1";
+                $bindings[] = "%{$term}%";
+            }
+
+            // Build the final CASE statement
+            $caseStatement = "CASE\n" . implode("\n", $rankingCases) . "\nELSE 0 END";
+
+            $query->select([
+                'products.*',
+                \DB::raw("$caseStatement as search_rank")
+            ]);
+
+            // Add all bindings
+            foreach ($bindings as $binding) {
+                $query->addBinding($binding, 'select');
+            }
+
+            // Add WHERE conditions
+            $query->where(function($q) use ($searchTerms, $exactFields) {
+                foreach ($searchTerms as $term) {
+                    $q->orWhere(function($innerQ) use ($term, $exactFields) {
+                        foreach (array_keys($exactFields) as $field) {
+                            $innerQ->orWhere($field, 'LIKE', "%{$term}%");
+                        }
+                        $innerQ->orWhere('short_description', 'LIKE', "%{$term}%");
+                    });
+                }
+            });
+
+            $query->orderByDesc('search_rank');
+        }
+        elseif ($category) {
+            // Search by category if no search word is provided
+            if ($category == 'new_product'){
+                $latestIds = Product::query()
+                    ->orderBy('id', 'desc')
+                    ->take(720)
+                    ->pluck('id');
+
+                // Then filter by these IDs
+                $query->whereIn('id', $latestIds)
+                    ->orderBy('id', 'desc');
+            } else {
+                $query->whereHas('categories', function (Builder $q) use ($category) {
+                    $q->where('slug', $category);
+                });
+            }
+        } else {
+            // Default to featured products if no category or search word is provided
+            $query->where(['options->featured' => true]);
+        }
+
+        // Apply filter based on the selected option
+        switch ($filter) {
+            case 'top-sale':
+                $query->withCount(['completedOrders as sales_count' => function ($query) {
+                    $query->select(\DB::raw('SUM(order_products.quantity)'));
+                }])->orderBy('sales_count', 'desc');
+                break;
+            case 'new-item':
+                $query->orderBy('id', 'desc');
+                break;
+            case 'old-item':
+                $query->orderBy('id', 'asc');
+                break;
+            case 'sale':
+                $query->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) > 0');
+                break;
+            case 'price-high':
+                $query->orderByRaw('
+                CAST(
+                    CASE
+                        WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
+                        THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                        ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+                    END
+                AS DECIMAL(10,2)) DESC
+            ');
+                break;
+            case "price-low":
+                $query->orderByRaw('
+                CAST(
+                    CASE
+                        WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
+                        THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                        ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+                    END
+                AS DECIMAL(10,2)) ASC
+            ');
+                break;
+            default:
+                // No filter applied, but maintain search ranking if it exists
+                if ($searchWord) {
+                    $query->orderByDesc('search_rank');
+                }
+                break;
+        }
 
         // Check stock availability based on the parameter
         if ($inStock === true || $inStock === "true") {
