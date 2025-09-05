@@ -13,5 +13,6 @@ return [
     'seller_name'=>'منتصر و محمود للالكترونيات',
     'postal_code'=>'33554',
     'seller_income_source'=>'13322320',
-    'buyer_city'=>'JO-AM'
+    'buyer_city'=>'JO-AM',
+    'app_phase' => env('APP_PHASE','testing')
 ];
