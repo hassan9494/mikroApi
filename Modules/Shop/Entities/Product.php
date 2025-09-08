@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Scout\Searchable;
 use Modules\Shop\Http\Resources\ProductElasticResource;
 use Modules\Shop\Http\Resources\ProductResource;
@@ -160,8 +161,10 @@ class Product extends Model implements HasMedia
 
     protected static function booted()
     {
+        parent::booted();
         static::saved(function ($product) {
             try {
+                Cache::tags(['product_search'])->flush();
                 if (config('scout.driver') === 'elasticsearch') {
                     // Use direct indexing instead of searchable()
                     $client = app('elasticsearch');
@@ -172,6 +175,7 @@ class Product extends Model implements HasMedia
                     ];
                     $client->index($params);
                 }
+
             } catch (\Exception $e) {
                 \Log::error('Failed to sync product to Elasticsearch', [
                     'product_id' => $product->id,
@@ -182,6 +186,7 @@ class Product extends Model implements HasMedia
 
         static::deleted(function ($product) {
             try {
+                Cache::tags(['product_search'])->flush();
                 if (config('scout.driver') === 'elasticsearch') {
                     $client = app('elasticsearch');
                     $params = [
@@ -375,5 +380,6 @@ class Product extends Model implements HasMedia
     {
         return true;
     }
+
 
 }
