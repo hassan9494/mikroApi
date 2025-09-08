@@ -841,27 +841,21 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 return collect([]);
             }
 
-            // Use full-text search for better performance with multiple terms
-            if (count($searchTerms) > 1) {
-                $query->whereRaw("MATCH(name, meta_title, meta_keywords, meta_description) AGAINST(? IN BOOLEAN MODE)", [$normalizedQuery])
-                    ->orderByRaw("MATCH(name, meta_title, meta_keywords, meta_description) AGAINST(?) DESC", [$normalizedQuery]);
-            } else {
-                // For single term searches, use the detailed ranking system
-                $termCountExpression = $this->buildTermCountExpression($searchTerms);
-                $excelPriorityCases = $this->buildExcelPriorityCases($searchTerms, $normalizedQuery);
+            // Build the ranking system
+            $termCountExpression = $this->buildTermCountExpression($searchTerms);
+            $excelPriorityCases = $this->buildExcelPriorityCases($searchTerms, $normalizedQuery);
 
-                // Get all bindings
-                $bindings = $this->getSearchBindings($searchTerms, $normalizedQuery);
+            // Get all bindings
+            $bindings = $this->getSearchBindings($searchTerms, $normalizedQuery);
 
-                $query->selectRaw(
-                    "products.*, ($termCountExpression) * 1000000 +
-                CASE $excelPriorityCases ELSE 0 END as search_rank",
-                    $bindings
-                );
-            }
+            $query->selectRaw(
+                "products.*, ($termCountExpression) * 1000000 +
+            CASE $excelPriorityCases ELSE 0 END as search_rank",
+                $bindings
+            );
 
-            // Add WHERE conditions for both full-text and regular search
-            $query->where(function($q) use ($searchTerms, $normalizedQuery) {
+            // Add WHERE conditions - optimized for indexed fields
+            $query->where(function($q) use ($searchTerms) {
                 foreach ($searchTerms as $term) {
                     if (strlen($term) >= 2) {
                         $q->orWhere(function($innerQ) use ($term) {
@@ -874,17 +868,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                         });
                     }
                 }
-
-                // For full-text search, also include the full query match
-                if (count($searchTerms) > 1) {
-                    $q->orWhereRaw("MATCH(name, meta_title, meta_keywords, meta_description) AGAINST(? IN BOOLEAN MODE)", [$normalizedQuery]);
-                }
             });
 
-            // Order by the appropriate ranking method
-            if (count($searchTerms) === 1) {
-                $query->orderByDesc('search_rank');
-            }
+            $query->orderByDesc('search_rank');
         }
         elseif ($category) {
             // Search by category if no search word is provided
@@ -945,7 +931,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         ');
                 break;
             default:
-                if ($searchWord && count($searchTerms) === 1) {
+                if ($searchWord) {
                     $query->orderByDesc('search_rank');
                 }
                 break;
@@ -958,14 +944,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $query->where('stock', '>=', 0);
         }
 
-        // Limit the number of results initially to improve performance
-        $query->when($searchWord, function ($q) {
-            $q->limit(1000); // Limit initial result set for sorting
-        });
-
-        // Eager load relationships to avoid N+1 queries
-        $query->with(['categories', 'brand']);
-
         // Execute the query and cache the results
         $results = $query->paginate($limit);
 
@@ -974,6 +952,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         return $results;
     }
+
+// ... (other helper methods remain the same as previous implementation)
 
     /**
      * Build expression to count matching terms
