@@ -841,7 +841,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 return collect([]);
             }
 
-            // Build the ranking system with proper word boundary handling
+            // Build the ranking system
             $termCountExpression = $this->buildTermCountExpression($searchTerms);
             $excelPriorityCases = $this->buildExcelPriorityCases($searchTerms, $normalizedQuery);
 
@@ -954,7 +954,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     }
 
     /**
-     * Build expression to count matching terms with exact word matching
+     * Build expression to count matching terms with exact word matching using LIKE
      */
     private function buildTermCountExpression($searchTerms)
     {
@@ -966,8 +966,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         foreach ($searchTerms as $term) {
             $fieldConditions = [];
             foreach ($fields as $field) {
-                // Use REGEXP for exact word matching with word boundaries
-                $fieldConditions[] = "$field REGEXP '[[:<:]]" . addslashes($term) . "[[:>:]]'";
+                // Simulate word boundaries using multiple LIKE conditions
+                $fieldConditions[] = "($field = ? OR $field LIKE ? OR $field LIKE ? OR $field LIKE ?)";
             }
             $expressions[] = "IF(" . implode(" OR ", $fieldConditions) . ", 1, 0)";
         }
@@ -976,7 +976,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     }
 
     /**
-     * Build Excel priority cases with parameter binding and exact word matching
+     * Build Excel priority cases with parameter binding and exact word matching using LIKE
      */
     private function buildExcelPriorityCases($searchTerms, $normalizedQuery)
     {
@@ -992,7 +992,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         if (count($searchTerms) > 1) {
             $allWordsConditions = [];
             foreach ($searchTerms as $term) {
-                $allWordsConditions[] = "name REGEXP '[[:<:]]" . addslashes($term) . "[[:>:]]'";
+                $allWordsConditions[] = "(name = ? OR name LIKE ? OR name LIKE ? OR name LIKE ?)";
             }
             $cases[] = "WHEN " . implode(" AND ", $allWordsConditions) . " THEN 8000";
         }
@@ -1011,7 +1011,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }
 
         // Priority 6: Single exact word match
-        $cases[] = "WHEN name REGEXP '[[:<:]]" . addslashes($searchTerms[0]) . "[[:>:]]' THEN 5000";
+        $cases[] = "WHEN (name = ? OR name LIKE ? OR name LIKE ? OR name LIKE ?) THEN 5000";
 
         // Priority 7: Partial word match (only if term is at least 3 characters)
         if (count($searchTerms) > 0 && strlen($searchTerms[0]) >= 3) {
@@ -1031,7 +1031,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         ];
 
         foreach ($otherFields as $field => $weight) {
-            $cases[] = "WHEN $field REGEXP '[[:<:]]" . addslashes($normalizedQuery) . "[[:>:]]' THEN $weight";
+            $cases[] = "WHEN ($field = ? OR $field LIKE ? OR $field LIKE ? OR $field LIKE ?) THEN $weight";
             $cases[] = "WHEN $field LIKE ? THEN " . ($weight - 500); // Lower priority for partial matches
         }
 
@@ -1039,17 +1039,40 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     }
 
     /**
-     * Get all search bindings in the correct order
+     * Get all search bindings in the correct order for LIKE-based word boundaries
      */
     private function getSearchBindings($searchTerms, $normalizedQuery)
     {
         $bindings = [];
+
+        // Bindings for term count expression
+        foreach ($searchTerms as $term) {
+            $fields = ['name', 'meta_title', 'meta_keywords', 'meta_description',
+                'sku', 'source_sku', 'location', 'stock_location', 'short_description'];
+
+            foreach ($fields as $field) {
+                $bindings[] = $term; // For field = term
+                $bindings[] = "$term %"; // For term at start
+                $bindings[] = "% $term"; // For term at end
+                $bindings[] = "% $term %"; // For term in middle
+            }
+        }
 
         // Bindings for Excel priority cases
 
         // Priority 1 and 2 bindings
         $bindings[] = $normalizedQuery;
         $bindings[] = $normalizedQuery;
+
+        // Priority 3 bindings (only for multiple terms)
+        if (count($searchTerms) > 1) {
+            foreach ($searchTerms as $term) {
+                $bindings[] = $term;
+                $bindings[] = "$term %";
+                $bindings[] = "% $term";
+                $bindings[] = "% $term %";
+            }
+        }
 
         // Priority 4 binding
         $orderedPattern = '%' . implode('%', $searchTerms) . '%';
@@ -1062,16 +1085,26 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             }
         }
 
+        // Priority 6 binding
+        $bindings[] = $searchTerms[0];
+        $bindings[] = "{$searchTerms[0]} %";
+        $bindings[] = "% {$searchTerms[0]}";
+        $bindings[] = "% {$searchTerms[0]} %";
+
         // Priority 7 binding (only if term is at least 3 characters)
         if (count($searchTerms) > 0 && strlen($searchTerms[0]) >= 3) {
             $bindings[] = "%" . substr($searchTerms[0], 0, 3) . "%";
         }
 
-        // Other fields bindings for partial matches
+        // Other fields bindings for exact matches
         $otherFields = ['meta_title', 'meta_keywords', 'meta_description',
             'sku', 'source_sku', 'location', 'stock_location', 'short_description'];
 
         foreach ($otherFields as $field) {
+            $bindings[] = $normalizedQuery;
+            $bindings[] = "$normalizedQuery %";
+            $bindings[] = "% $normalizedQuery";
+            $bindings[] = "% $normalizedQuery %";
             $bindings[] = "%$normalizedQuery%";
         }
 
@@ -1095,6 +1128,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         return trim($query);
     }
+
+
     public function old_search3($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
         $query = Product::query();
