@@ -988,26 +988,21 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // Priority 2: Exact phrase match ignoring case
         $cases[] = "WHEN LOWER(name) = LOWER(?) THEN 9000";
 
-        // Priority 3: All exact words in any order
+        // Priority 3: All words in exact order (adjacent)
+        $adjacentPattern = implode(' ', $searchTerms);
+        $cases[] = "WHEN name LIKE ? THEN 8500";
+
+        // Priority 4: All words in exact order (non-adjacent)
+        $nonAdjacentPattern = '%' . implode('%', $searchTerms) . '%';
+        $cases[] = "WHEN name LIKE ? THEN 8000";
+
+        // Priority 5: All words in any order
         if (count($searchTerms) > 1) {
             $allWordsConditions = [];
             foreach ($searchTerms as $term) {
                 $allWordsConditions[] = "(name = ? OR name LIKE ? OR name LIKE ? OR name LIKE ?)";
             }
-            $cases[] = "WHEN " . implode(" AND ", $allWordsConditions) . " THEN 8000";
-        }
-
-        // Priority 4: Partial text in order
-        $orderedPattern = '%' . implode('%', $searchTerms) . '%';
-        $cases[] = "WHEN name LIKE ? THEN 7000";
-
-        // Priority 5: Partial text without order
-        if (count($searchTerms) > 1) {
-            $anyWordsConditions = [];
-            foreach ($searchTerms as $term) {
-                $anyWordsConditions[] = "name LIKE ?";
-            }
-            $cases[] = "WHEN (" . implode(" OR ", $anyWordsConditions) . ") THEN 6000";
+            $cases[] = "WHEN " . implode(" AND ", $allWordsConditions) . " THEN 7500";
         }
 
         // Priority 6: Single exact word match
@@ -1021,18 +1016,18 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         // Other fields with exact matching
         $otherFields = [
             'meta_title' => 3000,
-            'meta_keywords' => 3000,
-            'meta_description' => 3000,
-            'sku' => 2000,
-            'source_sku' => 2000,
-            'location' => 2000,
-            'stock_location' => 2000,
-            'short_description' => 1000
+            'meta_keywords' => 2500,
+            'meta_description' => 2000,
+            'sku' => 1500,
+            'source_sku' => 1500,
+            'location' => 1000,
+            'stock_location' => 1000,
+            'short_description' => 500
         ];
 
         foreach ($otherFields as $field => $weight) {
             $cases[] = "WHEN ($field = ? OR $field LIKE ? OR $field LIKE ? OR $field LIKE ?) THEN $weight";
-            $cases[] = "WHEN $field LIKE ? THEN " . ($weight - 500); // Lower priority for partial matches
+            $cases[] = "WHEN $field LIKE ? THEN " . ($weight - 250); // Lower priority for partial matches
         }
 
         return implode(" ", $cases);
@@ -1064,24 +1059,21 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $bindings[] = $normalizedQuery;
         $bindings[] = $normalizedQuery;
 
-        // Priority 3 bindings (only for multiple terms)
+        // Priority 3: Adjacent words
+        $adjacentPattern = '%' . implode(' ', $searchTerms) . '%';
+        $bindings[] = $adjacentPattern;
+
+        // Priority 4: Non-adjacent but in order
+        $nonAdjacentPattern = '%' . implode('%', $searchTerms) . '%';
+        $bindings[] = $nonAdjacentPattern;
+
+        // Priority 5 bindings (only for multiple terms)
         if (count($searchTerms) > 1) {
             foreach ($searchTerms as $term) {
                 $bindings[] = $term;
                 $bindings[] = "$term %";
                 $bindings[] = "% $term";
                 $bindings[] = "% $term %";
-            }
-        }
-
-        // Priority 4 binding
-        $orderedPattern = '%' . implode('%', $searchTerms) . '%';
-        $bindings[] = $orderedPattern;
-
-        // Priority 5 bindings (only for multiple terms)
-        if (count($searchTerms) > 1) {
-            foreach ($searchTerms as $term) {
-                $bindings[] = "%$term%";
             }
         }
 
