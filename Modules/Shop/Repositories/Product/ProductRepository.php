@@ -6,6 +6,7 @@ use App\Repositories\Base\EloquentRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Shop\Entities\Product;
@@ -811,6 +812,317 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     }
 
     public function old_search2($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    {
+        // Generate a unique cache key based on all search parameters
+        $cacheKey = 'product_search_' . md5(serialize([
+                'search' => $searchWord,
+                'category' => $category,
+                'limit' => $limit,
+                'filter' => $filter,
+                'inStock' => $inStock,
+                'page' => request()->get('page', 1)
+            ]));
+
+        // Check if results are cached
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+
+        $query = Product::query();
+        $searchWord = trim($searchWord);
+
+        if ($searchWord) {
+            // Normalize search query according to general notes
+            $normalizedQuery = $this->normalizeSearchQuery($searchWord);
+            $searchTerms = array_filter(explode(' ', $normalizedQuery));
+
+            // Minimum 2 characters required (general note #1)
+            if (strlen($normalizedQuery) < 2) {
+                return collect([]);
+            }
+
+            // Build the ranking system
+            $termCountExpression = $this->buildTermCountExpression($searchTerms);
+            $excelPriorityCases = $this->buildExcelPriorityCases($searchTerms, $normalizedQuery);
+
+            // Get all bindings
+            $bindings = $this->getSearchBindings($searchTerms, $normalizedQuery);
+
+            $query->selectRaw(
+                "products.*, ($termCountExpression) * 1000000 +
+            CASE $excelPriorityCases ELSE 0 END as search_rank",
+                $bindings
+            );
+
+            // Add WHERE conditions - optimized for indexed fields
+            $query->where(function($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    if (strlen($term) >= 2) {
+                        $q->orWhere(function($innerQ) use ($term) {
+                            $innerQ->where('name', 'LIKE', "%$term%")
+                                ->orWhere('meta_title', 'LIKE', "%$term%")
+                                ->orWhere('meta_keywords', 'LIKE', "%$term%")
+                                ->orWhere('meta_description', 'LIKE', "%$term%")
+                                ->orWhere('sku', 'LIKE', "%$term%")
+                                ->orWhere('source_sku', 'LIKE', "%$term%");
+                        });
+                    }
+                }
+            });
+
+            $query->orderByDesc('search_rank');
+        }
+        elseif ($category) {
+            // Search by category if no search word is provided
+            if ($category == 'new_product'){
+                $latestIds = Product::query()
+                    ->orderBy('id', 'desc')
+                    ->take(720)
+                    ->pluck('id');
+
+                $query->whereIn('id', $latestIds)
+                    ->orderBy('id', 'desc');
+            } else {
+                $query->whereHas('categories', function (Builder $q) use ($category) {
+                    $q->where('slug', $category);
+                });
+            }
+        } else {
+            // Default to featured products if no category or search word is provided
+            $query->where(['options->featured' => true]);
+        }
+
+        // Apply filter based on the selected option
+        switch ($filter) {
+            case 'top-sale':
+                $query->withCount(['completedOrders as sales_count' => function ($query) {
+                    $query->select(\DB::raw('SUM(order_products.quantity)'));
+                }])->orderBy('sales_count', 'desc');
+                break;
+            case 'new-item':
+                $query->orderBy('id', 'desc');
+                break;
+            case 'old-item':
+                $query->orderBy('id', 'asc');
+                break;
+            case 'sale':
+                $query->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) > 0');
+                break;
+            case 'price-high':
+                $query->orderByRaw('
+            CAST(
+                CASE
+                    WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
+                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+                END
+            AS DECIMAL(10,2)) DESC
+        ');
+                break;
+            case "price-low":
+                $query->orderByRaw('
+            CAST(
+                CASE
+                    WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
+                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+                END
+            AS DECIMAL(10,2)) ASC
+        ');
+                break;
+            default:
+                if ($searchWord) {
+                    $query->orderByDesc('search_rank');
+                }
+                break;
+        }
+
+        // Check stock availability based on the parameter
+        if ($inStock === true || $inStock === "true") {
+            $query->where('stock', '>', 0);
+        } else {
+            $query->where('stock', '>=', 0);
+        }
+
+        // Execute the query and cache the results
+        $results = $query->paginate($limit);
+
+        // Cache for 5 minutes (adjust based on your needs)
+        Cache::put($cacheKey, $results, 300);
+
+        return $results;
+    }
+
+    /**
+     * Build expression to count matching terms with exact word matching using LIKE
+     */
+    private function buildTermCountExpression($searchTerms)
+    {
+        $expressions = [];
+
+        $fields = ['name', 'meta_title', 'meta_keywords', 'meta_description',
+            'sku', 'source_sku', 'location', 'stock_location', 'short_description'];
+
+        foreach ($searchTerms as $term) {
+            $fieldConditions = [];
+            foreach ($fields as $field) {
+                // Simulate word boundaries using multiple LIKE conditions
+                $fieldConditions[] = "($field = ? OR $field LIKE ? OR $field LIKE ? OR $field LIKE ?)";
+            }
+            $expressions[] = "IF(" . implode(" OR ", $fieldConditions) . ", 1, 0)";
+        }
+
+        return implode(" + ", $expressions);
+    }
+
+    /**
+     * Build Excel priority cases with parameter binding and exact word matching using LIKE
+     */
+    private function buildExcelPriorityCases($searchTerms, $normalizedQuery)
+    {
+        $cases = [];
+
+        // Priority 1: Exact phrase match with case sensitivity
+        $cases[] = "WHEN name = ? THEN 10000";
+
+        // Priority 2: Exact phrase match ignoring case
+        $cases[] = "WHEN LOWER(name) = LOWER(?) THEN 9000";
+
+        // Priority 3: All words in exact order (adjacent)
+        $adjacentPattern = implode(' ', $searchTerms);
+        $cases[] = "WHEN name LIKE ? THEN 8500";
+
+        // Priority 4: All words in exact order (non-adjacent)
+        $nonAdjacentPattern = '%' . implode('%', $searchTerms) . '%';
+        $cases[] = "WHEN name LIKE ? THEN 8000";
+
+        // Priority 5: All words in any order
+        if (count($searchTerms) > 1) {
+            $allWordsConditions = [];
+            foreach ($searchTerms as $term) {
+                $allWordsConditions[] = "(name = ? OR name LIKE ? OR name LIKE ? OR name LIKE ?)";
+            }
+            $cases[] = "WHEN " . implode(" AND ", $allWordsConditions) . " THEN 7500";
+        }
+
+        // Priority 6: Single exact word match
+        $cases[] = "WHEN (name = ? OR name LIKE ? OR name LIKE ? OR name LIKE ?) THEN 5000";
+
+        // Priority 7: Partial word match (only if term is at least 3 characters)
+        if (count($searchTerms) > 0 && strlen($searchTerms[0]) >= 3) {
+            $cases[] = "WHEN name LIKE ? THEN 4000";
+        }
+
+        // Other fields with exact matching
+        $otherFields = [
+            'meta_title' => 3000,
+            'meta_keywords' => 2500,
+            'meta_description' => 2000,
+            'sku' => 1500,
+            'source_sku' => 1500,
+            'location' => 1000,
+            'stock_location' => 1000,
+            'short_description' => 500
+        ];
+
+        foreach ($otherFields as $field => $weight) {
+            $cases[] = "WHEN ($field = ? OR $field LIKE ? OR $field LIKE ? OR $field LIKE ?) THEN $weight";
+            $cases[] = "WHEN $field LIKE ? THEN " . ($weight - 250); // Lower priority for partial matches
+        }
+
+        return implode(" ", $cases);
+    }
+
+    /**
+     * Get all search bindings in the correct order for LIKE-based word boundaries
+     */
+    private function getSearchBindings($searchTerms, $normalizedQuery)
+    {
+        $bindings = [];
+
+        // Bindings for term count expression
+        foreach ($searchTerms as $term) {
+            $fields = ['name', 'meta_title', 'meta_keywords', 'meta_description',
+                'sku', 'source_sku', 'location', 'stock_location', 'short_description'];
+
+            foreach ($fields as $field) {
+                $bindings[] = $term; // For field = term
+                $bindings[] = "$term %"; // For term at start
+                $bindings[] = "% $term"; // For term at end
+                $bindings[] = "% $term %"; // For term in middle
+            }
+        }
+
+        // Bindings for Excel priority cases
+
+        // Priority 1 and 2 bindings
+        $bindings[] = $normalizedQuery;
+        $bindings[] = $normalizedQuery;
+
+        // Priority 3: Adjacent words
+        $adjacentPattern = '%' . implode(' ', $searchTerms) . '%';
+        $bindings[] = $adjacentPattern;
+
+        // Priority 4: Non-adjacent but in order
+        $nonAdjacentPattern = '%' . implode('%', $searchTerms) . '%';
+        $bindings[] = $nonAdjacentPattern;
+
+        // Priority 5 bindings (only for multiple terms)
+        if (count($searchTerms) > 1) {
+            foreach ($searchTerms as $term) {
+                $bindings[] = $term;
+                $bindings[] = "$term %";
+                $bindings[] = "% $term";
+                $bindings[] = "% $term %";
+            }
+        }
+
+        // Priority 6 binding
+        $bindings[] = $searchTerms[0];
+        $bindings[] = "{$searchTerms[0]} %";
+        $bindings[] = "% {$searchTerms[0]}";
+        $bindings[] = "% {$searchTerms[0]} %";
+
+        // Priority 7 binding (only if term is at least 3 characters)
+        if (count($searchTerms) > 0 && strlen($searchTerms[0]) >= 3) {
+            $bindings[] = "%" . substr($searchTerms[0], 0, 3) . "%";
+        }
+
+        // Other fields bindings for exact matches
+        $otherFields = ['meta_title', 'meta_keywords', 'meta_description',
+            'sku', 'source_sku', 'location', 'stock_location', 'short_description'];
+
+        foreach ($otherFields as $field) {
+            $bindings[] = $normalizedQuery;
+            $bindings[] = "$normalizedQuery %";
+            $bindings[] = "% $normalizedQuery";
+            $bindings[] = "% $normalizedQuery %";
+            $bindings[] = "%$normalizedQuery%";
+        }
+
+        return $bindings;
+    }
+
+    /**
+     * Normalize search query according to Excel requirements
+     */
+    private function normalizeSearchQuery($query)
+    {
+        // General note #2: Ignore case
+        $query = strtolower($query);
+
+        // General note #3: Consider all special characters
+        // General note #4: Treat - and / as spaces or ignore them
+        $query = preg_replace('/[-\/]/', ' ', $query);
+
+        // Remove multiple spaces
+        $query = preg_replace('/\s+/', ' ', $query);
+
+        return trim($query);
+    }
+
+
+    public function old_search3($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
         $query = Product::query();
         $searchWord = trim($searchWord);

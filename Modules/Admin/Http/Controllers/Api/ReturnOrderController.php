@@ -215,7 +215,6 @@ class ReturnOrderController extends ApiAdminController
 //            'user-id' => auth()->id()
 //        ]);
         $payload = $service->prepareForSubmission($xml);
-
         $response = Http::withHeaders([
             'Client-Id' => config('jo_fotara.client_id'),
             'Secret-Key' => config('jo_fotara.secret_key'),
