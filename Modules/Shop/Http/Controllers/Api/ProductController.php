@@ -59,7 +59,7 @@ class ProductController extends Controller
         }
 
         $setting = Setting::where('key','search')->first();
-        dd($category);
+//        dd($category);
         if ($setting->value == 'elastic'){
             $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
         }else if ($setting->value == 'normalWithPriority'){
