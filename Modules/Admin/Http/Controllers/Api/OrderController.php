@@ -98,7 +98,6 @@ class OrderController extends ApiAdminController
                     }
                 }
             }
-
         }
 
         // Apply ordering
@@ -119,7 +118,9 @@ class OrderController extends ApiAdminController
     }
 
 
-            /**
+
+
+    /**
      * @param $id
      * @return OrderResource
      */
