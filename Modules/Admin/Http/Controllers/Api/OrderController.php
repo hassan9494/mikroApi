@@ -33,16 +33,92 @@ class OrderController extends ApiAdminController
     {
         parent::__construct($repository);
     }
-//    /**
-//     * @return JsonResponse
-//     */
-//    public function datatable(): JsonResponse
-//    {
-//        return Datatable::make($this->repository->model())
-//            ->search('id', 'customer->name', 'customer->phone')
-//            ->resource(OrderResource::class)
-//            ->json();
-//    }
+
+
+    /**
+     * @return JsonResponse
+     */
+    public function datatable(): JsonResponse
+    {
+        $conditions = json_decode(request('conditions'), true) ?? [];
+        $search = request('search');
+        $order = json_decode(request('order'), true);
+        $page = request('page', 0);
+        $limit = request('limit', 10);
+
+        $query = Order::query();
+
+        // Apply search conditions
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('id', 'LIKE', "%$search%")
+                    ->orWhere('customer->name', 'LIKE', "%$search%")
+                    ->orWhere('customer->phone', 'LIKE', "%$search%")
+                    ->orWhere('tax_number', 'LIKE', "%$search%")
+                    ->orWhere('status', 'LIKE', "%$search%")
+                    ->orWhere('shipping->status', 'LIKE', "%$search%")
+                    ->orWhere('total', 'LIKE', "%$search%");
+            });
+        }
+
+        // Handle different condition formats
+        if (!empty($conditions)) {
+            // If conditions is an associative array (object format)
+            if (isset($conditions['status']) || isset($conditions['options->taxed'])) {
+                foreach ($conditions as $key => $value) {
+                    if (str_contains($key, '->')) {
+                        $query->where("$key", $value);
+                    } else {
+                        $query->where($key, $value);
+                    }
+                }
+            }
+            // If conditions is an array of condition objects
+            else if (is_array($conditions) && isset($conditions[0]['col'])) {
+                foreach ($conditions as $condition) {
+                    if (isset($condition['col']) && isset($condition['op']) && isset($condition['val'])) {
+                        $column = $condition['col'];
+                        $operator = $condition['op'];
+                        $value = $condition['val'];
+
+                        // Handle IN operator
+                        if ($operator === 'IN') {
+                            if (str_contains($column, '->')) {
+                                $query->whereIn("$column", $value);
+                            } else {
+                                $query->whereIn($column, $value);
+                            }
+                        } else {
+                            if (str_contains($column, '->')) {
+                                $query->where("$column", $operator, $value);
+                            } else {
+                                $query->where($column, $operator, $value);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Apply ordering
+        if (!empty($order) && isset($order['column']) && isset($order['dir'])) {
+            $query->orderBy($order['column'], $order['dir']);
+        }
+
+        // Get paginated results
+        $total = $query->count();
+        $items = $query->skip($page * $limit)->take($limit)->get();
+
+        return response()->json([
+            'data' => [
+                'items' => OrderResource::collection($items),
+                'total' => $total
+            ]
+        ]);
+    }
+
+
+
 
     /**
      * @param $id

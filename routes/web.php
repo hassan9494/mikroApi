@@ -99,8 +99,11 @@ Route::get('location2',[ImportController::class,'locationNames']);
 Route::get('elastic',[ImportController::class,'createProductIndex']);
 
 Route::get('/test-elastic2', function() {
-    $product = Product::first();
-    return $product->meta->title;
+    $products = Product::where('id' ,'<' ,155)->get();
+    foreach ($products as $product){
+        $result[] = $product->toSearchableArray();
+    }
+    return $result;
 });
 
 Route::get('/raw-curl-test', function() {

@@ -68,15 +68,16 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
         $cart = $this->prepareUserProducts($data['products']);
 
-        $shippingCost = $cart['subtotal'] >= 20 ? 0 : $city->shipping_cost;
+        $isFreeShipping = $cart['subtotal'] >= 20;
+        $shippingCost = $city->shipping_cost;
 
         $data['shipping']['cost'] = $shippingCost;
+        $data['shipping']['free'] = $isFreeShipping; // Set free flag
         $data['shipping']['city'] = $city->name;
         $data['shipping']['status'] = 'WAITING';
         $data['uuid'] = Str::uuid();
 
         $order = $this->model->create($data);
-
         $order->products()->attach($cart['products']);
 
         return $this->update($order->id, []);
@@ -110,20 +111,24 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     public function makeByUser(array $data, Address $address, $user): Order
     {
 
+        $cart = $this->prepareUserProducts($data['products'], $user);
+
+        // Apply free shipping if subtotal >= 20
+        $isFreeShipping = $cart['subtotal'] >= 20;
+        $shippingCost =  $address->shipping['cost'];
+
         $data['customer'] = $address->customer;
         $data['shipping'] = $address->shipping;
-        $data['city_id'] = $address->city_id;
-
-
-        $cart = $this->prepareUserProducts($data['products'], $user);
-        $shippingCost = $cart['subtotal'] >= 20 ? 0 : $address->shipping['cost'];
         $data['shipping']['cost'] = $shippingCost;
+        $data['shipping']['free'] = $isFreeShipping; // Set free flag
+        $data['city_id'] = $address->city_id;
         $data['uuid'] = Str::uuid();
         $order = $this->model->create($data);
 
         $order->products()->attach($cart['products']);
 
         return $this->update($order->id, []);
+
     }
 
     /**
