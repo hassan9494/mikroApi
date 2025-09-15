@@ -834,6 +834,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         if ($searchWord) {
             // Normalize search query according to general notes
             $normalizedQuery = $this->normalizeSearchQuery($searchWord);
+
+//            dd($normalizedQuery);
             $searchTerms = array_filter(explode(' ', $normalizedQuery));
 
             // Minimum 2 characters required (general note #1)
@@ -864,6 +866,8 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                                 ->orWhere('meta_keywords', 'LIKE', "%$term%")
                                 ->orWhere('meta_description', 'LIKE', "%$term%")
                                 ->orWhere('sku', 'LIKE', "%$term%")
+                                ->orWhere('location', $term)
+                                ->orWhere('stock_location',$term)
                                 ->orWhere('source_sku', 'LIKE', "%$term%");
                         });
                     }
@@ -1108,17 +1112,13 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
      */
     private function normalizeSearchQuery($query)
     {
-        // General note #2: Ignore case
-        $query = strtolower($query);
+        // Only convert to lowercase and trim
+        $query = strtolower(trim($query));
 
-        // General note #3: Consider all special characters
-        // General note #4: Treat - and / as spaces or ignore them
-        $query = preg_replace('/[-\/]/', ' ', $query);
-
-        // Remove multiple spaces
+        // Remove multiple spaces (but preserve all special characters)
         $query = preg_replace('/\s+/', ' ', $query);
 
-        return trim($query);
+        return $query;
     }
 
 
