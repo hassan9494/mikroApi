@@ -3,7 +3,6 @@
 namespace Modules\Admin\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
-
 class OrderResource extends JsonResource
 {
 
@@ -73,6 +72,7 @@ class OrderResource extends JsonResource
             'is_migrated' => $this->is_migrated,
             'fatora_status' => $this->fatora_status,
             'qr_code' => $this->qr_code,
+            'histories' => OrderHistoryResource::collection($this->whenLoaded('histories')),
         ];
     }
 

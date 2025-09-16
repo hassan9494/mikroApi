@@ -17,6 +17,7 @@ use Modules\Admin\Http\Resources\OrderForReturnResource;
 use Modules\Admin\Http\Resources\OrderResource;
 use Modules\Admin\Http\Services\UblInvoiceService;
 use Modules\Shop\Entities\Order;
+use Modules\Shop\Entities\OrderHistory;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
@@ -46,6 +47,7 @@ class OrderController extends ApiAdminController
         $page = request('page', 0);
         $limit = request('limit', 10);
 
+        //  $query = Order::query()->with('histories.user');
         $query = Order::query();
 
         // Apply search conditions
@@ -118,8 +120,6 @@ class OrderController extends ApiAdminController
     }
 
 
-
-
     /**
      * @param $id
      * @return OrderResource
@@ -127,8 +127,10 @@ class OrderController extends ApiAdminController
     public function show($id)
     {
         $model = $this->repository->findOrFail($id);
+        $model->load('histories.user');
         return new OrderResource($model);
     }
+
 
     /**
      * @return JsonResponse
@@ -181,6 +183,7 @@ class OrderController extends ApiAdminController
         }
 
         $order = $this->repository->make($data);
+        $order->recordHistory('created', null, 'Order created through admin');
 
         if (!\Arr::get($data, 'options.price_offer', false)) {
             // Mark as processing
@@ -203,6 +206,7 @@ class OrderController extends ApiAdminController
     public function update($id): JsonResponse
     {
         $order = $this->repository->findOrFail($id);
+        $oldData = $order->toArray();
         $data = $this->validate();
         if ($order->status != 'COMPLETED'){
 //            if (!$order->options->price_offer){
@@ -234,6 +238,7 @@ class OrderController extends ApiAdminController
     public function updateWithStatus($id): JsonResponse
     {
         $order = $this->repository->findOrFail($id);
+        $oldStatus = $order->status;
         if ($order->status != 'COMPLETED'){
             $data = $this->validate();
             if ($order->status == 'PROCESSING' && request()->get('status') == 'PENDING'){
@@ -286,8 +291,23 @@ class OrderController extends ApiAdminController
             }
 
         }
+        if (request()->get('status') && $oldStatus != request()->get('status')) {
+            $order->recordStatusChange($oldStatus, request()->get('status'));
+        }
+
         return $this->success();
     }
+    private function getChangedFields($oldData, $newData)
+    {
+        $changes = [];
+        foreach ($newData as $key => $value) {
+            if (!array_key_exists($key, $oldData) || $oldData[$key] != $value) {
+                $changes[$key] = $value;
+            }
+        }
+        return $changes;
+    }
+
 
     public function migrateOrder($id): JsonResponse
     {
@@ -348,7 +368,7 @@ class OrderController extends ApiAdminController
             'shipping.cost' => 'nullable',
             'shipping.status' => 'nullable',
             'shipping.free' => 'nullable|boolean',
-
+            'shipping.city' => 'nullable|string|max:255',
             'options.taxed' => 'required|boolean',
             'options.tax_exempt' => 'required|boolean',
             'options.dept' => 'required|boolean',
@@ -573,5 +593,81 @@ class OrderController extends ApiAdminController
             'order_ids' => $orders->pluck('id')
         ]);
     }
+
+    public function print($id)
+    {
+        $order = $this->repository->findOrFail($id);
+
+        // Record print action
+        $order->recordPrintAction();
+
+        return view('orders.print', compact('order'));
+    }
+    /**
+     * Record print action for an order
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    /**
+     * Record print action for an order
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function recordPrint($id)
+    {
+        try {
+            $order = Order::findOrFail($id);
+            $order->recordPrintAction();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Print action recorded successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to record print action: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Record export action for an order
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function recordExport($id)
+    {
+        try {
+            $order = Order::findOrFail($id);
+
+            $user = auth()->user();
+            OrderHistory::create([
+                'order_id' => $order->id,
+                'action' => 'exported',
+                'notes' => 'Order was exported to Excel',
+                'details' => json_encode([
+                    'exported_by' => $user ? $user->name : 'Unknown',
+                    'exported_at' => now()->toDateTimeString(),
+                    'export_format' => 'Excel'
+                ]),
+                'user_id' => $user ? $user->id : null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Export action recorded successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to record export action: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 
 }

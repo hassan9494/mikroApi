@@ -89,6 +89,7 @@ class TaxExemptController extends ApiAdminController
     public function autocomplete(): JsonResponse
     {
         $q = request()->get('q');
+
         $models = $this->repository->autocomplete($q);
         $response = [];
         foreach ($models as $model)

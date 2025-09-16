@@ -221,6 +221,9 @@ Route::prefix('admin')
         // File Routes.
         Route::get('file/datatable', [FileController::class, 'datatable']);
         Route::resource('file', 'FileController');
+        Route::post('order/{id}/record-print', [OrderController::class, 'recordPrint']);
+        Route::post('order/{id}/record-export', [OrderController::class, 'recordExport']);
+
     });
 
 Route::prefix('admin')
