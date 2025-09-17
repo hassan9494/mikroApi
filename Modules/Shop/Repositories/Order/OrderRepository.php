@@ -14,6 +14,7 @@ use Modules\Shop\Repositories\Coupon\CouponRepositoryInterface;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
+use App\Traits\OrderHistoryTrait;
 
 /**
  * Class OrderRepository
@@ -162,6 +163,28 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     public function saveOrder($id, $data, bool $checkStock = true)
     {
         $model = $this->findOrFail($id);
+        if (isset($data['shipping']) && is_array($data['shipping'])) {
+            $currentShipping = (array) $model->shipping;
+
+            // Always preserve the city field from existing data
+            if (isset($currentShipping['city'])) {
+                $data['shipping']['city'] = $currentShipping['city'];
+            }
+
+            // Ensure cost is always stored as string for consistency
+            if (isset($data['shipping']['cost'])) {
+                $data['shipping']['cost'] = (string) $data['shipping']['cost'];
+            }
+        }
+
+        $oldProducts = [];
+        foreach ($model->products as $product) {
+            $oldProducts[$product->id] = [
+                'quantity' => $product->pivot->quantity,
+                'price' => $product->pivot->price
+            ];
+        }
+
         if ($model->isPending) {
             // If order is in PENDING status, then we can upgrade products and subtotal according to products
             $cart = $this->prepareCartProducts($data['products'] ?? [], $model);
@@ -189,6 +212,11 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
 //        $data = \Arr::only($data, ['customer', 'shipping', 'options', 'discount', 'notes', 'shipping_location_id']);
         $model->update($data);
+        if ($model->isPending && isset($cart)) {
+            $newProducts = $cart['products'];
+            $model->trackProductQuantityChanges($oldProducts, $newProducts);
+        }
+
         return $model;
     }
 
@@ -224,6 +252,11 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $this->updateStock($order->products, false);
 
         $order->update(['status' => $status, 'options' => $options]);
+        $oldStatus = $order->status;
+        if ($oldStatus != $status) {
+            $order->recordStatusChange($oldStatus, $status);
+        }
+
         return $order;
     }
 
