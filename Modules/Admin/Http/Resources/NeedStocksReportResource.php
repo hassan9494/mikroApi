@@ -35,6 +35,8 @@ class NeedStocksReportResource extends JsonResource
                 'priceAll' => $priceAll,
                 'allRealPrice' => $realPriceAll,
                 'slug' => $this->slug,
+                'location' => $this->location,
+                'stock_location' => $this->stock_location,
                 'source' =>  $source ? $source->name : null,
             ];
 

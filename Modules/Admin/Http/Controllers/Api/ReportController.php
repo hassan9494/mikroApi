@@ -688,6 +688,8 @@ class ReportController extends Controller
             'PriceAll',
             'Real_Price_All',
             'Source_Sku',
+            'Stock_Location',
+            'Store_Location',
             'Link',
             'source'
         ];
@@ -725,6 +727,8 @@ class ReportController extends Controller
                 $priceAll == 0 ? "0" : $priceAll,
                 $realPriceAll == 0 ? "0" : $realPriceAll,
                 $product->source_sku,
+                $product->stock_location,
+                $product->location,
                 "{$website}/product/{$product->sku}",
                 $product->source ? $product->source->name : ''
             ], null, "A{$row}");
