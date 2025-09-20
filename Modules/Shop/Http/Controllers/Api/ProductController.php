@@ -52,13 +52,61 @@ class ProductController extends Controller
         $filter = request()->get('filter', '');
         $inStock = request()->get('inStock', false);
 
+        if ($search && strlen(trim($search)) < 2) {
+            return ProductShortResource::collection([]);
+        }
+
+
         // Handle back in stock category
         if ($category === 'back_in_stock') {
-            $items = $this->repository->getBackinStockProducts($limit);
+            $query = $this->repository->getBackinStockProductsQuery();
+
+            // Apply filters
+            switch ($filter) {
+                case 'new-item':
+                    $query->orderBy('products.id', 'desc');
+                    break;
+                case 'old-item':
+                    $query->orderBy('products.id', 'asc');
+                    break;
+                case 'price-high':
+                    $query->orderByRaw('
+                    CASE
+                        WHEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price")) = "0"
+                        THEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.normal_price"))
+                        ELSE JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price"))
+                    END DESC
+                ');
+                    break;
+                case 'price-low':
+                    $query->orderByRaw('
+                    CASE
+                        WHEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price")) = "0"
+                        THEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.normal_price"))
+                        ELSE JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price"))
+                    END ASC
+                ');
+                    break;
+                case 'sale':
+                    $query->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price")) > 0');
+                // Fall through to default order for sale items
+                default:
+                    $query->orderBy('latest_invoice.latest_date', 'DESC');
+                    break;
+            }
+
+
+            // Apply in-stock filter
+            if ($inStock === true) {
+                $query->where('products.stock', '>', 0);
+            }
+
+            $items = $query->paginate($limit);
             return ProductShortResource::collection($items);
         }
 
-        $setting = Setting::where('key','search')->first();
+
+            $setting = Setting::where('key','search')->first();
 //        dd($category);
         if ($setting->value == 'elastic'){
             $items = $this->repository->search($search, $category, $limit, $filter, $inStock);

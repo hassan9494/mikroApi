@@ -26,6 +26,7 @@ class GeneratePermissions extends Command
             'product_edit',
             'stock_list_view',
             'stock2_list_view',
+            'stock3_list_view',
             'order_reorder',
             'order_add',
             'offer_order_list_view',
