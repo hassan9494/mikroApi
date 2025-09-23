@@ -12,6 +12,7 @@ use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\ProductResource;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
+use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
@@ -368,5 +369,40 @@ class ProductController extends Controller
 
         ]);
     }
+
+    public function stock3(Request $request)
+    {
+        $products = $request->get('products');
+
+        foreach ($products as $productData) {
+            $product = Product::find($productData['id']);
+            if ($product) {
+                // Update the fields that are specific to stock3
+                if (isset($productData['min_qty'])) {
+                    $product->min_qty = $productData['min_qty'];
+                }
+                if (isset($productData['order_qty'])) {
+                    $product->order_qty = $productData['order_qty'];
+                }
+                if (isset($productData['source_id'])) {
+                    $product->source_id = $productData['source_id'];
+                }
+                if (isset($productData['location'])) {
+                    $product->location = $productData['location'];
+                }
+                if (isset($productData['stock_location'])) {
+                    $product->stock_location = $productData['stock_location'];
+                }
+                if (isset($productData['stock'])) {
+                    $product->stock = $productData['stock'];
+                }
+
+                $product->save();
+            }
+        }
+
+        return response()->json(['message' => 'Updated successfully']);
+    }
+
 
 }

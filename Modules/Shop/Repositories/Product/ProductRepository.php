@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Support\Enums\InvoiceStatus;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Class EloquentDevice
@@ -1457,7 +1458,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     public function autocomplete2($searchWord, $limit = 20)
     {
 
-        $inpStrArray = explode(" ", $searchWord); #converting string to array
+        $inpStrArray = explode(" ", $searchWord);
         $revArr = array_reverse($inpStrArray); #reversing the array
         $revStr = implode(" ", $revArr); #joining the array back to string
 
@@ -1545,18 +1546,37 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function getBackinStockProducts($limit = 20)
     {
+        $subquery = \DB::table('invoice_products')
+            ->select('invoice_products.product_id', \DB::raw('MAX(COALESCE(invoices.completed_at, invoices.date)) as latest_date'))
+            ->join('invoices', 'invoice_products.invoice_id', '=', 'invoices.id')
+            ->where('invoices.status', 'COMPLETED')
+            ->groupBy('invoice_products.product_id');
+
         return $this->model
-            ->whereHas('invoices', function($query) {
-                $query->where('status', 'COMPLETED')
-                    ->where(function($q) {
-                        $q->where('completed_at', '>=', now()->subDays(30))
-                            ->orWhereNull('completed_at');
-                    });
+            ->select('products.*', 'latest_invoice.latest_date')
+            ->joinSub($subquery, 'latest_invoice', function ($join) {
+                $join->on('products.id', '=', 'latest_invoice.product_id');
             })
+            ->orderBy('latest_invoice.latest_date', 'DESC')
             ->with(['categories', 'media'])
-            ->orderBy('created_at', 'desc')
-            ->paginate($limit); // Changed from get() to paginate()
+            ->paginate($limit);
     }
+    public function getBackinStockProductsQuery()
+    {
+        $subquery = \DB::table('invoice_products')
+            ->select('invoice_products.product_id', \DB::raw('MAX(COALESCE(invoices.completed_at, invoices.date)) as latest_date'))
+            ->join('invoices', 'invoice_products.invoice_id', '=', 'invoices.id')
+            ->where('invoices.status', 'COMPLETED')
+            ->groupBy('invoice_products.product_id');
+
+        return $this->model
+            ->select('products.*', 'latest_invoice.latest_date')
+            ->joinSub($subquery, 'latest_invoice', function ($join) {
+                $join->on('products.id', '=', 'latest_invoice.product_id');
+            })
+            ->with(['categories', 'media']);
+    }
+
 
 
 

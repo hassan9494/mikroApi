@@ -669,5 +669,27 @@ class OrderController extends ApiAdminController
         }
     }
 
+    public function recordEditView($id)
+    {
+        try {
+            $order = $this->repository->findOrFail($id);
+            $user = auth()->user();
+
+            // Record the view in order history
+            $order->recordHistory('viewed_edit', null, 'Order edit page was viewed by ' . $user->name);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Edit view recorded successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to record edit view: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
 
 }
