@@ -22,20 +22,21 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
-        Role::create(['name' => 'super']);
-        Role::create(['name' => 'admin']);
-        Role::create(['name' => 'user']);
-
-        $user = User::factory(1)->create([
-            'email' => 'admin@mikroelectron.com'
-        ]);
-        $user[0]->assignRole('super', 'admin', 'user');
-
-//        \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        \DB::table('product_category')->truncate();
-        \DB::table('categories')->truncate();
-        \DB::table('products')->truncate();
-        \DB::table('product_related')->truncate();
+        $this->call(AssignStock3PermissionsSeeder::class);
+//        Role::create(['name' => 'super']);
+//        Role::create(['name' => 'admin']);
+//        Role::create(['name' => 'user']);
+//
+//        $user = User::factory(1)->create([
+//            'email' => 'admin@mikroelectron.com'
+//        ]);
+//        $user[0]->assignRole('super', 'admin', 'user');
+//
+////        \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+//        \DB::table('product_category')->truncate();
+//        \DB::table('categories')->truncate();
+//        \DB::table('products')->truncate();
+//        \DB::table('product_related')->truncate();
 //        \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
 //        $categories = json_decode(file_get_contents(storage_path() . "/data/categories.json"), true);

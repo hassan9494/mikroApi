@@ -60,6 +60,7 @@ Route::prefix('admin')
     ->middleware(['auth:sanctum' ,'role:admin|super|Manager|Cashier|Product Manager|Admin cash'])
     ->namespace('Api')
     ->group(function () {
+        Route::post('order/{id}/record-edit-view', [OrderController::class, 'recordEditView']);
 
         // Auth Routes.
         Route::get('auth', [AuthController::class, 'me']);
@@ -139,6 +140,7 @@ Route::prefix('admin')
         Route::post('product/stock', [ProductController::class, 'stock']);
         Route::post('product/sku', [ProductController::class, 'sku']);
         Route::post('product/stock2', [ProductController::class, 'stock2']);
+        Route::post('product/stock3', [ProductController::class, 'stock3']);
         Route::resource('product', 'ProductController');
 
 

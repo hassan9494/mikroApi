@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Support\Enums\InvoiceStatus;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Class EloquentDevice
@@ -140,192 +141,93 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
      */
     public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
+        Log::info("Elasticsearch searchWord", [
+            'searchWord' => $searchWord,
+            'category' => $category,
+            'filter' => $filter,
+        ]);
         $client = app('elasticsearch');
         $page = request()->get('page', 1);
         $from = ($page - 1) * $limit;
         $searchWord = trim($searchWord);
 
-        $searchFields = [
-            'name^5',
-            'sku^5',
-            'source_sku^5',
-            'location^3',
-            'stock_location^3',
-            'meta_title^2',
-            'meta_keywords^2',
-            'meta_description^1'
-        ];
-
         if (empty($searchWord)) {
-            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
-
+            return $this->getAllProductsQuery($client, $category, $limit, $filter, $inStock, $page);
         }
 
-        $originalQuery = $searchWord;
         $cleanQuery = preg_replace('/\s+/', ' ', $searchWord);
         $words = array_filter(explode(' ', $cleanQuery));
-        $wordCount = count($words);
 
-        if ($wordCount === 0 || strlen($cleanQuery) < 2) {
+        if (empty($words) || strlen($cleanQuery) < 2) {
             return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $limit);
         }
 
+        // Build the exact same search query from your standalone PHP file
         $shouldClauses = [];
 
-        // Exact phrase with exact analyzer
+        // 1. Exact phrase match (highest priority)
         $shouldClauses[] = [
             'multi_match' => [
-                'query' => $originalQuery,
+                'query' => $searchWord,
                 'type' => 'phrase',
-                'fields' => array_map(fn($field) => preg_replace('/\^(\d+)/', '.exact^$1', $field), $searchFields),
+                'fields' => ['name^10', 'sku^10', 'source_sku^8'],
                 'boost' => 1000
             ]
         ];
 
-        // Phrase match
-        $shouldClauses[] = [
-            'multi_match' => [
-                'query' => $cleanQuery,
-                'type' => 'phrase',
-                'fields' => $searchFields,
-                'boost' => 800
-            ]
-        ];
-
-        // Wildcards
-        foreach (['name', 'sku', 'source_sku'] as $key) {
+        // 2. SKU exact matches
+        foreach (['sku', 'source_sku'] as $field) {
             $shouldClauses[] = [
-                'wildcard' => [
-                    "{$key}.keyword" => [
-                        'value' => "{$originalQuery}",
-                        'case_insensitive' => true,
+                'term' => [
+                    "{$field}.keyword" => [
+                        'value' => $searchWord,
+                        'boost' => 800
+                    ]
+                ]
+            ];
+        }
+
+        // 3. Prefix matches for SKUs
+        foreach (['sku', 'source_sku'] as $field) {
+            $shouldClauses[] = [
+                'prefix' => [
+                    "{$field}.keyword" => [
+                        'value' => strtolower($searchWord),
                         'boost' => 600
                     ]
                 ]
             ];
         }
 
-        // NEW: Wildcard substring search for all fields (boost 50)
-        $wildcardValue = '*' . str_replace(['\\', '*', '?'], ['\\\\', '\\*', '\\?'], $cleanQuery) . '*';
-        foreach ($searchFields as $field) {
-            $baseField = preg_replace('/\^(\d+)/', '', $field);
-            $shouldClauses[] = [
-                'wildcard' => [
-                    "{$baseField}.keyword" => [
-                        'value' => $wildcardValue,
-                        'case_insensitive' => true,
-                        'boost' => 50
-                    ]
-                ]
-            ];
-        }
-
-        // Individual words exact
-        foreach ($words as $word) {
-            if (strlen($word) >= 2) {
-                foreach (['name.exact', 'sku.exact', 'source_sku.exact'] as $field) {
-                    $shouldClauses[] = [
-                        'term' => [
-                            $field => [
-                                'value' => $word,
-                                'boost' => 500
-                            ]
-                        ]
-                    ];
-                }
-            }
-        }
-
-        // All words any order
+        // 4. Cross-fields search
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $cleanQuery,
                 'type' => 'cross_fields',
                 'operator' => 'and',
-                'fields' => $searchFields,
+                'fields' => ['name^5', 'sku^5', 'source_sku^4', 'meta_title^3', 'short_description^1'],
                 'boost' => 400
             ]
         ];
 
-        // Bigrams
-        if ($wordCount > 1) {
-            for ($i = 0; $i < $wordCount - 1; $i++) {
-                $bigram = $words[$i] . ' ' . $words[$i+1];
-                $shouldClauses[] = [
-                    'match_phrase' => [
-                        'name' => [
-                            'query' => $bigram,
-                            'boost' => 300
-                        ]
-                    ]
-                ];
-            }
-        }
-
-        // At least half words match
+        // 5. Best fields match
         $shouldClauses[] = [
             'multi_match' => [
                 'query' => $cleanQuery,
-                'minimum_should_match' => (int)min(max(1, floor($wordCount / 2)), 3),
-                'fields' => $searchFields,
+                'type' => 'best_fields',
+                'fields' => ['name^5', 'sku^5', 'source_sku^4', 'meta_title^2'],
                 'boost' => 200
             ]
         ];
 
-        // Single word matches
-        foreach ($words as $word) {
+        // 6. Partial matches
+        if (count($words) > 1) {
             $shouldClauses[] = [
                 'multi_match' => [
-                    'query' => $word,
-                    'fields' => $searchFields,
+                    'query' => $cleanQuery,
+                    'minimum_should_match' => '60%',
+                    'fields' => ['name^3', 'short_description^1'],
                     'boost' => 100
-                ]
-            ];
-        }
-
-        // Single word wildcards
-        foreach ($words as $word) {
-            if (strlen($word) >= 2) {
-                $boost = strlen($word) < 3 ? 25 : 50;
-                foreach (['name', 'sku', 'source_sku'] as $key) {
-                    $shouldClauses[] = [
-                        'wildcard' => [
-                            "{$key}.keyword" => [
-                                'value' => "{$word}",
-                                'case_insensitive' => true,
-                                'boost' => $boost
-                            ]
-                        ]
-                    ];
-                }
-            }
-        }
-
-        // Short description fallback
-        $shouldClauses[] = [
-            'multi_match' => [
-                'query' => $cleanQuery,
-                'type' => 'phrase',
-                'fields' => ['short_description'],
-                'boost' => 1
-            ]
-        ];
-        $shouldClauses[] = [
-            'multi_match' => [
-                'query' => $cleanQuery,
-                'type' => 'cross_fields',
-                'operator' => 'and',
-                'fields' => ['short_description'],
-                'boost' => 1
-            ]
-        ];
-        foreach ($words as $word) {
-            $shouldClauses[] = [
-                'match' => [
-                    'short_description' => [
-                        'query' => $word,
-                        'boost' => 1
-                    ]
                 ]
             ];
         }
@@ -335,81 +237,142 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             'size' => $limit,
             'track_total_hits' => true,
             'query' => [
-                'function_score' => [
-                    'query' => [
-                        'bool' => [
-                            'should' => $shouldClauses,
-                            'minimum_should_match' => 1
-                        ]
-                    ],
-                    'boost_mode' => 'sum'
+                'bool' => [
+                    'should' => $shouldClauses,
+                    'minimum_should_match' => 1,
+                    'filter' => []
                 ]
-            ]
+            ],
+            'sort' => []
         ];
 
+        // Add filters
         if ($category && $category !== 'new_product') {
-            $body['query']['function_score']['query']['bool']['filter'][] = [
+            $body['query']['bool']['filter'][] = [
                 'term' => ['category_slugs' => $category]
             ];
         }
 
-        if ($inStock && $inStock != "false") {
-            $body['query']['function_score']['query']['bool']['filter'][] = [
+        if ($inStock) {
+            $body['query']['bool']['filter'][] = [
                 'range' => ['stock' => ['gt' => 0]]
             ];
         }
 
-        $body['sort'][] = [
-            '_script' => [
-                'type' => 'number',
-                'script' => [
-                    'source' => "def r = doc.containsKey('is_retired') ? doc['is_retired'].value : false;
-                         def a = doc.containsKey('available') ? doc['available'].value : true;
-                         return (r || !a ) ? 1 : 0;",
-                    'lang' => 'painless'
+        // Boost available, non-retired products
+        $body['query']['bool']['should'][] = [
+            'bool' => [
+                'must' => [
+                    ['term' => ['available' => true]],
+                    ['term' => ['is_retired' => false]]
                 ],
-                'order' => 'asc'
+                'boost' => 50
             ]
         ];
 
+        // Apply sorting
         switch ($filter) {
             case 'new-item':
-                $body['sort'][] = ['created_at' => 'desc'];
+                $body['sort'][] = ['created_at' => ['order' => 'desc']];
                 break;
             case 'old-item':
-                $body['sort'][] = ['created_at' => 'asc'];
+                $body['sort'][] = ['created_at' => ['order' => 'asc']];
                 break;
             case 'price-high':
-                $body['sort'][] = ['effective_price' => 'desc'];
+                $body['sort'][] = ['effective_price' => ['order' => 'desc']];
                 break;
             case 'price-low':
-                $body['sort'][] = ['effective_price' => 'asc'];
+                $body['sort'][] = ['effective_price' => ['order' => 'asc']];
                 break;
             case 'sale':
-                $body['query']['function_score']['query']['bool']['filter'][] = [
+                $body['query']['bool']['filter'][] = [
                     'range' => ['sale_price' => ['gt' => 0]]
                 ];
+                $body['sort'][] = ['_score' => ['order' => 'desc']];
                 break;
             default:
-                $body['sort'][] = ['_score' => 'desc'];
+                $body['sort'][] = ['_score' => ['order' => 'desc']];
+                break;
         }
 
-        return $this->executeSearch($client, $body, $limit, $page, $searchWord, $category, $filter, $inStock);
+        return $this->executeSearch($client, $body, $limit, $page);
     }
 
-    private function executeSearch($client, $body, $limit, $page, $searchWord = '', $category = '', $filter = '', $inStock = false)
+    /**
+     * Get all products query (when search is empty)
+     */
+    private function getAllProductsQuery($client, $category, $limit, $filter, $inStock, $page)
     {
-        try {
+        $from = ($page - 1) * $limit;
 
-//            Log::info('body'. json_encode($body));
+        $body = [
+            'from' => $from,
+            'size' => $limit,
+            'track_total_hits' => true,
+            'query' => [
+                'bool' => [
+                    'must' => ['match_all' => (object)[]],
+                    'filter' => []
+                ]
+            ],
+            'sort' => []
+        ];
+
+        // Add filters
+        if ($category && $category !== 'new_product') {
+            $body['query']['bool']['filter'][] = [
+                'term' => ['category_slugs' => $category]
+            ];
+        }
+
+        if ($inStock) {
+            $body['query']['bool']['filter'][] = [
+                'range' => ['stock' => ['gt' => 0]]
+            ];
+        }
+
+        // Apply sorting
+        switch ($filter) {
+            case 'new-item':
+                $body['sort'][] = ['created_at' => ['order' => 'desc']];
+                break;
+            case 'old-item':
+                $body['sort'][] = ['created_at' => ['order' => 'asc']];
+                break;
+            case 'price-high':
+                $body['sort'][] = ['effective_price' => ['order' => 'desc']];
+                break;
+            case 'price-low':
+                $body['sort'][] = ['effective_price' => ['order' => 'asc']];
+                break;
+            case 'sale':
+                $body['query']['bool']['filter'][] = [
+                    'range' => ['sale_price' => ['gt' => 0]]
+                ];
+                $body['sort'][] = ['created_at' => ['order' => 'desc']];
+                break;
+            default:
+                $body['sort'][] = ['created_at' => ['order' => 'desc']];
+                break;
+        }
+
+        return $this->executeSearch($client, $body, $limit, $page);
+    }
+
+    private function executeSearch($client, $body, $limit, $page)
+    {
+
+        try {
             $response = $client->search([
                 'index' => env('ELASTICSEARCH_INDEX', 'test_productssss'),
                 'body' => $body
             ]);
 
-
             $total = $response['hits']['total']['value'];
-
+            Log::info("Total", [
+                'total' => $total,
+                'response' => $response['hits']['hits'],
+            ]);
             return new \Illuminate\Pagination\LengthAwarePaginator(
                 $response['hits']['hits'],
                 $total,
@@ -417,11 +380,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 $page
             );
         } catch (\Exception $e) {
-//dd($e);
-
-            return $this->old_search($searchWord, $category, $limit, $filter, $inStock);
+//            dd('test');
+            // Fallback to old search
+            return $this->old_search(request()->get('search', ''), request()->get('category', ''), $limit, request()->get('filter', ''), request()->get('inStock', false));
         }
     }
+
 
     public function search1elastic($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
@@ -1502,7 +1466,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     public function autocomplete2($searchWord, $limit = 20)
     {
 
-        $inpStrArray = explode(" ", $searchWord); #converting string to array
+        $inpStrArray = explode(" ", $searchWord);
         $revArr = array_reverse($inpStrArray); #reversing the array
         $revStr = implode(" ", $revArr); #joining the array back to string
 
@@ -1590,18 +1554,37 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function getBackinStockProducts($limit = 20)
     {
+        $subquery = \DB::table('invoice_products')
+            ->select('invoice_products.product_id', \DB::raw('MAX(COALESCE(invoices.completed_at, invoices.date)) as latest_date'))
+            ->join('invoices', 'invoice_products.invoice_id', '=', 'invoices.id')
+            ->where('invoices.status', 'COMPLETED')
+            ->groupBy('invoice_products.product_id');
+
         return $this->model
-            ->whereHas('invoices', function($query) {
-                $query->where('status', 'COMPLETED')
-                    ->where(function($q) {
-                        $q->where('completed_at', '>=', now()->subDays(30))
-                            ->orWhereNull('completed_at');
-                    });
+            ->select('products.*', 'latest_invoice.latest_date')
+            ->joinSub($subquery, 'latest_invoice', function ($join) {
+                $join->on('products.id', '=', 'latest_invoice.product_id');
             })
+            ->orderBy('latest_invoice.latest_date', 'DESC')
             ->with(['categories', 'media'])
-            ->orderBy('created_at', 'desc')
-            ->paginate($limit); // Changed from get() to paginate()
+            ->paginate($limit);
     }
+    public function getBackinStockProductsQuery()
+    {
+        $subquery = \DB::table('invoice_products')
+            ->select('invoice_products.product_id', \DB::raw('MAX(COALESCE(invoices.completed_at, invoices.date)) as latest_date'))
+            ->join('invoices', 'invoice_products.invoice_id', '=', 'invoices.id')
+            ->where('invoices.status', 'COMPLETED')
+            ->groupBy('invoice_products.product_id');
+
+        return $this->model
+            ->select('products.*', 'latest_invoice.latest_date')
+            ->joinSub($subquery, 'latest_invoice', function ($join) {
+                $join->on('products.id', '=', 'latest_invoice.product_id');
+            })
+            ->with(['categories', 'media']);
+    }
+
 
 
 

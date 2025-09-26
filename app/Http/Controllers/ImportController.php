@@ -536,7 +536,10 @@ class ImportController extends Controller
         $indexName = env('ELASTICSEARCH_INDEX', 'test_productssss');
 
         try {
-            $client->indices()->delete(['index' => $indexName]);
+            // Delete existing index if it exists
+            if ($client->indices()->exists(['index' => $indexName])) {
+                $client->indices()->delete(['index' => $indexName]);
+            }
         } catch (\Exception $e) {
             // Ignore if index doesn't exist
         }
@@ -544,135 +547,84 @@ class ImportController extends Controller
         $params = [
             'index' => $indexName,
             'body' => [
+                'settings' => [
+                    'number_of_shards' => 1,
+                    'number_of_replicas' => 0,
+                    'index.max_result_window' => 50000,
+                    'index.mapping.total_fields.limit' => 2000,
+                    'analysis' => [
+                        'analyzer' => [
+                            'exact_analyzer' => [
+                                'type' => 'custom',
+                                'tokenizer' => 'whitespace',
+                                'filter' => ['lowercase', 'trim']
+                            ],
+                            'ngram_analyzer' => [
+                                'type' => 'custom',
+                                'tokenizer' => 'ngram_tokenizer',
+                                'filter' => ['lowercase', 'asciifolding', 'trim']
+                            ],
+                            'search_analyzer' => [
+                                'type' => 'custom',
+                                'tokenizer' => 'standard',
+                                'filter' => ['lowercase', 'asciifolding', 'stop', 'trim']
+                            ]
+                        ],
+                        'tokenizer' => [
+                            'ngram_tokenizer' => [
+                                'type' => 'ngram',
+                                'min_gram' => 2,
+                                'max_gram' => 3,
+                                'token_chars' => ['letter', 'digit']
+                            ]
+                        ]
+                    ]
+                ],
                 'mappings' => [
                     'properties' => [
                         'id' => ['type' => 'keyword'],
                         'name' => [
                             'type' => 'text',
+                            'analyzer' => 'search_analyzer',
                             'fields' => [
                                 'keyword' => ['type' => 'keyword'],
-                                'exact' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'exact_analyzer'
-                                ],
-                                'ngram' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'ngram_analyzer'
-                                ]
+                                'exact' => ['type' => 'text', 'analyzer' => 'exact_analyzer'],
+                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
                             ]
                         ],
                         'location' => [
                             'type' => 'text',
+                            'analyzer' => 'search_analyzer',
                             'fields' => [
                                 'keyword' => ['type' => 'keyword'],
-                                'exact' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'exact_analyzer'
-                                ],
-                                'ngram' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'ngram_analyzer'
-                                ]
+                                'exact' => ['type' => 'text', 'analyzer' => 'exact_analyzer']
                             ]
                         ],
                         'sku' => [
                             'type' => 'text',
+                            'analyzer' => 'keyword',
                             'fields' => [
                                 'keyword' => ['type' => 'keyword'],
-                                'exact' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'exact_analyzer'
-                                ],
-                                'ngram' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'ngram_analyzer'
-                                ]
+                                'exact' => ['type' => 'text', 'analyzer' => 'exact_analyzer'],
+                                'ngram' => ['type' => 'text', 'analyzer' => 'ngram_analyzer']
                             ]
                         ],
                         'source_sku' => [
                             'type' => 'text',
+                            'analyzer' => 'keyword',
                             'fields' => [
                                 'keyword' => ['type' => 'keyword'],
-                                'exact' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'exact_analyzer'
-                                ],
-                                'ngram' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'ngram_analyzer'
-                                ]
+                                'exact' => ['type' => 'text', 'analyzer' => 'exact_analyzer']
                             ]
                         ],
                         'stock_location' => [
                             'type' => 'text',
-                            'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'exact' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'exact_analyzer'
-                                ],
-                                'ngram' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'ngram_analyzer'
-                                ]
-                            ]
+                            'fields' => ['keyword' => ['type' => 'keyword']]
                         ],
-                        'short_description' => [
-                            'type' => 'text',
-                            'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'exact' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'exact_analyzer'
-                                ],
-                                'ngram' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'ngram_analyzer'
-                                ]
-                            ]
-                        ],
-                        'meta_title' => [
-                            'type' => 'text',
-                            'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'exact' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'exact_analyzer'
-                                ],
-                                'ngram' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'ngram_analyzer'
-                                ]
-                            ]
-                        ],
-                        'meta_keywords' => [
-                            'type' => 'text',
-                            'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'exact' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'exact_analyzer'
-                                ],
-                                'ngram' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'ngram_analyzer'
-                                ]
-                            ]
-                        ],
-                        'meta_description' => [
-                            'type' => 'text',
-                            'fields' => [
-                                'keyword' => ['type' => 'keyword'],
-                                'exact' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'exact_analyzer'
-                                ],
-                                'ngram' => [
-                                    'type' => 'text',
-                                    'analyzer' => 'ngram_analyzer'
-                                ]
-                            ]
-                        ],
+                        'short_description' => ['type' => 'text', 'analyzer' => 'search_analyzer'],
+                        'meta_title' => ['type' => 'text', 'analyzer' => 'search_analyzer'],
+                        'meta_keywords' => ['type' => 'text', 'analyzer' => 'search_analyzer'],
+                        'meta_description' => ['type' => 'text', 'analyzer' => 'search_analyzer'],
                         'category_slugs' => ['type' => 'keyword'],
                         'normal_price' => ['type' => 'float'],
                         'sale_price' => ['type' => 'float'],
@@ -684,36 +636,12 @@ class ImportController extends Controller
                         'is_retired' => ['type' => 'boolean'],
                         'image' => ['type' => 'keyword'],
                         'slug' => ['type' => 'keyword'],
-                        'meta' => ['type' => 'object'],
+                        'meta' => ['type' => 'object', 'enabled' => false],
                         'distributor_price' => ['type' => 'float'],
                         'sales' => ['type' => 'integer'],
-                        'replacement_item' => ['type' => 'object'],
-                        'colors' => ['type' => 'object'],
+                        'replacement_item' => ['type' => 'object', 'enabled' => false],
+                        'colors' => ['type' => 'object', 'enabled' => false],
                         'hasVariants' => ['type' => 'boolean'],
-                    ]
-                ],
-                'settings' => [
-                    'analysis' => [
-                        'analyzer' => [
-                            'exact_analyzer' => [
-                                'type' => 'custom',
-                                'tokenizer' => 'whitespace',
-                                'filter' => ['lowercase']
-                            ],
-                            'ngram_analyzer' => [
-                                'type' => 'custom',
-                                'tokenizer' => 'ngram_tokenizer',
-                                'filter' => ['lowercase', 'asciifolding']
-                            ]
-                        ],
-                        'tokenizer' => [
-                            'ngram_tokenizer' => [
-                                'type' => 'ngram',
-                                'min_gram' => 2,
-                                'max_gram' => 3,
-                                'token_chars' => ['letter', 'digit', 'punctuation']
-                            ]
-                        ]
                     ]
                 ]
             ]
