@@ -141,6 +141,11 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
      */
     public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
+        Log::info("Elasticsearch searchWord", [
+            'searchWord' => $searchWord,
+            'category' => $category,
+            'filter' => $filter,
+        ]);
         $client = app('elasticsearch');
         $page = request()->get('page', 1);
         $from = ($page - 1) * $limit;
@@ -364,7 +369,10 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             ]);
 
             $total = $response['hits']['total']['value'];
-
+            Log::info("Total", [
+                'total' => $total,
+                'response' => $response['hits']['hits'],
+            ]);
             return new \Illuminate\Pagination\LengthAwarePaginator(
                 $response['hits']['hits'],
                 $total,
