@@ -1470,7 +1470,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $revArr = array_reverse($inpStrArray); #reversing the array
         $revStr = implode(" ", $revArr); #joining the array back to string
 
-        return $this->model->where('sku', 'like', "%$searchWord%")
+        return $this->model->with('product_variants')->where('sku', 'like', "%$searchWord%")
             ->orWhere('name', 'like', "%$searchWord%")
             ->orWhere('short_description', 'like', "%$searchWord%")
             ->orwhere('sku', 'like', "%$revStr%")
@@ -1491,7 +1491,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $termCount = count($searchTerms);
 
             // Build the query for name and meta search
-            $query->where(function ($q) use ($searchTerms) {
+            $query->with('product_variants')->where(function ($q) use ($searchTerms) {
                 foreach ($searchTerms as $term) {
                     $q->orWhere('name', 'LIKE', '%' . $term . '%')
                         ->orWhere('sku', 'LIKE', '%' . $term . '%')

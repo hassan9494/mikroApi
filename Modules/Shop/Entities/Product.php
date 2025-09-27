@@ -253,7 +253,7 @@ class Product extends Model implements HasMedia
             'order_products',
             'product_id',
             'order_id'
-        )->withPivot('price', 'quantity', 'real_price','product_name','number','discount');
+        )->withPivot('price', 'quantity', 'real_price','product_name','number','discount','is_color','color_id');
     }
 
     /**
@@ -374,6 +374,11 @@ class Product extends Model implements HasMedia
     public function product_variants()
     {
         return $this->hasMany(ProductVariant::class,'product_id');
+    }
+
+    public function parent()
+    {
+        return $this->hasOne(ProductVariant::class,'color_id');
     }
 
     public function search()

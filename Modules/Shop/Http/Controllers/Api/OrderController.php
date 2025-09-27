@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Modules\Shop\Emails\SendOrderDetailsEmail;
 use Modules\Shop\Entities\Product;
+use Modules\Shop\Entities\ProductVariant;
 use Modules\Shop\Http\Resources\OrderResource;
 use Modules\Shop\Repositories\Coupon\CouponRepository;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
@@ -68,9 +69,9 @@ class OrderController extends Controller
      */
     public function user(Request $request): OrderResource
     {
-
         $data = $request->validate([
             'products.*.id' => 'exists:products',
+            'products.*.variant_id' => 'nullable|exists:product_variants,id',
             'products.*.quantity' => 'numeric|min:1',
             'notes' => 'nullable|max:500',
             'coupon_id' => 'nullable|exists:coupons,id',
@@ -82,7 +83,13 @@ class OrderController extends Controller
         }
         $user=Auth::user();
         foreach ($data['products'] as $product){
-            $prod = Product::find($product['id']);
+            if ($product['variant_id']){
+               $variant = ProductVariant::find($product['variant_id']);
+               $prod = Product::find($variant->color_id);
+            }else{
+                $prod = Product::find($product['id']);
+            }
+
             if ($prod->stock < $product['quantity']){
                 throw new BadRequestException($prod->name . ' has insufficient quantity');
             }
@@ -97,6 +104,7 @@ class OrderController extends Controller
                 }
             }
         }
+//        dd($prod);
         $order = $this->repository->makeByUser($data, Auth::user()->primaryAddress,$user);
         $details = [
             'subject' => 'Your Microelectron Order has been received',

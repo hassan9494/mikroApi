@@ -93,6 +93,7 @@ class ProductVariantsController extends Controller
 
         $data = $this->validate();
         $data['product_id'] = request('product_id');
+        $data['color_id'] = request('selected_product_id');
         return $this->success(
             $this->repository->create($data)
         );
@@ -107,6 +108,7 @@ class ProductVariantsController extends Controller
     public function update($id): JsonResponse
     {
         $data = $this->validate();
+        $data['color_id'] = request('selected_product_id');
         return $this->success(
             $this->repository->update($id, $data)
         );
@@ -200,33 +202,6 @@ class ProductVariantsController extends Controller
 
 
 
-//    /**
-//     * @return array
-//     */
-//    private function validate(): array
-//    {
-//        return request()->validate([
-//            'name' => 'required|max:255',
-//            'sku' => 'required|max:255',
-////            'categories' => 'required',
-//            'gallery' => 'nullable',
-//            'short_description' => 'nullable',
-//            'description' => 'nullable',
-//            'features' => 'nullable',
-//            'code' => 'nullable',
-//            'documents' => 'nullable',
-//            'stock' => 'required',
-////            'meta' => 'required|array',
-//            'price' => 'required',
-//            'datasheets' => 'nullable|array',
-////            'options.available' => 'required|boolean',
-////            'options.featured' => 'required|boolean',
-////            'options.kit' => 'required|boolean',
-//            'media' => 'nullable|array',
-//            'kit' => 'nullable',
-//        ]);
-//    }
-
     /**
      * @return array
      */
@@ -234,14 +209,8 @@ class ProductVariantsController extends Controller
     {
         return request()->validate([
             'name' => 'required|max:255',
-            'short_description' => 'nullable',
-            'stock' => 'required',
-            'price' => 'required|array',
-            'options.available' => 'required|boolean',
-            'options.featured' => 'required|boolean',
-            'media' => 'nullable|array',
-            'min_qty' => 'required',
-            'maxCartAmount' => 'nullable',
+            'product_id' => 'nullable|exists:products,id',
+            'selected_product_id' => 'required|exists:products,id',
 
         ]);
     }

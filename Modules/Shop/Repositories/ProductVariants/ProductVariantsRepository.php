@@ -6,6 +6,7 @@ use App\Repositories\Base\EloquentRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
+use Modules\Shop\Entities\Product;
 use Modules\Shop\Entities\ProductVariant;
 
 /**
@@ -31,19 +32,25 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
 
     public function create($data)
     {
-        // Extract the ID of the first replacement item if it exists
-        if (!empty($data['replacement_item'])) {
-            $data['replacement_item'] = $data['replacement_item'][0]['id'];
-        }
+        $product = Product::find($data['color_id']);
+        $data['short_description'] = $product->short_description;
+        $data['short_description'] = $product->short_description;
+        $data['price'] = $product->price;
+        $data['stock'] = $product->stock;
+        $option['available'] =$product->options->available;
+        $option['featured'] =$product->options->featured;
+        $data['options'] = $option;
+        $data['listPriority'] = $product->listPriority;
+        $data['maxCartAmount'] = $product->maxCartAmount;
+        $data['min_qty'] = $product->min_qty;
+        $data['is_retired'] = $product->is_retired;
+        $data['source'] = $product->source;
+        $data['location'] = $product->location;
 
         // Create the model with the modified data
         $model = parent::create($data);
 
         // Attach categories
-
-
-        // Sync media
-        $model->syncMedia($data['media'] ?? []);
 
         return $model;
     }
@@ -51,24 +58,22 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
 
     public function update($id, $data)
     {
-        // Extract the ID of the first replacement item if it exists
-        if (!empty($data['replacement_item'])) {
-            $data['replacement_item'] = $data['replacement_item'][0]['id'];
-        }
+        $product = Product::find($data['color_id']);
+        $data['short_description'] = $product->short_description;
+        $data['short_description'] = $product->short_description;
+        $data['price'] = $product->price;
+        $data['stock'] = $product->stock;
+        $option['available'] =$product->options->available;
+        $option['featured'] =$product->options->featured;
+        $data['options'] = $option;
+        $data['listPriority'] = $product->listPriority;
+        $data['maxCartAmount'] = $product->maxCartAmount;
+        $data['min_qty'] = $product->min_qty;
+        $data['is_retired'] = $product->is_retired;
+        $data['source'] = $product->source;
+        $data['location'] = $product->location;
         $model = parent::update($id, $data);
-
-        if ($data['categories'] ?? false)
-            $model->categories()->sync($data['categories']);
-
-        $kit = [];
-        if ($data['kit'] ?? false) {
-            foreach ($data['kit'] as $item) {
-                $kit[$item['id']] = Arr::only($item, 'quantity');
-            }
-        }
-        if (count($kit) != 0)
-            $model->kit()->sync($kit);
-        $model->syncMedia($data['media'] ?? []);
+        return $model;
     }
 
     /**

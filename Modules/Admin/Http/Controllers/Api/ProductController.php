@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\ProductResource;
+use Modules\Admin\Http\Resources\ProductVariantResource;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
 use Illuminate\Http\Request;
@@ -216,7 +217,8 @@ class ProductController extends Controller
                 'purchases_price'=>(float)$product->price->real_price,
                 'distributer_price'=>(float)$product->price->distributor_price,
                 'normal'=>(float)$product->price->normal_price,
-                'sale_price'=>(float)$product->price->sale_price
+                'sale_price'=>(float)$product->price->sale_price,
+                'colors' => ProductVariantResource::collection($product->product_variants),
             ];
         }
         return $this->success($response);

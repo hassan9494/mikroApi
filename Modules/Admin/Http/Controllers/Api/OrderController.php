@@ -383,6 +383,8 @@ class OrderController extends ApiAdminController
             'invoice_notes' => 'nullable|max:500',
 
             'products.*.id' => 'exists:products,id',
+            'products.*.color_id' => 'nullable|exists:product_variants,id',
+            'products.*.is_color' => 'nullable|boolean',
             'products.*.price' => 'required|numeric',
             'products.*.quantity' => 'required|numeric',
             'products.*.number' => 'required|numeric',

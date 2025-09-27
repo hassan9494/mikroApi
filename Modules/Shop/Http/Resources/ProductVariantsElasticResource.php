@@ -19,21 +19,22 @@ class ProductVariantsElasticResource extends JsonResource
      */
     public function toArray($request): array
     {
-        $media = $this->getMedia();
+        $media = $this->variant->getMedia();
         $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
 
         // Return consistent data structure for indexing
         return [
             'id' => $this->id,
+            'color_id' => $this->variant->id,
             'title' => $this->name,
-            'availableQty' => $this->stock,
-            'location' => $this->location,
-            'is_available' => $this->options->available,
-            'is_retired' => $this->is_retired,
-            'price' => $this->price->normal_price,
-            'sale_price' => $this->price->sale_price ?: null,
-            'distributor_price' => $this->price->distributor_price ?: null, // Add this
-            'short_description' => $this->short_description,
+            'availableQty' => $this->variant->stock,
+            'location' => $this->variant->location,
+            'is_available' => $this->variant->options->available,
+            'is_retired' => $this->variant->is_retired,
+            'price' => $this->variant->price->normal_price,
+            'sale_price' => $this->variant->price->sale_price ?: null,
+            'short_description' => $this->variant->short_description,
+            'short_description_ar' => $this->variant->short_description_ar,
             'image' => $image,
             'gallery' => MediaResource::collection($media)
         ];

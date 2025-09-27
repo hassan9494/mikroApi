@@ -18,23 +18,33 @@ class ProductVariantResource extends JsonResource
     public function toArray($request): array
     {
         $replacement_item = Product::where('id',$this->replacement_item)->first();
+        $selectedProduct = Product::where('id', $this->variant->id)->first();
+
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'stock' => $this->stock,
-            'price' => $this->price,
-            'short_description' => $this->short_description,
-            'code' => $this->code,
-            'min_qty' => $this->min_qty,
+            'product_name' => $this->variant->name,
+            'stock' => $this->variant->stock,
+            'price' => $this->variant->price,
+            'short_description' => $this->variant->short_description,
+            'code' => $this->variant->code,
+            'min_qty' => $this->variant->min_qty,
 
-            'image' => asset($this->getFirstMediaUrl()),
-            'media' => MediaResource::collection($this->getMedia()),
-            'options' => $this->options,
-            'maxCartAmount' => $this->maxCartAmount,
-            'is_retired' => $this->is_retired,
+            'image' => asset($this->variant->getFirstMediaUrl()),
+            'media' => MediaResource::collection($this->variant->getMedia()),
+            'options' => $this->variant->options,
+            'maxCartAmount' => $this->variant->maxCartAmount,
+            'is_retired' => $this->variant->is_retired,
+            'selected_product_id' => $this->variant->id,
+            'selected_product' => $selectedProduct ? [
+                'id' => $selectedProduct->id,
+                'name' => $selectedProduct->name,
+                'sku' => $selectedProduct->sku,
+                'image' => asset($selectedProduct->getFirstMediaUrl()),
+                'stock' => $selectedProduct->stock,
+                'price' => $selectedProduct->price
+            ] : null
 
         ];
     }
-
-
 }

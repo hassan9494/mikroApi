@@ -42,7 +42,8 @@ class ProductVariant extends Model implements HasMedia
         'location',
         'listPriority',
         'maxCartAmount',
-        'product_id'
+        'product_id',
+        'color_id'
     ];
 
     protected $attributes = [
@@ -60,5 +61,10 @@ class ProductVariant extends Model implements HasMedia
     public function product()
     {
         return $this->belongsTo(Product::class,'product_id');
+    }
+
+    public function variant()
+    {
+        return $this->belongsTo(Product::class,'color_id');
     }
 }
