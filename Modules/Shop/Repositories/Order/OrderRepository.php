@@ -294,14 +294,14 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         $subtotal = 0;
         foreach ($items as $item) {
             $id = $item['id'];
-            $variant_id = $item['variant_id'];
-            if ($variant_id){
-                $variant = ProductVariant::find($variant_id);
-                $id = $variant->color_id;
-                $is_color= true;
-            }else{
-                $is_color= false;
-            }
+//            $variant_id = $item['variant_id'];
+//            if ($variant_id){
+//                $variant = ProductVariant::find($variant_id);
+//                $id = $variant->color_id;
+//                $is_color= true;
+//            }else{
+//                $is_color= false;
+//            }
 
             $quantity = $item['quantity'];
 
@@ -316,8 +316,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
                 'quantity' => $quantity,
                 'price' => $product->calcPrice(1, null, $user),
                 'real_price' => $product->price->real_price,
-                'color_id' => $variant_id,
-                'is_color' => $is_color,
+//                'color_id' => $variant_id,
+//                'is_color' => $is_color,
                 'product_name' => $product->name,
             ];
             $subtotal += $product->calcPrice($quantity, null, $user);

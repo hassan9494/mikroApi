@@ -71,7 +71,7 @@ class OrderController extends Controller
     {
         $data = $request->validate([
             'products.*.id' => 'exists:products',
-            'products.*.variant_id' => 'nullable|exists:product_variants,id',
+//            'products.*.variant_id' => 'nullable|exists:product_variants,id',
             'products.*.quantity' => 'numeric|min:1',
             'notes' => 'nullable|max:500',
             'coupon_id' => 'nullable|exists:coupons,id',
@@ -83,12 +83,12 @@ class OrderController extends Controller
         }
         $user=Auth::user();
         foreach ($data['products'] as $product){
-            if ($product['variant_id']){
-               $variant = ProductVariant::find($product['variant_id']);
-               $prod = Product::find($variant->color_id);
-            }else{
+//            if ($product['variant_id']){
+//               $variant = ProductVariant::find($product['variant_id']);
+//               $prod = Product::find($variant->color_id);
+//            }else{
                 $prod = Product::find($product['id']);
-            }
+//            }
 
             if ($prod->stock < $product['quantity']){
                 throw new BadRequestException($prod->name . ' has insufficient quantity');

@@ -27,6 +27,7 @@ class ProductVariantsElasticResource extends JsonResource
             'id' => $this->id,
             'color_id' => $this->variant->id,
             'title' => $this->name,
+            'name' => $this->variant->name,
             'availableQty' => $this->variant->stock,
             'location' => $this->variant->location,
             'is_available' => $this->variant->options->available,
