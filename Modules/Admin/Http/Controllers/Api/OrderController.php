@@ -54,11 +54,11 @@ class OrderController extends ApiAdminController
         if (!empty($search)) {
             $query->where(function($q) use ($search) {
                 $q->where('id', 'LIKE', "%$search%")
-                    ->orWhere('customer->name', 'LIKE', "%$search%")
-                    ->orWhere('customer->phone', 'LIKE', "%$search%")
+                    ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.name"))) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.phone"))) LIKE ?', ['%' . strtolower($search) . '%'])
                     ->orWhere('tax_number', 'LIKE', "%$search%")
-                    ->orWhere('status', 'LIKE', "%$search%")
-                    ->orWhere('shipping->status', 'LIKE', "%$search%")
+                    ->orWhereRaw('LOWER(status) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(shipping, "$.status"))) LIKE ?', ['%' . strtolower($search) . '%'])
                     ->orWhere('total', 'LIKE', "%$search%");
             });
         }
