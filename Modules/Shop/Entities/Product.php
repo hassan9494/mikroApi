@@ -74,7 +74,9 @@ class Product extends Model implements HasMedia
         'stock_available',
         'stock_location',
         'store_location',
-        'purchases_qty'
+        'purchases_qty',
+        'is_show_for_search',
+        'colors_nick_names'
     ];
 
     protected $attributes = [
@@ -164,7 +166,8 @@ class Product extends Model implements HasMedia
         parent::booted();
         static::saved(function ($product) {
             try {
-                Cache::tags(['product_search'])->flush();
+                $currentVersion = Cache::get('product_search_version', 1);
+                Cache::forever('product_search_version', $currentVersion + 1);
                 if (config('scout.driver') === 'elasticsearch') {
                     // Use direct indexing instead of searchable()
                     $client = app('elasticsearch');
@@ -186,7 +189,8 @@ class Product extends Model implements HasMedia
 
         static::deleted(function ($product) {
             try {
-                Cache::tags(['product_search'])->flush();
+                $currentVersion = Cache::get('product_search_version', 1);
+                Cache::forever('product_search_version', $currentVersion + 1);
                 if (config('scout.driver') === 'elasticsearch') {
                     $client = app('elasticsearch');
                     $params = [

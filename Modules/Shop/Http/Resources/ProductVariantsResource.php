@@ -47,7 +47,19 @@ class ProductVariantsResource extends JsonResource
                 'short_description' => $this->variant->short_description,
                 'short_description_ar' => $this->variant->short_description_ar,
                 'image' => $image,
-                'gallery' => MediaResource::collection($media)
+                'gallery' => MediaResource::collection($media),
+                'packageInclude' => $this->variant->packageInclude,
+                'features' => $this->variant->features,
+                'documents' => $this->variant->documents,
+                'description' => $this->variant->description,
+                'datasheets' => $this->variant->datasheets,
+                'categories' => $this->variant->categories->map(function($e) {
+                    return [
+                        'id' => $e->id,
+                        'title' => $e->title,
+                        'slug' => $e->slug,
+                    ];
+                }),
             ];
         }else {
             return [
@@ -64,7 +76,19 @@ class ProductVariantsResource extends JsonResource
                 'short_description' => $this->variant->short_description,
                 'short_description_ar' => $this->variant->short_description_ar,
                 'image' => $image,
-                'gallery' => MediaResource::collection($media)
+                'gallery' => MediaResource::collection($media),
+                'packageInclude' => $this->variant->packageInclude,
+                'features' => $this->variant->features,
+                'documents' => $this->variant->documents,
+                'description' => $this->variant->description,
+                'datasheets' => $this->variant->datasheets,
+                'categories' => $this->variant->categories->map(function($e) {
+                    return [
+                        'id' => $e->id,
+                        'title' => $e->title,
+                        'slug' => $e->slug,
+                    ];
+                })
             ];
         }
 

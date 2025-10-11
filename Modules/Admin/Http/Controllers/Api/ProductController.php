@@ -368,6 +368,7 @@ class ProductController extends Controller
             'is_retired' => 'nullable|boolean',
             'replacement_item' => 'nullable|array',
             'hasVariants' => 'nullable|boolean',
+            'is_show_for_search' => 'nullable|boolean',
 
         ]);
     }

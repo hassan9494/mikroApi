@@ -10,6 +10,8 @@ use Modules\Shop\Entities\Category;
 use Modules\Shop\Entities\Invoice;
 use Modules\Shop\Entities\Order;
 use Modules\Shop\Entities\Product;
+use Modules\Shop\Entities\ProductVariant;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -422,5 +424,17 @@ Route::get('/generateUuid', function () {
     foreach ($orders as $order){
         $order->uuid = Str::uuid();
         $order->save();
+    }
+});
+
+Route::get('/fixSearchForColors', function () {
+    $colors = ProductVariant::all();
+    foreach ($colors as $color){
+        $parentProduct = Product::find($color->product_id);
+        $product = Product::find($color->color_id);
+        $product->is_show_for_search = false;
+        $parentProduct->colors_nick_names .= ' , ' . $color->name . ' , ' . $product->name;
+        $parentProduct->save();
+        $product->save();
     }
 });

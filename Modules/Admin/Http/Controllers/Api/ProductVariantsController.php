@@ -50,7 +50,7 @@ class ProductVariantsController extends Controller
      * @return JsonResponse
      */
     public function sales(): JsonResponse
-    {;
+    {
         return Datatable::make($this->repository->model())
             ->with(['completedOrders'])
             ->search('id', 'name', 'sku')

@@ -612,7 +612,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
 
 
-    public function old_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    public function simple_search($searchWord, $category, $limit = 20, $filter, $inStock = false)
     {
 //dd('test');
         $query = Product::query();
@@ -775,17 +775,49 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         return $query->paginate($limit);
     }
 
-    public function old_search2($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    public function search_with_priorities($searchWord, $category, $limit = 20, $filter, $inStock = false,$user=null)
     {
+        // Get current cache version
+        $cacheVersion = Cache::get('product_search_version', 1);
+
+        if ($user){
+            if ($user->hasRole('super') ||
+                $user->hasRole('admin') ||
+                $user->hasRole('Admin cash') ||
+                $user->hasRole('Manager') ||
+                $user->hasRole('Manager') ||
+                $user->hasRole('Cashier')  ||
+                $user->hasRole('Acountant')){
+                $cacheKey = 'product_search_employee_v' . $cacheVersion . '_' . md5(serialize([
+                        'search' => $searchWord,
+                        'category' => $category,
+                        'limit' => $limit,
+                        'filter' => $filter,
+                        'inStock' => $inStock,
+                        'page' => request()->get('page', 1)
+                    ]));
+            } else {
+                $cacheKey = 'product_search_user_v' . $cacheVersion . '_' . md5(serialize([
+                        'search' => $searchWord,
+                        'category' => $category,
+                        'limit' => $limit,
+                        'filter' => $filter,
+                        'inStock' => $inStock,
+                        'page' => request()->get('page', 1)
+                    ]));
+            }
+        } else {
+            $cacheKey = 'product_search_user_v' . $cacheVersion . '_' . md5(serialize([
+                    'search' => $searchWord,
+                    'category' => $category,
+                    'limit' => $limit,
+                    'filter' => $filter,
+                    'inStock' => $inStock,
+                    'page' => request()->get('page', 1)
+                ]));
+        }
         // Generate a unique cache key based on all search parameters
-        $cacheKey = 'product_search_' . md5(serialize([
-                'search' => $searchWord,
-                'category' => $category,
-                'limit' => $limit,
-                'filter' => $filter,
-                'inStock' => $inStock,
-                'page' => request()->get('page', 1)
-            ]));
+
 
         // Check if results are cached
         if (Cache::has($cacheKey)) {
@@ -798,8 +830,6 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         if ($searchWord) {
             // Normalize search query according to general notes
             $normalizedQuery = $this->normalizeSearchQuery($searchWord);
-
-//            dd($normalizedQuery);
             $searchTerms = array_filter(explode(' ', $normalizedQuery));
 
             // Minimum 2 characters required (general note #1)
@@ -816,7 +846,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
             $query->selectRaw(
                 "products.*, ($termCountExpression) * 1000000 +
-            CASE $excelPriorityCases ELSE 0 END as search_rank",
+        CASE $excelPriorityCases ELSE 0 END as search_rank",
                 $bindings
             );
 
@@ -826,17 +856,35 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     if (strlen($term) >= 2) {
                         $q->orWhere(function($innerQ) use ($term) {
                             $innerQ->where('name', 'LIKE', "%$term%")
+                                ->orWhere('colors_nick_names', 'LIKE', "%$term%")  // Added here
                                 ->orWhere('meta_title', 'LIKE', "%$term%")
                                 ->orWhere('meta_keywords', 'LIKE', "%$term%")
                                 ->orWhere('meta_description', 'LIKE', "%$term%")
                                 ->orWhere('sku', 'LIKE', "%$term%")
-                                ->orWhere('location', $term)
-                                ->orWhere('stock_location',$term)
+                                ->orWhere('location', 'LIKE', "%$term%")
+                                ->orWhere('stock_location', 'LIKE', "%$term%")
                                 ->orWhere('source_sku', 'LIKE', "%$term%");
                         });
                     }
                 }
             });
+
+            if ($user){
+                if ($user->hasRole('super') ||
+                $user->hasRole('admin') ||
+                    $user->hasRole('Admin cash') ||
+                    $user->hasRole('Manager') ||
+                    $user->hasRole('Manager') ||
+                    $user->hasRole('Cashier')  ||
+                    $user->hasRole('Acountant')){
+                $query->where('options->available',true);
+                }else{
+                    $query->where('options->available',true)->where('is_show_for_search',1);
+                }
+            }else{
+                $query->where('options->available',true)->where('is_show_for_search',1);
+            }
+
 
             $query->orderByDesc('search_rank');
         }
@@ -878,25 +926,25 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                 break;
             case 'price-high':
                 $query->orderByRaw('
-            CAST(
-                CASE
-                    WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
-                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
-                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
-                END
-            AS DECIMAL(10,2)) DESC
-        ');
+        CAST(
+            CASE
+                WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
+                THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+            END
+        AS DECIMAL(10,2)) DESC
+    ');
                 break;
             case "price-low":
                 $query->orderByRaw('
-            CAST(
-                CASE
-                    WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
-                    THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
-                    ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
-                END
-            AS DECIMAL(10,2)) ASC
-        ');
+        CAST(
+            CASE
+                WHEN CAST(JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price")) AS DECIMAL(10,2)) = 0
+                THEN JSON_UNQUOTE(JSON_EXTRACT(price, "$.normal_price"))
+                ELSE JSON_UNQUOTE(JSON_EXTRACT(price, "$.sale_price"))
+            END
+        AS DECIMAL(10,2)) ASC
+    ');
                 break;
             default:
                 if ($searchWord) {
@@ -928,8 +976,18 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     {
         $expressions = [];
 
-        $fields = ['name', 'meta_title', 'meta_keywords', 'meta_description',
-            'sku', 'source_sku', 'location', 'stock_location', 'short_description'];
+        $fields = [
+            'name',
+            'colors_nick_names',  // Added here
+            'meta_title',
+            'meta_keywords',
+            'meta_description',
+            'sku',
+            'source_sku',
+            'location',
+            'stock_location',
+            'short_description'
+        ];
 
         foreach ($searchTerms as $term) {
             $fieldConditions = [];
@@ -950,57 +1008,102 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     {
         $cases = [];
 
-        // Priority 1: Exact phrase match with case sensitivity
-        $cases[] = "WHEN name = ? THEN 10000";
+        // ========== EXACT MATCHES (HIGHEST PRIORITY) ==========
 
-        // Priority 2: Exact phrase match ignoring case
-        $cases[] = "WHEN LOWER(name) = LOWER(?) THEN 9000";
+        // Priority 1: Exact phrase match in name (case sensitive)
+        $cases[] = "WHEN name = ? THEN 100000";
 
-        // Priority 3: All words in exact order (adjacent)
-        $adjacentPattern = implode(' ', $searchTerms);
-        $cases[] = "WHEN name LIKE ? THEN 8500";
+        // Priority 2: Exact phrase match in name (case insensitive)
+        $cases[] = "WHEN LOWER(name) = LOWER(?) THEN 99000";
 
-        // Priority 4: All words in exact order (non-adjacent)
-        $nonAdjacentPattern = '%' . implode('%', $searchTerms) . '%';
-        $cases[] = "WHEN name LIKE ? THEN 8000";
+        // NEW: Priority 3: Exact phrase match in colors_nick_names (case sensitive)
+        $cases[] = "WHEN colors_nick_names = ? THEN 98500";
 
-        // Priority 5: All words in any order
+        // NEW: Priority 4: Exact phrase match in colors_nick_names (case insensitive)
+        $cases[] = "WHEN LOWER(colors_nick_names) = LOWER(?) THEN 98000";
+
+        // Priority 5: Exact phrase match in meta fields
+        $cases[] = "WHEN meta_title = ? OR meta_keywords = ? OR meta_description = ? THEN 97000";
+
+        // Priority 6: Exact phrase match in SKU fields
+        $cases[] = "WHEN sku = ? OR source_sku = ? OR location = ? OR stock_location = ? THEN 90000";
+
+        // Priority 7: Exact phrase match in short_description
+        $cases[] = "WHEN short_description = ? THEN 80000";
+
+        // ========== EXACT MATCH AT START OF FIELD ==========
+
+        // Priority 8: Exact phrase at start of name
+        $cases[] = "WHEN name LIKE ? THEN 75000";
+
+        // NEW: Priority 9: Exact phrase at start of colors_nick_names
+        $cases[] = "WHEN colors_nick_names LIKE ? THEN 74500";
+
+        // Priority 10: Exact phrase at start of meta fields
+        $cases[] = "WHEN meta_title LIKE ? OR meta_keywords LIKE ? OR meta_description LIKE ? THEN 74000";
+
+        // Priority 11: Exact phrase at start of SKU fields
+        $cases[] = "WHEN sku LIKE ? OR source_sku LIKE ? OR location LIKE ? OR stock_location LIKE ? THEN 73000";
+
+        // Priority 12: Exact phrase at start of short_description
+        $cases[] = "WHEN short_description LIKE ? THEN 72000";
+
+        // ========== EXACT MATCH ANYWHERE IN FIELD ==========
+
+        // Priority 13: Exact phrase anywhere in name
+        $cases[] = "WHEN name LIKE ? THEN 70000";
+
+        // NEW: Priority 14: Exact phrase anywhere in colors_nick_names
+        $cases[] = "WHEN colors_nick_names LIKE ? THEN 69500";
+
+        // Priority 15: Exact phrase anywhere in meta fields
+        $cases[] = "WHEN meta_title LIKE ? OR meta_keywords LIKE ? OR meta_description LIKE ? THEN 68000";
+
+        // Priority 16: Exact phrase anywhere in SKU fields
+        $cases[] = "WHEN sku LIKE ? OR source_sku LIKE ? OR location LIKE ? OR stock_location LIKE ? THEN 35000";
+
+        // Priority 17: Exact phrase anywhere in short_description
+        $cases[] = "WHEN short_description LIKE ? THEN 30000";
+
+        // ========== ALL WORDS IN ANY ORDER ==========
+
+        // Priority 18: All words in any order in name
         if (count($searchTerms) > 1) {
             $allWordsConditions = [];
             foreach ($searchTerms as $term) {
                 $allWordsConditions[] = "(name = ? OR name LIKE ? OR name LIKE ? OR name LIKE ?)";
             }
-            $cases[] = "WHEN " . implode(" AND ", $allWordsConditions) . " THEN 7500";
+            $cases[] = "WHEN " . implode(" AND ", $allWordsConditions) . " THEN 25000";
         }
 
-        // Priority 6: Single exact word match
+        // NEW: Priority 19: All words in any order in colors_nick_names
+        if (count($searchTerms) > 1) {
+            $allWordsConditions = [];
+            foreach ($searchTerms as $term) {
+                $allWordsConditions[] = "(colors_nick_names = ? OR colors_nick_names LIKE ? OR colors_nick_names LIKE ? OR colors_nick_names LIKE ?)";
+            }
+            $cases[] = "WHEN " . implode(" AND ", $allWordsConditions) . " THEN 24500";
+        }
+
+        // ========== SINGLE WORD MATCHES ==========
+
+        // Priority 20: Single exact word match in name
         $cases[] = "WHEN (name = ? OR name LIKE ? OR name LIKE ? OR name LIKE ?) THEN 5000";
 
-        // Priority 7: Partial word match (only if term is at least 3 characters)
-        if (count($searchTerms) > 0 && strlen($searchTerms[0]) >= 3) {
-            $cases[] = "WHEN name LIKE ? THEN 4000";
-        }
+        // NEW: Priority 21: Single exact word match in colors_nick_names
+        $cases[] = "WHEN (colors_nick_names = ? OR colors_nick_names LIKE ? OR colors_nick_names LIKE ? OR colors_nick_names LIKE ?) THEN 4500";
 
-        // Other fields with exact matching
-        $otherFields = [
-            'meta_title' => 3000,
-            'meta_keywords' => 2500,
-            'meta_description' => 2000,
-            'sku' => 1500,
-            'source_sku' => 1500,
-            'location' => 1000,
-            'stock_location' => 1000,
-            'short_description' => 500
-        ];
+        // Priority 22: Single exact word match in meta fields
+        $cases[] = "WHEN (meta_title = ? OR meta_title LIKE ? OR meta_title LIKE ? OR meta_title LIKE ?) OR (meta_keywords = ? OR meta_keywords LIKE ? OR meta_keywords LIKE ? OR meta_keywords LIKE ?) OR (meta_description = ? OR meta_description LIKE ? OR meta_description LIKE ? OR meta_description LIKE ?) THEN 4000";
 
-        foreach ($otherFields as $field => $weight) {
-            $cases[] = "WHEN ($field = ? OR $field LIKE ? OR $field LIKE ? OR $field LIKE ?) THEN $weight";
-            $cases[] = "WHEN $field LIKE ? THEN " . ($weight - 250); // Lower priority for partial matches
-        }
+        // Priority 23: Single exact word match in SKU fields
+        $cases[] = "WHEN (sku = ? OR sku LIKE ? OR sku LIKE ? OR sku LIKE ?) OR (source_sku = ? OR source_sku LIKE ? OR source_sku LIKE ? OR source_sku LIKE ?) OR (location = ? OR location LIKE ? OR location LIKE ? OR location LIKE ?) OR (stock_location = ? OR stock_location LIKE ? OR stock_location LIKE ? OR stock_location LIKE ?) THEN 3000";
+
+        // Priority 24: Single exact word match in short_description
+        $cases[] = "WHEN (short_description = ? OR short_description LIKE ? OR short_description LIKE ? OR short_description LIKE ?) THEN 2000";
 
         return implode(" ", $cases);
     }
-
     /**
      * Get all search bindings in the correct order for LIKE-based word boundaries
      */
@@ -1008,34 +1111,100 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     {
         $bindings = [];
 
-        // Bindings for term count expression
+        // Bindings for term count expression - ADD colors_nick_names to fields
         foreach ($searchTerms as $term) {
-            $fields = ['name', 'meta_title', 'meta_keywords', 'meta_description',
-                'sku', 'source_sku', 'location', 'stock_location', 'short_description'];
+            $fields = [
+                'name',
+                'colors_nick_names',  // Added here
+                'meta_title',
+                'meta_keywords',
+                'meta_description',
+                'sku',
+                'source_sku',
+                'location',
+                'stock_location',
+                'short_description'
+            ];
 
             foreach ($fields as $field) {
-                $bindings[] = $term; // For field = term
-                $bindings[] = "$term %"; // For term at start
-                $bindings[] = "% $term"; // For term at end
-                $bindings[] = "% $term %"; // For term in middle
+                $bindings[] = $term;
+                $bindings[] = "$term %";
+                $bindings[] = "% $term";
+                $bindings[] = "% $term %";
             }
         }
 
-        // Bindings for Excel priority cases
+        // ========== EXACT MATCHES BINDINGS ==========
 
-        // Priority 1 and 2 bindings
+        // Priority 1 & 2: Exact name matches
         $bindings[] = $normalizedQuery;
         $bindings[] = $normalizedQuery;
 
-        // Priority 3: Adjacent words
-        $adjacentPattern = '%' . implode(' ', $searchTerms) . '%';
-        $bindings[] = $adjacentPattern;
+        // NEW: Priority 3 & 4: Exact colors_nick_names matches
+        $bindings[] = $normalizedQuery;
+        $bindings[] = $normalizedQuery;
 
-        // Priority 4: Non-adjacent but in order
-        $nonAdjacentPattern = '%' . implode('%', $searchTerms) . '%';
-        $bindings[] = $nonAdjacentPattern;
+        // Priority 5: Exact meta field matches
+        $bindings[] = $normalizedQuery;
+        $bindings[] = $normalizedQuery;
+        $bindings[] = $normalizedQuery;
 
-        // Priority 5 bindings (only for multiple terms)
+        // Priority 6: Exact SKU field matches
+        $bindings[] = $normalizedQuery;
+        $bindings[] = $normalizedQuery;
+        $bindings[] = $normalizedQuery;
+        $bindings[] = $normalizedQuery;
+
+        // Priority 7: Exact short_description match
+        $bindings[] = $normalizedQuery;
+
+        // ========== EXACT MATCH AT START BINDINGS ==========
+
+        // Priority 8: Exact phrase at start of name
+        $bindings[] = $normalizedQuery . '%';
+
+        // NEW: Priority 9: Exact phrase at start of colors_nick_names
+        $bindings[] = $normalizedQuery . '%';
+
+        // Priority 10: Exact phrase at start of meta fields
+        $bindings[] = $normalizedQuery . '%';
+        $bindings[] = $normalizedQuery . '%';
+        $bindings[] = $normalizedQuery . '%';
+
+        // Priority 11: Exact phrase at start of SKU fields
+        $bindings[] = $normalizedQuery . '%';
+        $bindings[] = $normalizedQuery . '%';
+        $bindings[] = $normalizedQuery . '%';
+        $bindings[] = $normalizedQuery . '%';
+
+        // Priority 12: Exact phrase at start of short_description
+        $bindings[] = $normalizedQuery . '%';
+
+        // ========== EXACT MATCH ANYWHERE BINDINGS ==========
+
+        // Priority 13: Exact phrase anywhere in name
+        $bindings[] = '%' . $normalizedQuery . '%';
+
+        // NEW: Priority 14: Exact phrase anywhere in colors_nick_names
+        $bindings[] = '%' . $normalizedQuery . '%';
+
+        // Priority 15: Exact phrase anywhere in meta fields
+        $bindings[] = '%' . $normalizedQuery . '%';
+        $bindings[] = '%' . $normalizedQuery . '%';
+        $bindings[] = '%' . $normalizedQuery . '%';
+
+        // Priority 16: Exact phrase anywhere in SKU fields
+        $bindings[] = '%' . $normalizedQuery . '%';
+        $bindings[] = '%' . $normalizedQuery . '%';
+        $bindings[] = '%' . $normalizedQuery . '%';
+        $bindings[] = '%' . $normalizedQuery . '%';
+
+        // Priority 17: Exact phrase anywhere in short_description
+        $bindings[] = '%' . $normalizedQuery . '%';
+
+        // ========== ALL WORDS IN ANY ORDER BINDINGS ==========
+
+        // Priority 18: All words any order in name
         if (count($searchTerms) > 1) {
             foreach ($searchTerms as $term) {
                 $bindings[] = $term;
@@ -1045,28 +1214,51 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             }
         }
 
-        // Priority 6 binding
+        // NEW: Priority 19: All words any order in colors_nick_names
+        if (count($searchTerms) > 1) {
+            foreach ($searchTerms as $term) {
+                $bindings[] = $term;
+                $bindings[] = "$term %";
+                $bindings[] = "% $term";
+                $bindings[] = "% $term %";
+            }
+        }
+
+        // ========== SINGLE WORD MATCH BINDINGS ==========
+
+        // Priority 20: Single word in name
         $bindings[] = $searchTerms[0];
         $bindings[] = "{$searchTerms[0]} %";
         $bindings[] = "% {$searchTerms[0]}";
         $bindings[] = "% {$searchTerms[0]} %";
 
-        // Priority 7 binding (only if term is at least 3 characters)
-        if (count($searchTerms) > 0 && strlen($searchTerms[0]) >= 3) {
-            $bindings[] = "%" . substr($searchTerms[0], 0, 3) . "%";
+        // NEW: Priority 21: Single word in colors_nick_names
+        $bindings[] = $searchTerms[0];
+        $bindings[] = "{$searchTerms[0]} %";
+        $bindings[] = "% {$searchTerms[0]}";
+        $bindings[] = "% {$searchTerms[0]} %";
+
+        // Priority 22: Single word in meta fields
+        foreach (['meta_title', 'meta_keywords', 'meta_description'] as $field) {
+            $bindings[] = $searchTerms[0];
+            $bindings[] = "{$searchTerms[0]} %";
+            $bindings[] = "% {$searchTerms[0]}";
+            $bindings[] = "% {$searchTerms[0]} %";
         }
 
-        // Other fields bindings for exact matches
-        $otherFields = ['meta_title', 'meta_keywords', 'meta_description',
-            'sku', 'source_sku', 'location', 'stock_location', 'short_description'];
-
-        foreach ($otherFields as $field) {
-            $bindings[] = $normalizedQuery;
-            $bindings[] = "$normalizedQuery %";
-            $bindings[] = "% $normalizedQuery";
-            $bindings[] = "% $normalizedQuery %";
-            $bindings[] = "%$normalizedQuery%";
+        // Priority 23: Single word in SKU fields
+        foreach (['sku', 'source_sku', 'location', 'stock_location'] as $field) {
+            $bindings[] = $searchTerms[0];
+            $bindings[] = "{$searchTerms[0]} %";
+            $bindings[] = "% {$searchTerms[0]}";
+            $bindings[] = "% {$searchTerms[0]} %";
         }
+
+        // Priority 24: Single word in short_description
+        $bindings[] = $searchTerms[0];
+        $bindings[] = "{$searchTerms[0]} %";
+        $bindings[] = "% {$searchTerms[0]}";
+        $bindings[] = "% {$searchTerms[0]} %";
 
         return $bindings;
     }

@@ -33,6 +33,12 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
     public function create($data)
     {
         $product = Product::find($data['color_id']);
+        $parentProduct = Product::find($data['product_id']);
+        $parentProduct->colors_nick_names .= ' , ' . $data['name'] . ' , ' . $product->name;
+
+        $product->is_show_for_search = false;
+
+//        $parentProduct->colors_nick_names = $parentProduct->colors_nick_names + $data['name'] + $product->name;
         $data['short_description'] = $product->short_description;
         $data['short_description'] = $product->short_description;
         $data['price'] = $product->price;
@@ -49,7 +55,8 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
 
         // Create the model with the modified data
         $model = parent::create($data);
-
+        $parentProduct->save();
+        $product->save();
         // Attach categories
 
         return $model;
@@ -58,7 +65,25 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
 
     public function update($id, $data)
     {
+        $color = ProductVariant::find($id);
+        $oldProduct = Product::find($color->color_id);
         $product = Product::find($data['color_id']);
+        $parentProduct = Product::find($color->product_id);
+
+// Convert current names to array and remove empty values
+        $currentNames = array_filter(array_map('trim', explode(',', $parentProduct->colors_nick_names)));
+
+// Remove old names if they exist
+        $currentNames = array_filter($currentNames, function($name) use ($color, $oldProduct) {
+            return $name !== $color->name && $name !== $oldProduct->name;
+        });
+
+// Add new names
+        $currentNames[] = $data['name'];
+        $currentNames[] = $product->name;
+
+// Remove duplicates and update
+        $parentProduct->colors_nick_names = implode(' , ', array_unique($currentNames));
         $data['short_description'] = $product->short_description;
         $data['short_description'] = $product->short_description;
         $data['price'] = $product->price;
@@ -73,6 +98,8 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
         $data['source'] = $product->source;
         $data['location'] = $product->location;
         $model = parent::update($id, $data);
+        $parentProduct->save();
+        $product->save();
         return $model;
     }
 
