@@ -337,8 +337,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         $subtotal = 0;
         foreach ($items as $item) {
             $id = $item['id'];
-            $color_id = $item['color_id'];
-            $is_color= $item['is_color'];
+//            $color_id = $item['color_id'];
+//            $is_color= $item['is_color'];
             $quantity = $item['quantity'];
             $number = $item['number'];
             $discount = $item['discount'];
@@ -373,8 +373,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
                 'discount' => $discount,
                 'product_name' => $product_name,
                 'real_price' => $realPrice,
-                'is_color' => $is_color,
-                'color_id' => $color_id,
+//                'is_color' => $is_color,
+//                'color_id' => $color_id,
             ];
         }
 
