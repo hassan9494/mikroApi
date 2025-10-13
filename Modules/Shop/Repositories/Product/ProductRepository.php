@@ -871,13 +871,13 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
             if ($user){
                 if ($user->hasRole('super') ||
-                $user->hasRole('admin') ||
+                    $user->hasRole('admin') ||
                     $user->hasRole('Admin cash') ||
                     $user->hasRole('Manager') ||
                     $user->hasRole('Manager') ||
                     $user->hasRole('Cashier')  ||
                     $user->hasRole('Acountant')){
-                $query->where('options->available',true);
+                    $query->where('options->available',true);
                 }else{
                     $query->where('options->available',true)->where('is_show_for_search',1);
                 }
