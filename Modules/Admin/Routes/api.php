@@ -2,9 +2,11 @@
 
 use Modules\Admin\Http\Controllers\Api\ArticleController;
 use Modules\Admin\Http\Controllers\Api\AuthController;
+use Modules\Admin\Http\Controllers\Api\BoardController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
 use Modules\Admin\Http\Controllers\Api\SettingController;
+use Modules\Admin\Http\Controllers\Api\TaskAttachmentController;
 use Modules\Admin\Http\Controllers\Api\TaxExemptController;
 use Modules\Admin\Http\Controllers\Api\LocationController;
 use Modules\Admin\Http\Controllers\Api\CouponController;
@@ -32,6 +34,7 @@ use Modules\Admin\Http\Controllers\Api\TagController;
 use Modules\Admin\Http\Controllers\Api\UserController;
 use Modules\Admin\Http\Controllers\Api\PromotionController;
 use Modules\Admin\Http\Controllers\Api\SlideController;
+use Modules\Admin\Http\Controllers\Api\TaskController;
 
 /*
 |--------------------------------------------------------------------------
@@ -64,6 +67,65 @@ Route::prefix('admin')
 
         // Auth Routes.
         Route::get('auth', [AuthController::class, 'me']);
+
+        Route::prefix('tasks')->group(function () {
+            Route::get('/board', [TaskController::class, 'getBoardData']);
+            Route::get('/', [TaskController::class, 'index']);
+            Route::post('/', [TaskController::class, 'store']);
+
+            // Deleted tasks routes - place BEFORE wildcard routes
+            Route::get('/deleted', [TaskController::class, 'getDeletedTasks']);
+            Route::post('/{id}/restore', [TaskController::class, 'restoreTask']);
+            Route::delete('/{id}/force-delete', [TaskController::class, 'forceDeleteTask']);
+            Route::get('/available-users', [TaskController::class, 'getAvailableUsers']);
+            Route::get('/completed-grouped-by-week', [TaskController::class, 'getCompletedTasksGroupedByWeek']);
+
+            Route::post('/{taskId}/comments/{commentId}', [TaskController::class, 'updateComment']);
+            Route::delete('/{taskId}/comments/{commentId}', [TaskController::class, 'deleteComment']);
+
+            // Wildcard routes - place AFTER specific routes
+            Route::get('/{id}', [TaskController::class, 'show']);
+            Route::put('/{id}', [TaskController::class, 'update']);
+            Route::delete('/{id}', [TaskController::class, 'destroy']);
+
+            // Other routes...
+            Route::post('/{id}/move', [TaskController::class, 'moveTask']);
+            Route::post('/{id}/complete', [TaskController::class, 'completeTask']);
+            Route::post('/{id}/reopen', [TaskController::class, 'reopenTask']);
+            Route::post('/reorder', [TaskController::class, 'reorderTasks']);
+            Route::post('/{id}/comments', [TaskController::class, 'addComment']);
+            Route::post('/{id}/assignees', [TaskController::class, 'addAssignee']);
+            Route::delete('/{id}/assignees', [TaskController::class, 'removeAssignee']);
+            Route::post('/{id}/toggle-public', [TaskController::class, 'togglePublic']);
+        });
+
+        Route::prefix('tasks/{taskId}/attachments')->group(function () {
+            Route::get('/', [TaskAttachmentController::class, 'index']);
+            Route::post('/', [TaskAttachmentController::class, 'store']);
+            Route::delete('/{attachmentId}', [TaskAttachmentController::class, 'destroy']);
+            Route::get('/{attachmentId}/download', [TaskAttachmentController::class, 'download']);
+        });
+
+        Route::prefix('boards')->group(function () {
+            Route::get('/', [BoardController::class, 'index']);
+            Route::get('/stats', [BoardController::class, 'stats']);
+            Route::get('/trashed', [BoardController::class, 'trashed']);
+
+            // Super admin only routes
+            Route::middleware(['role:super'])->group(function () {
+                Route::post('/', [BoardController::class, 'store']);
+                Route::put('/{id}', [BoardController::class, 'update']);
+                Route::delete('/{id}', [BoardController::class, 'destroy']);
+                Route::post('/{id}/restore', [BoardController::class, 'restore']);
+                Route::delete('/{id}/force-delete', [BoardController::class, 'forceDelete']);
+                Route::post('/reorder', [BoardController::class, 'reorder']);
+            });
+        });
+
+
+
+
+
 
         // Category Routes.
         Route::get('category/datatable', [CategoryController::class, 'datatable']);

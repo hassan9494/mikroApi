@@ -5,6 +5,8 @@ namespace Modules\Shop\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\PersonalAccessToken;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Entities\Setting;
 use Modules\Shop\Http\Resources\ProductResource;
@@ -46,6 +48,18 @@ class ProductController extends Controller
      */
     public function index(): AnonymousResourceCollection
     {
+        $token = request()->bearerToken();
+
+        if ($token) {
+            // Find the token and authenticate the user
+            $accessToken = PersonalAccessToken::findToken($token);
+            if ($accessToken) {
+                $user = $accessToken->tokenable;
+                Auth::login($user);
+            }
+        }
+        $user = auth()->user();
+//        dd($user);
         $search = request()->get('search', '');
         $category = request()->get('category', '');
         $limit = request()->get('limit', 20);
@@ -111,9 +125,9 @@ class ProductController extends Controller
         if ($setting->value == 'elastic'){
             $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
         }else if ($setting->value == 'normalWithPriority'){
-            $items = $this->repository->old_search2($search, $category, $limit, $filter, $inStock);
+            $items = $this->repository->search_with_priorities($search, $category, $limit, $filter, $inStock,$user);
         }else{
-            $items = $this->repository->old_search($search, $category, $limit, $filter, $inStock);
+            $items = $this->repository->simple_search($search, $category, $limit, $filter, $inStock);
         }
 
         return ProductShortResource::collection($items);

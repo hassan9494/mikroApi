@@ -10,6 +10,7 @@ use Modules\Shop\Entities\Address;
 use Modules\Shop\Entities\Coupon;
 use Modules\Shop\Entities\Order;
 use Modules\Common\Repositories\City\CityRepositoryInterface;
+use Modules\Shop\Entities\ProductVariant;
 use Modules\Shop\Repositories\Coupon\CouponRepositoryInterface;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
@@ -293,6 +294,15 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         $subtotal = 0;
         foreach ($items as $item) {
             $id = $item['id'];
+//            $variant_id = $item['variant_id'];
+//            if ($variant_id){
+//                $variant = ProductVariant::find($variant_id);
+//                $id = $variant->color_id;
+//                $is_color= true;
+//            }else{
+//                $is_color= false;
+//            }
+
             $quantity = $item['quantity'];
 
             $product = $this->products->findOrFail($id);
@@ -306,6 +316,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
                 'quantity' => $quantity,
                 'price' => $product->calcPrice(1, null, $user),
                 'real_price' => $product->price->real_price,
+//                'color_id' => $variant_id,
+//                'is_color' => $is_color,
                 'product_name' => $product->name,
             ];
             $subtotal += $product->calcPrice($quantity, null, $user);
@@ -325,6 +337,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         $subtotal = 0;
         foreach ($items as $item) {
             $id = $item['id'];
+//            $color_id = $item['color_id'];
+//            $is_color= $item['is_color'];
             $quantity = $item['quantity'];
             $number = $item['number'];
             $discount = $item['discount'];
@@ -359,6 +373,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
                 'discount' => $discount,
                 'product_name' => $product_name,
                 'real_price' => $realPrice,
+//                'is_color' => $is_color,
+//                'color_id' => $color_id,
             ];
         }
 

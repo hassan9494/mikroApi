@@ -31,7 +31,7 @@ use App\Traits\Media;
 class Product extends Model implements HasMedia
 {
     use HasFactory;
-//    use Searchable;
+    use Searchable;
     use Stock;
     use Finance;
     use Media;
@@ -74,7 +74,9 @@ class Product extends Model implements HasMedia
         'stock_available',
         'stock_location',
         'store_location',
-        'purchases_qty'
+        'purchases_qty',
+        'is_show_for_search',
+        'colors_nick_names'
     ];
 
     protected $attributes = [
@@ -164,7 +166,8 @@ class Product extends Model implements HasMedia
         parent::booted();
         static::saved(function ($product) {
             try {
-                Cache::tags(['product_search'])->flush();
+                $currentVersion = Cache::get('product_search_version', 1);
+                Cache::forever('product_search_version', $currentVersion + 1);
                 if (config('scout.driver') === 'elasticsearch') {
                     // Use direct indexing instead of searchable()
                     $client = app('elasticsearch');
@@ -186,7 +189,8 @@ class Product extends Model implements HasMedia
 
         static::deleted(function ($product) {
             try {
-                Cache::tags(['product_search'])->flush();
+                $currentVersion = Cache::get('product_search_version', 1);
+                Cache::forever('product_search_version', $currentVersion + 1);
                 if (config('scout.driver') === 'elasticsearch') {
                     $client = app('elasticsearch');
                     $params = [
@@ -253,7 +257,7 @@ class Product extends Model implements HasMedia
             'order_products',
             'product_id',
             'order_id'
-        )->withPivot('price', 'quantity', 'real_price','product_name','number','discount');
+        )->withPivot('price', 'quantity', 'real_price','product_name','number','discount','is_color','color_id');
     }
 
     /**
@@ -374,6 +378,11 @@ class Product extends Model implements HasMedia
     public function product_variants()
     {
         return $this->hasMany(ProductVariant::class,'product_id');
+    }
+
+    public function parent()
+    {
+        return $this->hasOne(ProductVariant::class,'color_id');
     }
 
     public function search()

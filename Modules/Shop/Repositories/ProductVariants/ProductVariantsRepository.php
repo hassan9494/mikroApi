@@ -6,6 +6,7 @@ use App\Repositories\Base\EloquentRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
+use Modules\Shop\Entities\Product;
 use Modules\Shop\Entities\ProductVariant;
 
 /**
@@ -31,19 +32,32 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
 
     public function create($data)
     {
-        // Extract the ID of the first replacement item if it exists
-        if (!empty($data['replacement_item'])) {
-            $data['replacement_item'] = $data['replacement_item'][0]['id'];
-        }
+        $product = Product::find($data['color_id']);
+        $parentProduct = Product::find($data['product_id']);
+        $parentProduct->colors_nick_names .= ' , ' . $data['name'] . ' , ' . $product->name;
+
+        $product->is_show_for_search = false;
+
+//        $parentProduct->colors_nick_names = $parentProduct->colors_nick_names + $data['name'] + $product->name;
+        $data['short_description'] = $product->short_description;
+        $data['short_description'] = $product->short_description;
+        $data['price'] = $product->price;
+        $data['stock'] = $product->stock;
+        $option['available'] =$product->options->available;
+        $option['featured'] =$product->options->featured;
+        $data['options'] = $option;
+        $data['listPriority'] = $product->listPriority;
+        $data['maxCartAmount'] = $product->maxCartAmount;
+        $data['min_qty'] = $product->min_qty;
+        $data['is_retired'] = $product->is_retired;
+        $data['source'] = $product->source;
+        $data['location'] = $product->location;
 
         // Create the model with the modified data
         $model = parent::create($data);
-
+        $parentProduct->save();
+        $product->save();
         // Attach categories
-
-
-        // Sync media
-        $model->syncMedia($data['media'] ?? []);
 
         return $model;
     }
@@ -51,24 +65,42 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
 
     public function update($id, $data)
     {
-        // Extract the ID of the first replacement item if it exists
-        if (!empty($data['replacement_item'])) {
-            $data['replacement_item'] = $data['replacement_item'][0]['id'];
-        }
+        $color = ProductVariant::find($id);
+        $oldProduct = Product::find($color->color_id);
+        $product = Product::find($data['color_id']);
+        $parentProduct = Product::find($color->product_id);
+
+// Convert current names to array and remove empty values
+        $currentNames = array_filter(array_map('trim', explode(',', $parentProduct->colors_nick_names)));
+
+// Remove old names if they exist
+        $currentNames = array_filter($currentNames, function($name) use ($color, $oldProduct) {
+            return $name !== $color->name && $name !== $oldProduct->name;
+        });
+
+// Add new names
+        $currentNames[] = $data['name'];
+        $currentNames[] = $product->name;
+
+// Remove duplicates and update
+        $parentProduct->colors_nick_names = implode(' , ', array_unique($currentNames));
+        $data['short_description'] = $product->short_description;
+        $data['short_description'] = $product->short_description;
+        $data['price'] = $product->price;
+        $data['stock'] = $product->stock;
+        $option['available'] =$product->options->available;
+        $option['featured'] =$product->options->featured;
+        $data['options'] = $option;
+        $data['listPriority'] = $product->listPriority;
+        $data['maxCartAmount'] = $product->maxCartAmount;
+        $data['min_qty'] = $product->min_qty;
+        $data['is_retired'] = $product->is_retired;
+        $data['source'] = $product->source;
+        $data['location'] = $product->location;
         $model = parent::update($id, $data);
-
-        if ($data['categories'] ?? false)
-            $model->categories()->sync($data['categories']);
-
-        $kit = [];
-        if ($data['kit'] ?? false) {
-            foreach ($data['kit'] as $item) {
-                $kit[$item['id']] = Arr::only($item, 'quantity');
-            }
-        }
-        if (count($kit) != 0)
-            $model->kit()->sync($kit);
-        $model->syncMedia($data['media'] ?? []);
+        $parentProduct->save();
+        $product->save();
+        return $model;
     }
 
     /**

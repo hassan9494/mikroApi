@@ -30,35 +30,65 @@ class ProductVariantsResource extends JsonResource
             }
         }
         $user = auth()->user();
-        $media = $this->getMedia();
+        $media = $this->variant->getMedia();
         $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
         if (isset($user) && $user->hasRole(['Distributer'])){
             return [
                 'id' => $this->id,
+                'color_id' => $this->variant->id,
                 'title' => $this->name,
-                'availableQty' => $this->stock,
-                'is_available' => $this->options->available,
-                'is_retired' => $this->is_retired,
-                'price' => $this->price->normal_price,
-                'location' => $this->location,
-                'sale_price' => $this->price->distributor_price ?: null,
-                'short_description' => $this->short_description,
+                'name' => $this->variant->name,
+                'availableQty' => $this->variant->stock,
+                'is_available' => $this->variant->options->available,
+                'is_retired' => $this->variant->is_retired,
+                'price' => $this->variant->price->normal_price,
+                'location' => $this->variant->location,
+                'sale_price' => $this->variant->price->distributor_price ?: null,
+                'short_description' => $this->variant->short_description,
+                'short_description_ar' => $this->variant->short_description_ar,
                 'image' => $image,
-                'gallery' => MediaResource::collection($media)
+                'gallery' => MediaResource::collection($media),
+                'packageInclude' => $this->variant->packageInclude,
+                'features' => $this->variant->features,
+                'documents' => $this->variant->documents,
+                'description' => $this->variant->description,
+                'datasheets' => $this->variant->datasheets,
+                'categories' => $this->variant->categories->map(function($e) {
+                    return [
+                        'id' => $e->id,
+                        'title' => $e->title,
+                        'slug' => $e->slug,
+                    ];
+                }),
             ];
         }else {
             return [
                 'id' => $this->id,
+                'color_id' => $this->variant->id,
                 'title' => $this->name,
-                'availableQty' => $this->stock,
-                'location' => $this->location,
-                'is_available' => $this->options->available,
-                'is_retired' => $this->is_retired,
-                'price' => $this->price->normal_price,
-                'sale_price' => $this->price->sale_price ?: null,
-                'short_description' => $this->short_description,
+                'name' => $this->variant->name,
+                'availableQty' => $this->variant->stock,
+                'location' => $this->variant->location,
+                'is_available' => $this->variant->options->available,
+                'is_retired' => $this->variant->is_retired,
+                'price' => $this->variant->price->normal_price,
+                'sale_price' => $this->variant->price->sale_price ?: null,
+                'short_description' => $this->variant->short_description,
+                'short_description_ar' => $this->variant->short_description_ar,
                 'image' => $image,
-                'gallery' => MediaResource::collection($media)
+                'gallery' => MediaResource::collection($media),
+                'packageInclude' => $this->variant->packageInclude,
+                'features' => $this->variant->features,
+                'documents' => $this->variant->documents,
+                'description' => $this->variant->description,
+                'datasheets' => $this->variant->datasheets,
+                'categories' => $this->variant->categories->map(function($e) {
+                    return [
+                        'id' => $e->id,
+                        'title' => $e->title,
+                        'slug' => $e->slug,
+                    ];
+                })
             ];
         }
 

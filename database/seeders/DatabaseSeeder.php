@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
-        $this->call(AssignStock3PermissionsSeeder::class);
+        $this->call(BoardSeeder::class);
 //        Role::create(['name' => 'super']);
 //        Role::create(['name' => 'admin']);
 //        Role::create(['name' => 'user']);

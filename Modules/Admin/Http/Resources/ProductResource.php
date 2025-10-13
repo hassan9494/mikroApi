@@ -73,6 +73,7 @@ class ProductResource extends JsonResource
             'location' => $this->location,
             'stock_location' => $this->stock_location,
             'order_qty' => $this->order_qty,
+            'is_show_for_search' => $this->is_show_for_search,
 
         ];
     }

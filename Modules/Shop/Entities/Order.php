@@ -183,7 +183,7 @@ class Order extends Model implements HasMedia
             'order_products',
             'order_id',
             'product_id'
-        )->withTrashed()->withPivot('price', 'quantity', 'real_price','product_name','number','discount');
+        )->withTrashed()->withPivot('price', 'quantity', 'real_price','product_name','number','discount','is_color','color_id');
     }
 
     /**

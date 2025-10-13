@@ -17,12 +17,13 @@ class DatatableProductVariantResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->name,
-            'short_description' => $this->short_description,
-            'stock' => $this->stock,
-            'min_qty' => $this->min_qty,
-            'price' => $this->price,
-            'image' => $this->getFirstMediaUrl(),
+            'variant_name' => $this->name,
+            'name' => $this->variant->name,
+            'short_description' => $this->variant->short_description,
+            'stock' => $this->variant->stock,
+            'min_qty' => $this->variant->min_qty,
+            'price' => $this->variant->price,
+            'image' => $this->variant->getFirstMediaUrl(),
             'product_id' => $this->product_id
 //            'sales' => $this->completedOrders,
 //            'brand_id' => $this->brand_id,
