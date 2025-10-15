@@ -4,6 +4,7 @@
 namespace Modules\Shop\Http\Controllers\Api;
 
 use App\Traits\ApiResponser;
+use AWS\CRT\Log;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
@@ -83,26 +84,32 @@ class OrderController extends Controller
         }
         $user=Auth::user();
         foreach ($data['products'] as $product){
+            \Log::info('product :'.json_encode($product));
 //            if ($product['variant_id']){
 //               $variant = ProductVariant::find($product['variant_id']);
 //               $prod = Product::find($variant->color_id);
 //            }else{
-                $prod = Product::find($product['id']);
+//                $prod = Product::find($product['id']);
 //            }
-
-            if ($prod->stock < $product['quantity']){
-                throw new BadRequestException($prod->name . ' has insufficient quantity');
-            }
-            if ($prod->options->kit == true){
-                $kits = $prod->kit()->get();
+            if (isset($product['id'])){
+                $prod = Product::find($product['id']);
+                if ($prod->stock < $product['quantity']){
+                    throw new BadRequestException($prod->name . ' has insufficient quantity');
+                }
+                if ($prod->options->kit == true){
+                    $kits = $prod->kit()->get();
 //                        return response()->json($kits);
-                foreach ($kits as $kit){
+                    foreach ($kits as $kit){
 //                            return response()->json($kit->name);
-                    if ($kit->pivot->quantity * $product['quantity'] > $kit->stock){
-                        throw new BadRequestException($kit->name . ' Which is kit has insufficient quantity');
+                        if ($kit->pivot->quantity * $product['quantity'] > $kit->stock){
+                            throw new BadRequestException($kit->name . ' Which is kit has insufficient quantity');
+                        }
                     }
                 }
+            }else{
+                \Log::error('product has error :'.json_encode($product));
             }
+
         }
 //        dd($prod);
         $order = $this->repository->makeByUser($data, Auth::user()->primaryAddress,$user);
