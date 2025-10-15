@@ -31,6 +31,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use ZipArchive;
+use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
@@ -848,4 +849,157 @@ class ReportController extends Controller
             ->resource(ProductSalesReportResource::class)
             ->json();
     }
+
+    public function purchasesByProduct(Request $request)
+    {
+        try {
+            $query = DB::table('invoice_products as ip')
+                ->join('products as p', 'ip.product_id', '=', 'p.id')
+                ->join('invoices as i', 'ip.invoice_id', '=', 'i.id')
+                ->select(
+                    'p.id as product_id',
+                    'p.name as product_name',
+                    'p.sku as product_sku',
+                    'p.image as product_image',
+                    DB::raw('SUM(ip.quantity) as total_quantity'),
+                    DB::raw('AVG(ip.purchases_price) as avg_purchase_price'),
+                    DB::raw('SUM(ip.quantity * ip.purchases_price) as total_amount'),
+                    DB::raw('COUNT(DISTINCT ip.invoice_id) as invoices_count'),
+                    DB::raw('MAX(i.date) as latest_invoice_date'),
+                    DB::raw('MIN(i.date) as first_invoice_date'),
+                    DB::raw('COUNT(DISTINCT YEAR(i.date), MONTH(i.date)) as purchase_months')
+                )
+                ->where('i.status', 'COMPLETED')
+                ->groupBy('p.id', 'p.name', 'p.sku', 'p.image');
+
+            // FIXED: Proper date filtering using invoice date
+            if ($request->has('from') && !empty($request->from) && $request->from !== 'undefined') {
+                $query->whereDate('i.date', '>=', $request->from);
+            }
+
+            if ($request->has('to') && !empty($request->to) && $request->to !== 'undefined') {
+                $query->whereDate('i.date', '<=', $request->to);
+            }
+
+
+            // Search
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('p.name', 'like', "%{$search}%")
+                        ->orWhere('p.sku', 'like', "%{$search}%");
+                });
+            }
+
+            // Order by
+            $totalQuery = clone $query;
+            $total = count($totalQuery->get());
+
+            // Force the order by latest_invoice_date DESC
+            $query->orderBy('latest_invoice_date', 'DESC');
+
+
+            // Pagination
+            $page = $request->get('page', 0);
+            $limit = $request->get('limit', 10);
+            $offset = $page * $limit;
+
+//            $total = $query->count();
+
+            $items = $query->offset($offset)->limit($limit)->get();
+// Log the results for debugging
+            \Log::info('Purchases report results count: ' . count($items));
+            if (count($items) > 0) {
+                \Log::info('First item dates - Latest: ' . $items[0]->latest_invoice_date . ', First: ' . $items[0]->first_invoice_date);
+            }
+
+            return response()->json([
+                'data' => [
+                    'items' => $items,
+                    'total' => $total
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in purchasesByProduct: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+
+
+            return response()->json([
+                'message' => 'Error fetching purchases data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function productPurchases(Request $request)
+    {
+        try {
+            $query = DB::table('invoice_products as ip')
+                ->join('invoices as i', 'ip.invoice_id', '=', 'i.id')
+                ->select(
+                    'i.id as invoice_id',
+                    'i.number as invoice_number',
+                    'i.date as invoice_date',
+                    'i.name as invoice_name',
+                    'i.status as invoice_status',
+                    'ip.quantity',
+                    'ip.purchases_price',
+                    DB::raw('ip.quantity * ip.purchases_price as total_amount'),
+                    'ip.product_name',
+                    'ip.product_id'
+                )
+                ->where('i.status', 'COMPLETED'); // Only completed
+
+            // Product filter
+            if ($request->has('product_id') && !empty($request->product_id) && $request->product_id !== 'undefined') {
+                $query->where('ip.product_id', $request->product_id);
+            }
+
+            // FIXED: Proper date filtering using invoice date
+            if ($request->has('from') && !empty($request->from) && $request->from !== 'undefined') {
+                $query->whereDate('i.date', '>=', $request->from);
+            }
+
+            if ($request->has('to') && !empty($request->to) && $request->to !== 'undefined') {
+                $query->whereDate('i.date', '<=', $request->to);
+            }
+
+
+            // Search
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('i.number', 'like', "%{$search}%")
+                        ->orWhere('i.name', 'like', "%{$search}%");
+                });
+            }
+
+            // Order by
+            $query->orderBy('i.date', 'desc')->orderBy('i.id', 'desc');
+
+            // Pagination
+            $page = $request->get('page', 0);
+            $limit = $request->get('limit', 10);
+            $offset = $page * $limit;
+
+            $total = $query->count();
+
+            $items = $query->offset($offset)->limit($limit)->get();
+
+            return response()->json([
+                'data' => [
+                    'items' => $items,
+                    'total' => $total
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error fetching product purchases data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }
