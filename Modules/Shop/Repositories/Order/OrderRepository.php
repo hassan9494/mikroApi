@@ -293,7 +293,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         $products = [];
         $subtotal = 0;
         foreach ($items as $item) {
-            $id = $item['id'];
+            if (isset($item['id'])){
+                $id = $item['id'];
 //            $variant_id = $item['variant_id'];
 //            if ($variant_id){
 //                $variant = ProductVariant::find($variant_id);
@@ -303,24 +304,26 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 //                $is_color= false;
 //            }
 
-            $quantity = $item['quantity'];
+                $quantity = $item['quantity'];
 
-            $product = $this->products->findOrFail($id);
+                $product = $this->products->findOrFail($id);
 
-            if (!$product->checkStock($quantity))
-                throw new BadRequestException($product->name . ' has insufficient quantity');
+                if (!$product->checkStock($quantity))
+                    throw new BadRequestException($product->name . ' has insufficient quantity');
 
 
 
-            $products[$id] = [
-                'quantity' => $quantity,
-                'price' => $product->calcPrice(1, null, $user),
-                'real_price' => $product->price->real_price,
+                $products[$id] = [
+                    'quantity' => $quantity,
+                    'price' => $product->calcPrice(1, null, $user),
+                    'real_price' => $product->price->real_price,
 //                'color_id' => $variant_id,
 //                'is_color' => $is_color,
-                'product_name' => $product->name,
-            ];
-            $subtotal += $product->calcPrice($quantity, null, $user);
+                    'product_name' => $product->name,
+                ];
+                $subtotal += $product->calcPrice($quantity, null, $user);
+            }
+
 
         }
         return compact('products', 'subtotal');
