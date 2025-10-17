@@ -100,6 +100,11 @@ class OrderController extends ApiAdminController
                     }
                 }
             }
+            else{
+                foreach ($conditions as $key => $value) {
+                    $query->where($key, $value);
+                }
+            }
         }
 
         // Apply ordering
@@ -375,6 +380,7 @@ class OrderController extends ApiAdminController
             'options.price_offer' => 'required|boolean',
             'options.pricing' => 'nullable|string',
             'options.tax_zero' => 'nullable|boolean',
+            'pending' => 'nullable|boolean',
 
             'coupon_id' => 'nullable|exists:coupons,id',
             'discount' => 'required|numeric',

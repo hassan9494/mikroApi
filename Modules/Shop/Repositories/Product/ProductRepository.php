@@ -845,6 +845,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $bindings = $this->getSearchBindings($searchTerms, $normalizedQuery);
 
             $query->selectRaw(
+                "products.*,
+            (($termCountExpression) * 1000000 +
+            CASE $excelPriorityCases ELSE 0 END) * (COALESCE(search_factor, 50) / 50) as search_rank",
+                $bindings
+            );
+            $query->selectRaw(
                 "products.*, ($termCountExpression) * 1000000 +
         CASE $excelPriorityCases ELSE 0 END as search_rank",
                 $bindings

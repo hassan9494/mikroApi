@@ -19,6 +19,7 @@ class Outlay extends Model implements HasMedia
         'type',
         'sub_type',
         'total_amount',
+        'tax_number',
         'tax'
     ];
 

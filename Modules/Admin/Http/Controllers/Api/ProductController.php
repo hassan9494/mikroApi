@@ -362,6 +362,7 @@ class ProductController extends Controller
             'source_sku' => 'nullable|max:255',
             'min_qty' => 'required',
             'order_qty' => 'numeric|nullable',
+            'search_factor' => 'numeric|nullable',
             'maxCartAmount' => 'nullable',
             'brand_id' => 'nullable|integer',
             'source_id' => 'nullable|integer',

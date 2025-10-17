@@ -32,6 +32,7 @@ class ProductResource extends JsonResource
             'code' => $this->code,
             'documents' => $this->documents,
             'min_qty' => $this->min_qty,
+            'search_factor' => $this->search_factor,
 
             'kit' => $this->kit()->get()->map(function ($e) {
                 return [

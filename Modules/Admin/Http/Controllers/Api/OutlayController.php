@@ -27,6 +27,7 @@ class OutlayController extends ApiAdminController
             'amount' => $model->amount,
             'date' => $model->date,
             'invoice' => $model->invoice,
+            'tax_number' => $model->tax_number,
             'media' => MediaResource::collection($model->media),
             'notes' => $model->notes,
             'type' => $model->type,
@@ -78,6 +79,7 @@ class OutlayController extends ApiAdminController
             'tax' => 'nullable',
             'sub_type' => 'required',
             'invoice' => 'nullable',
+            'tax_number' => 'nullable',
             'notes' => 'nullable',
             'media' => 'nullable|array',
         ]);
