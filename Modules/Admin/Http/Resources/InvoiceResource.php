@@ -45,6 +45,8 @@ class InvoiceResource extends JsonResource
                 'source_sku' => $product->pivot->source_sku,
                 'quantity' => $product->pivot->quantity,
                 'purchases_price' => $product->pivot->purchases_price,
+                'base_purchases_price' => $product->pivot->base_purchases_price,
+                'exchange_factor' => $product->pivot->exchange_factor,
                 'distributer_price' => $product->pivot->distributer_price,
                 'normal' => $product->pivot->normal,
                 'sale_price' => $product->pivot->sale_price,

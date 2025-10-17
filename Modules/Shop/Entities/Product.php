@@ -53,6 +53,8 @@ class Product extends Model implements HasMedia
         'min_qty',
         'code',
         'price',
+        'exchange_factor',
+        'base_purchases_price',
         'stock',
         'packageInclude',
         'datasheets',
@@ -300,7 +302,9 @@ class Product extends Model implements HasMedia
                 'source_sku',
                 'normal',
                 'sale_price',
-                'product_name'
+                'product_name',
+                'base_purchases_price',
+                'exchange_factor'
             ]);
     }
 
