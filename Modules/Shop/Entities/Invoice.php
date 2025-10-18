@@ -25,7 +25,7 @@ class Invoice extends Model implements HasMedia
 {
     use Media;
 
-    protected $fillable = ['name','number','date','status','completed_at','note','source_id'];
+    protected $fillable = ['name','tax_number','number','date','status','completed_at','note','source_id','exchange_factor'];
 
 
     /**

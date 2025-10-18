@@ -52,9 +52,12 @@ class OrderController extends ApiAdminController
 
         // Apply search conditions
         if (!empty($search)) {
+//            dd($search);
             $query->where(function($q) use ($search) {
-                $q->where('id', 'LIKE', "%$search%")
+                $q->where('id', '=', $search)
+                    ->orWhereRaw('CAST(id AS CHAR) LIKE ?', ["%$search%"])
                     ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.name"))) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.email"))) LIKE ?', ['%' . strtolower($search) . '%'])
                     ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.phone"))) LIKE ?', ['%' . strtolower($search) . '%'])
                     ->orWhere('tax_number', 'LIKE', "%$search%")
                     ->orWhereRaw('LOWER(status) LIKE ?', ['%' . strtolower($search) . '%'])
@@ -67,6 +70,7 @@ class OrderController extends ApiAdminController
         if (!empty($conditions)) {
             // If conditions is an associative array (object format)
             if (isset($conditions['status']) || isset($conditions['options->taxed'])) {
+
                 foreach ($conditions as $key => $value) {
                     if (str_contains($key, '->')) {
                         $query->where("$key", $value);
@@ -77,6 +81,7 @@ class OrderController extends ApiAdminController
             }
             // If conditions is an array of condition objects
             else if (is_array($conditions) && isset($conditions[0]['col'])) {
+
                 foreach ($conditions as $condition) {
                     if (isset($condition['col']) && isset($condition['op']) && isset($condition['val'])) {
                         $column = $condition['col'];
@@ -102,7 +107,15 @@ class OrderController extends ApiAdminController
             }
             else{
                 foreach ($conditions as $key => $value) {
-                    $query->where($key, $value);
+                    if ($key == 'not_admin' && $value == 1){
+                        $query->where(function ($q) {
+                            $q->where('status', '!=', 'completed')
+                                ->orWhere('options->taxed', true);
+                        });
+                    }else{
+                        $query->where($key, $value);
+                    }
+
                 }
             }
         }

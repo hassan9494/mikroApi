@@ -33,55 +33,65 @@ class SettingController extends ApiAdminController
                     'message' => 'Setting not found'
                 ], 404);
             }
+            if ($id == 1){
+                $elasticBaseUrl = 'http://134.209.88.205:9200';
+                $auth = ['elastic', 'MIkroelectron@123mikro'];
 
-            $elasticBaseUrl = 'http://134.209.88.205:9200';
-            $auth = ['elastic', 'MIkroelectron@123mikro'];
+                // Get multiple Elasticsearch endpoints for comprehensive monitoring
+                $endpoints = [
+                    'cluster_health' => '/_cluster/health',
+                    'last_products_stats' => '/last_products/_stats',
+                    'last_products_health' => '/last_products/_health',
+                    'last_products_settings' => '/last_products/_settings',
+                    'last_products_mapping' => '/last_products/_mapping',
+                    'nodes_stats' => '/_nodes/stats',
+                    'indices_stats' => '/_stats'
+                ];
 
-            // Get multiple Elasticsearch endpoints for comprehensive monitoring
-            $endpoints = [
-                'cluster_health' => '/_cluster/health',
-                'last_products_stats' => '/last_products/_stats',
-                'last_products_health' => '/last_products/_health',
-                'last_products_settings' => '/last_products/_settings',
-                'last_products_mapping' => '/last_products/_mapping',
-                'nodes_stats' => '/_nodes/stats',
-                'indices_stats' => '/_stats'
-            ];
+                $elasticData = [];
 
-            $elasticData = [];
+                foreach ($endpoints as $key => $endpoint) {
+                    try {
+                        $response = Http::withBasicAuth($auth[0], $auth[1])
+                            ->timeout(15)
+                            ->get($elasticBaseUrl . $endpoint);
 
-            foreach ($endpoints as $key => $endpoint) {
-                try {
-                    $response = Http::withBasicAuth($auth[0], $auth[1])
-                        ->timeout(15)
-                        ->get($elasticBaseUrl . $endpoint);
-
-                    if ($response->successful()) {
-                        $elasticData[$key] = $response->json();
-                    } else {
+                        if ($response->successful()) {
+                            $elasticData[$key] = $response->json();
+                        } else {
+                            $elasticData[$key] = [
+                                'error' => 'Failed to fetch ' . $key,
+                                'status' => $response->status()
+                            ];
+                        }
+                    } catch (\Exception $e) {
                         $elasticData[$key] = [
-                            'error' => 'Failed to fetch ' . $key,
-                            'status' => $response->status()
+                            'error' => 'Exception fetching ' . $key,
+                            'message' => $e->getMessage()
                         ];
                     }
-                } catch (\Exception $e) {
-                    $elasticData[$key] = [
-                        'error' => 'Exception fetching ' . $key,
-                        'message' => $e->getMessage()
-                    ];
+
+                    // Small delay between requests
+                    usleep(100000); // 0.1 second
                 }
 
-                // Small delay between requests
-                usleep(100000); // 0.1 second
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'setting' => $setting,
+                        'elastic_monitoring' => $elasticData
+                    ]
+                ]);
+            }else{
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'setting' => $setting,
+                    ]
+                ]);
             }
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'setting' => $setting,
-                    'elastic_monitoring' => $elasticData
-                ]
-            ]);
+
 
         } catch (\Exception $e) {
             Log::error('Error fetching monitoring data: ' . $e->getMessage());
@@ -97,9 +107,16 @@ class SettingController extends ApiAdminController
 
     public function update($id): JsonResponse
     {
-        $data = $this->validate();
-        $setting = Setting::find($id);
-        $setting->value = $data['searchType'];
+        if ($id == 1){
+            $data = $this->validate();
+            $setting = Setting::find($id);
+            $setting->value = $data['searchType'];
+        }else{
+            $data = $this->validate2();
+            $setting = Setting::find($id);
+            $setting->value = $data['value'];
+        }
+
         $setting->save();
         return $this->success($setting);
     }
@@ -162,6 +179,17 @@ class SettingController extends ApiAdminController
     {
         return request()->validate([
             'searchType' => 'required|max:255',
+        ]);
+    }
+
+
+    /**
+     * @return array
+     */
+    public function validate2(): array
+    {
+        return request()->validate([
+            'value' => 'required|numeric',
         ]);
     }
 

@@ -215,6 +215,8 @@ class ProductController extends Controller
                 'source_sku' => $product->source_sku,
                 'location' => $product->location,
                 'purchases_price'=>(float)$product->price->real_price,
+                'base_purchases_price'=>(float)$product->base_purchases_price,
+                'exchange_factor'=>(float)$product->exchange_factor,
                 'distributer_price'=>(float)$product->price->distributor_price,
                 'normal'=>(float)$product->price->normal_price,
                 'sale_price'=>(float)$product->price->sale_price,

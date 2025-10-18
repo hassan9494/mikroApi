@@ -11,6 +11,7 @@ use Modules\Common\Entities\City;
 use Modules\Common\Entities\Link;
 use Modules\Common\Entities\Promotion;
 use Modules\Common\Entities\Slide;
+use Modules\Shop\Entities\Setting;
 
 class WebsiteController extends Controller
 {
@@ -81,6 +82,20 @@ class WebsiteController extends Controller
                 'whatsapp' => $model->whatsapp,
                 'youtube' => $model->youtube,
                 'call' => $model->call,
+            ];
+        return $this->success($data);
+    }
+
+    /**
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function setting()
+    {
+        $model = Setting::find(2);
+        $data = [];
+
+                $data = [
+                'value' => $model->value,
             ];
         return $this->success($data);
     }

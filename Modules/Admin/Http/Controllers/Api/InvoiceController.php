@@ -2,13 +2,17 @@
 
 namespace Modules\Admin\Http\Controllers\Api;
 
+use App\Traits\ApiResponser;
 use App\Traits\Datatable;
+use http\Env\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\UnauthorizedException;
 use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\InvoiceResource;
 use Modules\Shop\Repositories\Invoice\InvoiceRepositoryInterface;
 use Modules\Shop\Support\Enums\InvoiceStatus;
+use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 
 class InvoiceController extends ApiAdminController
 {
@@ -28,7 +32,18 @@ class InvoiceController extends ApiAdminController
      */
     public function show($id)
     {
+        $user = auth()->user();
+        $canShowComplete = $user->hasPermissionTo('show_completed_invoices','web');
         $model = $this->repository->findOrFail($id);
+        if ($model->status == 'COMPLETED'){
+          if (!$canShowComplete){
+              return \response()->json([
+                  'data' => null,
+                  'message' => 'test',
+                  'code' => 401
+              ],403);
+          }
+        }
         return new InvoiceResource($model);
     }
 
@@ -122,8 +137,9 @@ class InvoiceController extends ApiAdminController
         return request()->validate([
             'note' => 'nullable|max:500',
             'number' => 'nullable|max:500',
+            'tax_number' => 'nullable|numeric',
+            'exchange_factor' => 'nullable|numeric',
             'name' => 'nullable|max:500',
-
             'date' => 'nullable',
             'products.*.id' => 'exists:products,id',
             'products.*.purchases_price' => 'required|numeric',
