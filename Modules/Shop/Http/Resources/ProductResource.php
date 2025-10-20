@@ -55,6 +55,7 @@ class ProductResource extends JsonResource
                 'packageInclude' => $this->packageInclude,
                 'features' => $this->features,
                 'documents' => $this->documents,
+                'datasheets' => $this->datasheets ?? [],
                 'image' => $image,
                 'gallery' => MediaResource::collection($media),
                 'categories' => $this->categories->map(function($e) {
@@ -93,6 +94,7 @@ class ProductResource extends JsonResource
                 'packageInclude' => $this->packageInclude,
                 'features' => $this->features,
                 'documents' => $this->documents,
+                'datasheets' => $this->datasheets ?? [],
                 'image' => $image,
                 'gallery' => MediaResource::collection($media),
                 'categories' => $this->categories->map(function($e) {

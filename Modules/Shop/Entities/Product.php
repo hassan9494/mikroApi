@@ -49,6 +49,7 @@ class Product extends Model implements HasMedia
         'short_description_ar',
         'description',
         'documents',
+        'data_sheet',
         'features',
         'min_qty',
         'code',

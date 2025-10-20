@@ -881,7 +881,6 @@ class ReportController extends Controller
                 $query->whereDate('i.date', '<=', $request->to);
             }
 
-
             // Search
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
@@ -891,23 +890,21 @@ class ReportController extends Controller
                 });
             }
 
-            // Order by
+            // Get total count before pagination
             $totalQuery = clone $query;
             $total = count($totalQuery->get());
 
             // Force the order by latest_invoice_date DESC
             $query->orderBy('latest_invoice_date', 'DESC');
 
-
             // Pagination
             $page = $request->get('page', 0);
             $limit = $request->get('limit', 10);
             $offset = $page * $limit;
 
-//            $total = $query->count();
-
             $items = $query->offset($offset)->limit($limit)->get();
-// Log the results for debugging
+
+            // Log the results for debugging
             \Log::info('Purchases report results count: ' . count($items));
             if (count($items) > 0) {
                 \Log::info('First item dates - Latest: ' . $items[0]->latest_invoice_date . ', First: ' . $items[0]->first_invoice_date);
@@ -923,7 +920,6 @@ class ReportController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error in purchasesByProduct: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
-
 
             return response()->json([
                 'message' => 'Error fetching purchases data',
@@ -943,15 +939,15 @@ class ReportController extends Controller
                     'i.date as invoice_date',
                     'i.name as invoice_name',
                     'i.status as invoice_status',
+                    'i.source_id',
                     'ip.quantity',
                     'ip.purchases_price',
                     DB::raw('ip.quantity * ip.purchases_price as total_amount'),
                     'ip.product_name',
                     'ip.product_id'
                 )
-                ->where('i.status', 'COMPLETED'); // Only completed
+                ->where('i.status', 'COMPLETED');
 
-            // Product filter
             if ($request->has('product_id') && !empty($request->product_id) && $request->product_id !== 'undefined') {
                 $query->where('ip.product_id', $request->product_id);
             }
@@ -965,7 +961,6 @@ class ReportController extends Controller
                 $query->whereDate('i.date', '<=', $request->to);
             }
 
-
             // Search
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
@@ -975,7 +970,7 @@ class ReportController extends Controller
                 });
             }
 
-            // Order by
+            // FIXED ORDERING: Always order by date descending, then by invoice_id as fallback
             $query->orderBy('i.date', 'desc')->orderBy('i.id', 'desc');
 
             // Pagination
@@ -1001,5 +996,6 @@ class ReportController extends Controller
             ], 500);
         }
     }
+
 
 }
