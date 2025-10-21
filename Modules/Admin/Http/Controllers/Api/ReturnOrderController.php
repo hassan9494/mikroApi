@@ -321,14 +321,14 @@ class ReturnOrderController extends ApiAdminController
         $discount = 0;
         foreach ($order->products as $product) {
             if ($product->pivot->returned_quantity > 0) {
-                $discount += number_format($product->pivot->discount / (1 + $taxValue), 3, '.', '');
+                $discount += number_format($product->pivot->discount / (1 + $taxValue), 9, '.', '');
             }
 
         }
         if ($order->extra_items != null && count($order->extra_items) > 0) {
             foreach ($order->extra_items as $product) {
                 if ($product->returned_quantity > 0) {
-                    $discount += number_format($product->discount / (1 + $taxValue), 3, '.', '');
+                    $discount += number_format($product->discount / (1 + $taxValue), 9, '.', '');
                 }
             }
         }
@@ -341,13 +341,13 @@ class ReturnOrderController extends ApiAdminController
         $tax = 0;
         foreach ($order->products as $product) {
             if ($product->pivot->returned_quantity > 0) {
-                $tax += number_format((($product->pivot->returned_quantity * number_format(($product->pivot->price / (1 + $taxValue)), 3, '.', '')) - (number_format(($product->pivot->discount / (1 + $taxValue)), 3, '.', ''))) * $taxValue, 3, '.', '');
+                $tax += number_format((($product->pivot->returned_quantity * number_format(($product->pivot->price / (1 + $taxValue)), 9, '.', '')) - (number_format(($product->pivot->discount / (1 + $taxValue)), 9, '.', ''))) * $taxValue, 9, '.', '');
             }
         }
         if ($order->extra_items != null && count($order->extra_items) > 0) {
             foreach ($order->extra_items as $product) {
                 if ($product->returned_quantity > 0) {
-                    $tax += number_format((($product->returned_quantity * ($product->price / (1 + $taxValue))) - (number_format(($product->discount / (1 + $taxValue)), 3, '.', ''))) * $taxValue, 3, '.', '');
+                    $tax += number_format((($product->returned_quantity * ($product->price / (1 + $taxValue))) - (number_format(($product->discount / (1 + $taxValue)), 9, '.', ''))) * $taxValue, 9, '.', '');
                 }
             }
         }
@@ -360,13 +360,13 @@ class ReturnOrderController extends ApiAdminController
         $total = 0;
         foreach ($order->products as $product) {
             if ($product->pivot->returned_quantity > 0) {
-                $total += number_format((number_format(($product->pivot->price / (1 + $taxValue)), 3, '.', '') * $product->pivot->returned_quantity), 3, '.', '');
+                $total += number_format((number_format(($product->pivot->price / (1 + $taxValue)), 9, '.', '') * $product->pivot->returned_quantity), 9, '.', '');
             }
         }
         if ($order->extra_items != null && count($order->extra_items) > 0) {
             foreach ($order->extra_items as $product) {
                 if ($product->returned_quantity > 0) {
-                    $total += number_format((number_format(($product->price / (1 + $taxValue)), 3, '.', '') * $product->returned_quantity), 3, '.', '');
+                    $total += number_format((number_format(($product->price / (1 + $taxValue)), 9, '.', '') * $product->returned_quantity), 9, '.', '');
                 }
             }
         }
@@ -377,11 +377,11 @@ class ReturnOrderController extends ApiAdminController
     {
         $total = 0;
         foreach ($order->products as $product){
-            $total += number_format((number_format(($product->pivot->price / (1+$taxValue)), 3, '.', '') * $product->pivot->quantity), 3, '.', '');
+            $total += number_format((number_format(($product->pivot->price / (1+$taxValue)), 9, '.', '') * $product->pivot->quantity), 9, '.', '');
         }
         if ($order->extra_items != null && count($order->extra_items) > 0){
             foreach ($order->extra_items as $product){
-                $total += number_format((number_format(($product->price / (1+$taxValue)), 3, '.', '') * $product->quantity), 3, '.', '');
+                $total += number_format((number_format(($product->price / (1+$taxValue)), 9, '.', '') * $product->quantity), 9, '.', '');
             }
         }
 
