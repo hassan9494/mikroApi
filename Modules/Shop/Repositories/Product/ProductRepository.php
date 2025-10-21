@@ -778,51 +778,51 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     public function search_with_priorities($searchWord, $category, $limit = 20, $filter, $inStock = false,$user=null)
     {
         // Get current cache version
-        $cacheVersion = Cache::get('product_search_version', 1);
+//        $cacheVersion = Cache::get('product_search_version', 1);
 
-        if ($user){
-            if ($user->hasRole('super') ||
-                $user->hasRole('admin') ||
-                $user->hasRole('Admin cash') ||
-                $user->hasRole('Manager') ||
-                $user->hasRole('Manager') ||
-                $user->hasRole('Cashier')  ||
-                $user->hasRole('Acountant')){
-                $cacheKey = 'product_search_employee_v' . $cacheVersion . '_' . md5(serialize([
-                        'search' => $searchWord,
-                        'category' => $category,
-                        'limit' => $limit,
-                        'filter' => $filter,
-                        'inStock' => $inStock,
-                        'page' => request()->get('page', 1)
-                    ]));
-            } else {
-                $cacheKey = 'product_search_user_v' . $cacheVersion . '_' . md5(serialize([
-                        'search' => $searchWord,
-                        'category' => $category,
-                        'limit' => $limit,
-                        'filter' => $filter,
-                        'inStock' => $inStock,
-                        'page' => request()->get('page', 1)
-                    ]));
-            }
-        } else {
-            $cacheKey = 'product_search_user_v' . $cacheVersion . '_' . md5(serialize([
-                    'search' => $searchWord,
-                    'category' => $category,
-                    'limit' => $limit,
-                    'filter' => $filter,
-                    'inStock' => $inStock,
-                    'page' => request()->get('page', 1)
-                ]));
-        }
-        // Generate a unique cache key based on all search parameters
-
-
-        // Check if results are cached
-        if (Cache::has($cacheKey)) {
-            return Cache::get($cacheKey);
-        }
+//        if ($user){
+//            if ($user->hasRole('super') ||
+//                $user->hasRole('admin') ||
+//                $user->hasRole('Admin cash') ||
+//                $user->hasRole('Manager') ||
+//                $user->hasRole('Manager') ||
+//                $user->hasRole('Cashier')  ||
+//                $user->hasRole('Acountant')){
+//                $cacheKey = 'product_search_employee_v' . $cacheVersion . '_' . md5(serialize([
+//                        'search' => $searchWord,
+//                        'category' => $category,
+//                        'limit' => $limit,
+//                        'filter' => $filter,
+//                        'inStock' => $inStock,
+//                        'page' => request()->get('page', 1)
+//                    ]));
+//            } else {
+//                $cacheKey = 'product_search_user_v' . $cacheVersion . '_' . md5(serialize([
+//                        'search' => $searchWord,
+//                        'category' => $category,
+//                        'limit' => $limit,
+//                        'filter' => $filter,
+//                        'inStock' => $inStock,
+//                        'page' => request()->get('page', 1)
+//                    ]));
+//            }
+//        } else {
+//            $cacheKey = 'product_search_user_v' . $cacheVersion . '_' . md5(serialize([
+//                    'search' => $searchWord,
+//                    'category' => $category,
+//                    'limit' => $limit,
+//                    'filter' => $filter,
+//                    'inStock' => $inStock,
+//                    'page' => request()->get('page', 1)
+//                ]));
+//        }
+//        // Generate a unique cache key based on all search parameters
+//
+//
+//        // Check if results are cached
+//        if (Cache::has($cacheKey)) {
+//            return Cache::get($cacheKey);
+//        }
 
         $query = Product::query();
         $searchWord = trim($searchWord);
@@ -970,7 +970,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $results = $query->paginate($limit);
 
         // Cache for 5 minutes (adjust based on your needs)
-        Cache::put($cacheKey, $results, 300);
+//        Cache::put($cacheKey, $results, 300);
 
         return $results;
     }

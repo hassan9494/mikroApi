@@ -910,6 +910,19 @@ class ReportController extends Controller
                 \Log::info('First item dates - Latest: ' . $items[0]->latest_invoice_date . ', First: ' . $items[0]->first_invoice_date);
             }
 
+            $items->transform(function ($item) {
+                $product = Product::with('media')->find($item->product_id);
+
+                if ($product && $product->media->isNotEmpty()) {
+                    // This is how your sales report gets the image
+                    $item->product_image = $product->getFirstMediaUrl('default');
+                } else {
+                    $item->product_image = null;
+                }
+
+                return $item;
+            });
+
             return response()->json([
                 'data' => [
                     'items' => $items,
