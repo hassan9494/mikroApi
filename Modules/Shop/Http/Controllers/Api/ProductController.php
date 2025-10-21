@@ -207,9 +207,13 @@ class ProductController extends Controller
         // Use withTrashed() to include soft-deleted items
         $item = $this->repository->model()->withTrashed()->findOrFail($id);
 
+        // Limit related products to 15
+        $relatedProducts = $item->relatedProducts()->take(20)->get();
+
         // Return related products as a collection
-        return ProductShortResource::collection($item->relatedProducts);
+        return ProductShortResource::collection($relatedProducts);
     }
+
 
 
     /**

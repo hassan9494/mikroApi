@@ -55,6 +55,7 @@ class ProductResource extends JsonResource
                 'packageInclude' => $this->packageInclude,
                 'features' => $this->features,
                 'documents' => $this->documents,
+                'datasheets' => $this->datasheets ?? [],
                 'image' => $image,
                 'gallery' => MediaResource::collection($media),
                 'categories' => $this->categories->map(function($e) {
@@ -69,7 +70,8 @@ class ProductResource extends JsonResource
                 'replacement_item' =>  new ProductResource($replacement_item),
                 'hasVariants' =>  $this->hasVariants,
                 'deleted_at' =>  $this->deleted_at,
-                'colors' => ProductVariantsResource::collection($this->product_variants)
+                'colors' => ProductVariantsResource::collection($this->product_variants),
+                'kit' => $this->getKitItems(),
             ];
         }else {
             return [
@@ -93,6 +95,7 @@ class ProductResource extends JsonResource
                 'packageInclude' => $this->packageInclude,
                 'features' => $this->features,
                 'documents' => $this->documents,
+                'datasheets' => $this->datasheets ?? [],
                 'image' => $image,
                 'gallery' => MediaResource::collection($media),
                 'categories' => $this->categories->map(function($e) {
@@ -107,9 +110,41 @@ class ProductResource extends JsonResource
                 'replacement_item' =>  new ProductResource($replacement_item),
                 'hasVariants' =>  $this->hasVariants,
                 'deleted_at' =>  $this->deleted_at,
-                'colors' => ProductVariantsResource::collection($this->product_variants)
+                'colors' => ProductVariantsResource::collection($this->product_variants),
+                'kit' => $this->getKitItems(),
             ];
         }
 
     }
+    /**
+     * Get formatted kit items
+     *
+     * @return array
+     */
+    private function getKitItems(): array
+    {
+        // Use the same approach as the admin resource
+        $kitProducts = $this->kit()->get();
+
+        if ($kitProducts->isEmpty()) {
+            return [];
+        }
+
+        return $kitProducts->map(function ($kitProduct) {
+            $media = $kitProduct->getMedia();
+            $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
+
+            return [
+                'id' => $kitProduct->id,
+                'name' => $kitProduct->name,
+                'title' => $kitProduct->name,
+                'quantity' => $kitProduct->pivot->quantity,
+                'image' => $image,
+                'slug' => $kitProduct->slug,
+                'price' => $kitProduct->price->normal_price ?? 0,
+                'sale_price' => $kitProduct->price->sale_price ?? null,
+            ];
+        })->toArray();
+    }
 }
+

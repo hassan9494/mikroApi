@@ -11,6 +11,7 @@ use Modules\Shop\Entities\Coupon;
 use Modules\Shop\Entities\Order;
 use Modules\Common\Repositories\City\CityRepositoryInterface;
 use Modules\Shop\Entities\ProductVariant;
+use Modules\Shop\Entities\Setting;
 use Modules\Shop\Repositories\Coupon\CouponRepositoryInterface;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
@@ -69,8 +70,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         $city = $this->cities->findOrFail($data['city_id']);
 
         $cart = $this->prepareUserProducts($data['products']);
-
-        $isFreeShipping = $cart['subtotal'] >= 20;
+        $shippingLimit = Setting::find(2)->value;
+        $isFreeShipping = $cart['subtotal'] >= $shippingLimit;
         $shippingCost = $city->shipping_cost;
 
         $data['shipping']['cost'] = $shippingCost;
@@ -114,9 +115,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     {
 
         $cart = $this->prepareUserProducts($data['products'], $user);
-
+        $shippingLimit = Setting::find(2)->value;
         // Apply free shipping if subtotal >= 20
-        $isFreeShipping = $cart['subtotal'] >= 20;
+        $isFreeShipping = $cart['subtotal'] >= $shippingLimit;
         $shippingCost =  $address->shipping['cost'];
 
         $data['customer'] = $address->customer;

@@ -5,7 +5,6 @@ namespace Modules\Admin\Http\Controllers\Api;
 use App\Traits\Datatable;
 use Illuminate\Http\JsonResponse;
 use Modules\Admin\Http\Resources\DatatableFileResource;
-use Modules\Admin\Http\Resources\MediaResource;
 use Modules\Common\Repositories\File\FileRepositoryInterface;
 
 class FileController extends ApiAdminController
@@ -19,7 +18,6 @@ class FileController extends ApiAdminController
     {
         parent::__construct($repository);
     }
-
 
     /**
      * @return JsonResponse
@@ -37,19 +35,22 @@ class FileController extends ApiAdminController
         $data = $this->validate();
         $model = $this->repository->create($data);
         $model->syncOneFile();
+
+        // Return the file with link included
         return $this->success(
-            $model
+            new DatatableFileResource($model) // Use the same resource that includes the link
         );
     }
-
 
     public function update($id): JsonResponse
     {
         $data = $this->validate();
         $model = $this->repository->update($id, $data);
         $model->syncOneFile();
+
+        // Return the file with link included
         return $this->success(
-            $model
+            new DatatableFileResource($model) // Use the same resource that includes the link
         );
     }
 
@@ -63,5 +64,4 @@ class FileController extends ApiAdminController
             'file' => 'required|file',
         ]);
     }
-
 }

@@ -49,10 +49,13 @@ class Product extends Model implements HasMedia
         'short_description_ar',
         'description',
         'documents',
+        'data_sheet',
         'features',
         'min_qty',
         'code',
         'price',
+        'exchange_factor',
+        'base_purchases_price',
         'stock',
         'packageInclude',
         'datasheets',
@@ -76,6 +79,7 @@ class Product extends Model implements HasMedia
         'store_location',
         'purchases_qty',
         'is_show_for_search',
+        'search_factor',
         'colors_nick_names'
     ];
 
@@ -299,7 +303,9 @@ class Product extends Model implements HasMedia
                 'source_sku',
                 'normal',
                 'sale_price',
-                'product_name'
+                'product_name',
+                'base_purchases_price',
+                'exchange_factor'
             ]);
     }
 

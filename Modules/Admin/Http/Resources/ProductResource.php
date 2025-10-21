@@ -25,6 +25,8 @@ class ProductResource extends JsonResource
             'name' => $this->name,
             'stock' => $this->stock,
             'price' => $this->price,
+            'exchange_factor' => number_format($this->exchange_factor,3),
+            'base_purchases_price' => number_format($this->base_purchases_price,3),
             'description' => $this->description,
             'short_description' => $this->short_description,
             'short_description_ar' => $this->short_description_ar,
@@ -32,6 +34,7 @@ class ProductResource extends JsonResource
             'code' => $this->code,
             'documents' => $this->documents,
             'min_qty' => $this->min_qty,
+            'search_factor' => $this->search_factor,
 
             'kit' => $this->kit()->get()->map(function ($e) {
                 return [

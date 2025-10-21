@@ -41,6 +41,7 @@ class OrderResource extends JsonResource
             'customer' => $this->customer,
             'notes' => $this->notes,
             'invoice_notes' => $this->invoice_notes,
+            'pending' => $this->pending,
 
             'products' => $this->getItems(),
             'extra_items' => $this->extra_items,

@@ -81,6 +81,7 @@ class Order extends Model implements HasMedia
         'migrated_by',
         'migrated_at',
         'migrate_error',
+        'pending',
     ];
 
     protected $casts = [
