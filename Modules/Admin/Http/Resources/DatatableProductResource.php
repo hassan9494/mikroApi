@@ -37,6 +37,7 @@ class DatatableProductResource extends JsonResource
             'location' => $this->location,
             'stock_location' => $this->stock_location,
             'variants_count' => $this->product_variants->count(),
+            'parent' => $this->parent?->product?->name,
         ];
 
     }

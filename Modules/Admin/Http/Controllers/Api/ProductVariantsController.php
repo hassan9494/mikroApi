@@ -121,6 +121,7 @@ class ProductVariantsController extends Controller
      */
     public function destroy($id): JsonResponse
     {
+//        dd('test');
         $this->repository->delete($id);
         return $this->success();
     }

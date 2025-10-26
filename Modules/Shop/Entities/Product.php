@@ -80,6 +80,7 @@ class Product extends Model implements HasMedia
         'purchases_qty',
         'is_show_for_search',
         'search_factor',
+        'is_color_sun',
         'colors_nick_names'
     ];
 

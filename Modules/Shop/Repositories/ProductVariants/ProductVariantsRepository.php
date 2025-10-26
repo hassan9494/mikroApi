@@ -37,6 +37,7 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
         $parentProduct->colors_nick_names .= ' , ' . $data['name'] . ' , ' . $product->name;
 
         $product->is_show_for_search = false;
+        $product->is_color_sun = true;
 
 //        $parentProduct->colors_nick_names = $parentProduct->colors_nick_names + $data['name'] + $product->name;
         $data['short_description'] = $product->short_description;
@@ -98,9 +99,40 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
         $data['source'] = $product->source;
         $data['location'] = $product->location;
         $model = parent::update($id, $data);
+        $oldProduct->is_show_for_search = true;
+        $oldProduct->is_color_sun = false;
+        $product->is_show_for_search = false;
+        $product->is_color_sun = true;
+        $oldProduct->save();
         $parentProduct->save();
         $product->save();
         return $model;
+    }
+
+
+    public function delete($id)
+    {
+        $color = ProductVariant::find($id);
+        $oldProduct = Product::find($color->color_id);
+        $parentProduct = Product::find($color->product_id);
+
+// Convert current names to array and remove empty values
+        $currentNames = array_filter(array_map('trim', explode(',', $parentProduct->colors_nick_names)));
+
+// Remove old names if they exist
+        $currentNames = array_filter($currentNames, function($name) use ($color, $oldProduct) {
+            return $name !== $color->name && $name !== $oldProduct->name;
+        });
+
+
+// Remove duplicates and update
+        $parentProduct->colors_nick_names = implode(' , ', array_unique($currentNames));
+        $oldProduct->is_show_for_search = 1;
+        $oldProduct->is_color_sun = 0;
+        $color->delete();
+        $oldProduct->save();
+        $parentProduct->save();
+        return true;
     }
 
     /**

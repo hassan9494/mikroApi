@@ -26,13 +26,13 @@ class OrderResource extends JsonResource
                 'phone' => $this->user?->phone,
             ],
             'taxExempt' => [
-        'id' => $this->taxExempt?->id,
+                'id' => $this->taxExempt?->id,
                 'name' => $this->taxExempt?->name,
                 'email' => $this->taxExempt?->email,
                 'phone' => $this->taxExempt?->phone,
             ],
             'cashier' => [
-        'id' => $this->cashier?->id,
+                'id' => $this->cashier?->id,
                 'name' => $this->cashier?->name,
                 'email' => $this->cashier?->email,
                 'phone' => $this->cashier?->phone,

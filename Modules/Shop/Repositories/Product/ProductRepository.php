@@ -1014,6 +1014,84 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
     {
         $cases = [];
 
+        // ========== EXACT MATCH AT START OF FIELD ==========
+
+        // Priority 1: Exact phrase at start of name (was previously 8)
+        $cases[] = "WHEN name LIKE ? THEN 75000";
+
+        // Priority 2: Exact phrase at start of colors_nick_names (was previously 9)
+        $cases[] = "WHEN colors_nick_names LIKE ? THEN 74500";
+
+        // Priority 3: Exact phrase at start of meta fields (was previously 10)
+        $cases[] = "WHEN meta_title LIKE ? OR meta_keywords LIKE ? OR meta_description LIKE ? THEN 74000";
+
+        // Priority 4: Exact phrase at start of SKU fields (was previously 11)
+        $cases[] = "WHEN sku LIKE ? OR source_sku LIKE ? OR location LIKE ? OR stock_location LIKE ? THEN 73000";
+
+        // Priority 5: Exact phrase at start of short_description (was previously 12)
+        $cases[] = "WHEN short_description LIKE ? THEN 72000";
+
+        // ========== EXACT MATCH ANYWHERE IN FIELD ==========
+
+        // Priority 6: Exact phrase anywhere in name (was previously 13)
+        $cases[] = "WHEN name LIKE ? THEN 70000";
+
+        // Priority 7: Exact phrase anywhere in colors_nick_names (was previously 14)
+        $cases[] = "WHEN colors_nick_names LIKE ? THEN 69500";
+
+        // Priority 8: Exact phrase anywhere in meta fields (was previously 15)
+        $cases[] = "WHEN meta_title LIKE ? OR meta_keywords LIKE ? OR meta_description LIKE ? THEN 68000";
+
+        // Priority 9: Exact phrase anywhere in SKU fields (was previously 16)
+        $cases[] = "WHEN sku LIKE ? OR source_sku LIKE ? OR location LIKE ? OR stock_location LIKE ? THEN 35000";
+
+        // Priority 10: Exact phrase anywhere in short_description (was previously 17)
+        $cases[] = "WHEN short_description LIKE ? THEN 30000";
+
+        // ========== ALL WORDS IN ANY ORDER ==========
+
+        // Priority 11: All words in any order in name (was previously 18)
+        if (count($searchTerms) > 1) {
+            $allWordsConditions = [];
+            foreach ($searchTerms as $term) {
+                $allWordsConditions[] = "(name = ? OR name LIKE ? OR name LIKE ? OR name LIKE ?)";
+            }
+            $cases[] = "WHEN " . implode(" AND ", $allWordsConditions) . " THEN 25000";
+        }
+
+        // Priority 12: All words in any order in colors_nick_names (was previously 19)
+        if (count($searchTerms) > 1) {
+            $allWordsConditions = [];
+            foreach ($searchTerms as $term) {
+                $allWordsConditions[] = "(colors_nick_names = ? OR colors_nick_names LIKE ? OR colors_nick_names LIKE ? OR colors_nick_names LIKE ?)";
+            }
+            $cases[] = "WHEN " . implode(" AND ", $allWordsConditions) . " THEN 24500";
+        }
+
+        // ========== SINGLE WORD MATCHES ==========
+
+        // Priority 13: Single exact word match in name (was previously 20)
+        $cases[] = "WHEN (name = ? OR name LIKE ? OR name LIKE ? OR name LIKE ?) THEN 5000";
+
+        // Priority 14: Single exact word match in colors_nick_names (was previously 21)
+        $cases[] = "WHEN (colors_nick_names = ? OR colors_nick_names LIKE ? OR colors_nick_names LIKE ? OR colors_nick_names LIKE ?) THEN 4500";
+
+        // Priority 15: Single exact word match in meta fields (was previously 22)
+        $cases[] = "WHEN (meta_title = ? OR meta_title LIKE ? OR meta_title LIKE ? OR meta_title LIKE ?) OR (meta_keywords = ? OR meta_keywords LIKE ? OR meta_keywords LIKE ? OR meta_keywords LIKE ?) OR (meta_description = ? OR meta_description LIKE ? OR meta_description LIKE ? OR meta_description LIKE ?) THEN 4000";
+
+        // Priority 16: Single exact word match in SKU fields (was previously 23)
+        $cases[] = "WHEN (sku = ? OR sku LIKE ? OR sku LIKE ? OR sku LIKE ?) OR (source_sku = ? OR source_sku LIKE ? OR source_sku LIKE ? OR source_sku LIKE ?) OR (location = ? OR location LIKE ? OR location LIKE ? OR location LIKE ?) OR (stock_location = ? OR stock_location LIKE ? OR stock_location LIKE ? OR stock_location LIKE ?) THEN 3000";
+
+        // Priority 17: Single exact word match in short_description (was previously 24)
+        $cases[] = "WHEN (short_description = ? OR short_description LIKE ? OR short_description LIKE ? OR short_description LIKE ?) THEN 2000";
+
+        return implode(" ", $cases);
+    }
+
+    private function buildExcelPriorityCaseswithEqual($searchTerms, $normalizedQuery)
+    {
+        $cases = [];
+
         // ========== EXACT MATCHES (HIGHEST PRIORITY) ==========
 
         // Priority 1: Exact phrase match in name (case sensitive)
@@ -1114,6 +1192,139 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
      * Get all search bindings in the correct order for LIKE-based word boundaries
      */
     private function getSearchBindings($searchTerms, $normalizedQuery)
+    {
+        $bindings = [];
+
+        // Bindings for term count expression
+        foreach ($searchTerms as $term) {
+            $fields = [
+                'name',
+                'colors_nick_names',
+                'meta_title',
+                'meta_keywords',
+                'meta_description',
+                'sku',
+                'source_sku',
+                'location',
+                'stock_location',
+                'short_description'
+            ];
+
+            foreach ($fields as $field) {
+                $bindings[] = $term;
+                $bindings[] = "$term %";
+                $bindings[] = "% $term";
+                $bindings[] = "% $term %";
+            }
+        }
+
+        // ========== EXACT MATCH AT START BINDINGS ==========
+
+        // Priority 1: Exact phrase at start of name (was previously 8)
+        $bindings[] = $normalizedQuery . '%';
+
+        // Priority 2: Exact phrase at start of colors_nick_names (was previously 9)
+        $bindings[] = $normalizedQuery . '%';
+
+        // Priority 3: Exact phrase at start of meta fields (was previously 10)
+        $bindings[] = $normalizedQuery . '%';
+        $bindings[] = $normalizedQuery . '%';
+        $bindings[] = $normalizedQuery . '%';
+
+        // Priority 4: Exact phrase at start of SKU fields (was previously 11)
+        $bindings[] = $normalizedQuery . '%';
+        $bindings[] = $normalizedQuery . '%';
+        $bindings[] = $normalizedQuery . '%';
+        $bindings[] = $normalizedQuery . '%';
+
+        // Priority 5: Exact phrase at start of short_description (was previously 12)
+        $bindings[] = $normalizedQuery . '%';
+
+        // ========== EXACT MATCH ANYWHERE BINDINGS ==========
+
+        // Priority 6: Exact phrase anywhere in name (was previously 13)
+        $bindings[] = '%' . $normalizedQuery . '%';
+
+        // Priority 7: Exact phrase anywhere in colors_nick_names (was previously 14)
+        $bindings[] = '%' . $normalizedQuery . '%';
+
+        // Priority 8: Exact phrase anywhere in meta fields (was previously 15)
+        $bindings[] = '%' . $normalizedQuery . '%';
+        $bindings[] = '%' . $normalizedQuery . '%';
+        $bindings[] = '%' . $normalizedQuery . '%';
+
+        // Priority 9: Exact phrase anywhere in SKU fields (was previously 16)
+        $bindings[] = '%' . $normalizedQuery . '%';
+        $bindings[] = '%' . $normalizedQuery . '%';
+        $bindings[] = '%' . $normalizedQuery . '%';
+        $bindings[] = '%' . $normalizedQuery . '%';
+
+        // Priority 10: Exact phrase anywhere in short_description (was previously 17)
+        $bindings[] = '%' . $normalizedQuery . '%';
+
+        // ========== ALL WORDS IN ANY ORDER BINDINGS ==========
+
+        // Priority 11: All words any order in name (was previously 18)
+        if (count($searchTerms) > 1) {
+            foreach ($searchTerms as $term) {
+                $bindings[] = $term;
+                $bindings[] = "$term %";
+                $bindings[] = "% $term";
+                $bindings[] = "% $term %";
+            }
+        }
+
+        // Priority 12: All words any order in colors_nick_names (was previously 19)
+        if (count($searchTerms) > 1) {
+            foreach ($searchTerms as $term) {
+                $bindings[] = $term;
+                $bindings[] = "$term %";
+                $bindings[] = "% $term";
+                $bindings[] = "% $term %";
+            }
+        }
+
+        // ========== SINGLE WORD MATCH BINDINGS ==========
+
+        // Priority 13: Single word in name (was previously 20)
+        $bindings[] = $searchTerms[0];
+        $bindings[] = "{$searchTerms[0]} %";
+        $bindings[] = "% {$searchTerms[0]}";
+        $bindings[] = "% {$searchTerms[0]} %";
+
+        // Priority 14: Single word in colors_nick_names (was previously 21)
+        $bindings[] = $searchTerms[0];
+        $bindings[] = "{$searchTerms[0]} %";
+        $bindings[] = "% {$searchTerms[0]}";
+        $bindings[] = "% {$searchTerms[0]} %";
+
+        // Priority 15: Single word in meta fields (was previously 22)
+        foreach (['meta_title', 'meta_keywords', 'meta_description'] as $field) {
+            $bindings[] = $searchTerms[0];
+            $bindings[] = "{$searchTerms[0]} %";
+            $bindings[] = "% {$searchTerms[0]}";
+            $bindings[] = "% {$searchTerms[0]} %";
+        }
+
+        // Priority 16: Single word in SKU fields (was previously 23)
+        foreach (['sku', 'source_sku', 'location', 'stock_location'] as $field) {
+            $bindings[] = $searchTerms[0];
+            $bindings[] = "{$searchTerms[0]} %";
+            $bindings[] = "% {$searchTerms[0]}";
+            $bindings[] = "% {$searchTerms[0]} %";
+        }
+
+        // Priority 17: Single word in short_description (was previously 24)
+        $bindings[] = $searchTerms[0];
+        $bindings[] = "{$searchTerms[0]} %";
+        $bindings[] = "% {$searchTerms[0]}";
+        $bindings[] = "% {$searchTerms[0]} %";
+
+        return $bindings;
+    }
+
+
+    private function getSearchBindingsWithEquals($searchTerms, $normalizedQuery)
     {
         $bindings = [];
 

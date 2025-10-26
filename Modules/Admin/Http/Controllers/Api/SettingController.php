@@ -111,10 +111,14 @@ class SettingController extends ApiAdminController
             $data = $this->validate();
             $setting = Setting::find($id);
             $setting->value = $data['searchType'];
-        }else{
+        }elseif ($id == 2){
             $data = $this->validate2();
             $setting = Setting::find($id);
             $setting->value = $data['value'];
+        }elseif ($id == 3){
+            $data = $this->validate3();
+            $setting = Setting::find($id);
+            $setting->value = $data;
         }
 
         $setting->save();
@@ -190,6 +194,19 @@ class SettingController extends ApiAdminController
     {
         return request()->validate([
             'value' => 'required|numeric',
+        ]);
+    }
+
+
+    /**
+     * @return array
+     */
+    public function validate3(): array
+    {
+        return request()->validate([
+            'company_id' => 'required|string',
+            'seller_income_source' => 'required|string',
+            'seller_name' => 'required|string',
         ]);
     }
 
