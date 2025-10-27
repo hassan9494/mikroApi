@@ -18,7 +18,7 @@ class OrderResource extends JsonResource
             'id' => $this->id,
             'user_id' => $this->user_id,
             'tax_exempt_id' => $this->tax_exempt_id,
-            'cashier_id' => $this->user_id,
+            'cashier_id' => $this->cashier_id,
             'user' => [
                 'id' => $this->user?->id,
                 'name' => $this->user?->name,
