@@ -44,8 +44,8 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
         $data['short_description'] = $product->short_description;
         $data['price'] = $product->price;
         $data['stock'] = $product->stock;
-        $option['available'] = $product->options->available;
-        $option['featured'] = $product->options->featured;
+        $option['available'] =$product->options->available;
+        $option['featured'] =$product->options->featured;
         $data['options'] = $option;
         $data['listPriority'] = $product->listPriority;
         $data['maxCartAmount'] = $product->maxCartAmount;
@@ -75,7 +75,7 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
         $currentNames = array_filter(array_map('trim', explode(',', $parentProduct->colors_nick_names)));
 
 // Remove old names if they exist
-        $currentNames = array_filter($currentNames, function ($name) use ($color, $oldProduct) {
+        $currentNames = array_filter($currentNames, function($name) use ($color, $oldProduct) {
             return $name !== $color->name && $name !== $oldProduct->name;
         });
 
@@ -89,8 +89,8 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
         $data['short_description'] = $product->short_description;
         $data['price'] = $product->price;
         $data['stock'] = $product->stock;
-        $option['available'] = $product->options->available;
-        $option['featured'] = $product->options->featured;
+        $option['available'] =$product->options->available;
+        $option['featured'] =$product->options->featured;
         $data['options'] = $option;
         $data['listPriority'] = $product->listPriority;
         $data['maxCartAmount'] = $product->maxCartAmount;
@@ -120,7 +120,7 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
         $currentNames = array_filter(array_map('trim', explode(',', $parentProduct->colors_nick_names)));
 
 // Remove old names if they exist
-        $currentNames = array_filter($currentNames, function ($name) use ($color, $oldProduct) {
+        $currentNames = array_filter($currentNames, function($name) use ($color, $oldProduct) {
             return $name !== $color->name && $name !== $oldProduct->name;
         });
 
@@ -129,10 +129,7 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
         $parentProduct->colors_nick_names = implode(' , ', array_unique($currentNames));
         $oldProduct->is_show_for_search = 1;
         $oldProduct->is_color_sun = 0;
-        
         $color->delete();
-
-
         $oldProduct->save();
         $parentProduct->save();
         return true;
@@ -146,7 +143,7 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
      * @param $inStock
      * @return LengthAwarePaginator
      */
-    public function search($searchWord, $category, $limit = 20, $filter, $inStock = false)
+    public function search($searchWord, $category, $limit = 20, $filter,$inStock = false)
     {
         $query = ProductVariant::query();
 
@@ -199,13 +196,14 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
                 break;
         }
 
-        if ($inStock == 'true') {
-            $query->where('stock', '>', 0);
-        } else {
-            $query->where('stock', '>=', 0);
+        if ($inStock == 'true'){
+            $query->where('stock','>',0);
+        }else{
+            $query->where('stock','>=',0);
         }
         return $query->paginate($limit);
     }
+
 
 
     public function autocomplete($searchWord, $limit = 20)
