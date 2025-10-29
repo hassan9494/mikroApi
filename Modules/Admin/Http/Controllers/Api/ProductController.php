@@ -374,6 +374,7 @@ class ProductController extends Controller
             'replacement_item' => 'nullable|array',
             'hasVariants' => 'nullable|boolean',
             'is_show_for_search' => 'nullable|boolean',
+            'is_color_sun' => 'nullable|boolean',
 
         ]);
     }

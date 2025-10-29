@@ -68,16 +68,28 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     public function makeByGuest(array $data): Order
     {
         $city = $this->cities->findOrFail($data['city_id']);
-
         $cart = $this->prepareUserProducts($data['products']);
-        $shippingLimit = Setting::find(2)->value;
-        $isFreeShipping = $cart['subtotal'] >= $shippingLimit;
-        $shippingCost = $city->shipping_cost;
+        if ($city->id == 2){
+            $isFreeShipping = true;
+            $shippingCost = 0;
 
-        $data['shipping']['cost'] = $shippingCost;
-        $data['shipping']['free'] = $isFreeShipping; // Set free flag
-        $data['shipping']['city'] = $city->name;
-        $data['shipping']['status'] = 'WAITING';
+            $data['shipping']['cost'] = $shippingCost;
+            $data['shipping']['free'] = $isFreeShipping; // Set free flag
+            $data['shipping']['city'] = $city->name;
+            $data['shipping']['status'] = 'WAITING';
+        }else{
+            $shippingLimit = Setting::find(2)->value;
+            $isFreeShipping = $cart['subtotal'] >= $shippingLimit;
+            $shippingCost = $city->shipping_cost;
+
+            $data['shipping']['cost'] = $shippingCost;
+            $data['shipping']['free'] = $isFreeShipping; // Set free flag
+            $data['shipping']['city'] = $city->name;
+            $data['shipping']['status'] = 'WAITING';
+        }
+
+
+
         $data['uuid'] = Str::uuid();
 
         $order = $this->model->create($data);
@@ -85,6 +97,44 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
         return $this->update($order->id, []);
     }
+
+    /**
+     * @param array $data
+     * @param Address $address
+     * @param User $user
+     * @return Order
+     */
+    public function makeByUser(array $data, Address $address, $user): Order
+    {
+
+        $cart = $this->prepareUserProducts($data['products'], $user);
+        if ($address->city_id == 2){
+            $data['shipping'] = $address->shipping;
+            $data['shipping']['cost'] = 0;
+            $data['shipping']['free'] = true; // Set free flag
+        }else{
+            $shippingLimit = Setting::find(2)->value;
+            // Apply free shipping if subtotal >= 20
+            $isFreeShipping = $cart['subtotal'] >= $shippingLimit;
+            $shippingCost =  $address->shipping['cost'];
+            $data['shipping'] = $address->shipping;
+            $data['shipping']['cost'] = $shippingCost;
+            $data['shipping']['free'] = $isFreeShipping; // Set free flag
+        }
+
+
+        $data['customer'] = $address->customer;
+
+        $data['city_id'] = $address->city_id;
+        $data['uuid'] = Str::uuid();
+        $order = $this->model->create($data);
+
+        $order->products()->attach($cart['products']);
+
+        return $this->update($order->id, []);
+
+    }
+
 
 
     /**
@@ -104,36 +154,6 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
         return $query->get();
     }
-
-    /**
-     * @param array $data
-     * @param Address $address
-     * @param User $user
-     * @return Order
-     */
-    public function makeByUser(array $data, Address $address, $user): Order
-    {
-
-        $cart = $this->prepareUserProducts($data['products'], $user);
-        $shippingLimit = Setting::find(2)->value;
-        // Apply free shipping if subtotal >= 20
-        $isFreeShipping = $cart['subtotal'] >= $shippingLimit;
-        $shippingCost =  $address->shipping['cost'];
-
-        $data['customer'] = $address->customer;
-        $data['shipping'] = $address->shipping;
-        $data['shipping']['cost'] = $shippingCost;
-        $data['shipping']['free'] = $isFreeShipping; // Set free flag
-        $data['city_id'] = $address->city_id;
-        $data['uuid'] = Str::uuid();
-        $order = $this->model->create($data);
-
-        $order->products()->attach($cart['products']);
-
-        return $this->update($order->id, []);
-
-    }
-
     /**
      * @param array $data
      * @return Order
