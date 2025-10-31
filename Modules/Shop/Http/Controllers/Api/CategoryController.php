@@ -4,6 +4,7 @@
 namespace Modules\Shop\Http\Controllers\Api;
 
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
 use Modules\Shop\Http\Resources\CategoryResource;
 use Modules\Shop\Repositories\Category\CategoryRepositoryInterface;
 
@@ -29,8 +30,19 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        $items = $this->repository->get(['parent' => 0,'available'=>true])->sortBy('order');
-        return CategoryResource::collection($items);
+        $cacheKey = 'all_categories';
+
+        // Cache for 2 minutes (homepage changes rarely)
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }else{
+//            dd('test');
+            $items = $this->repository->get(['parent' => 0,'available'=>true])->sortBy('order');
+            $results = CategoryResource::collection($items);
+            Cache::put($cacheKey, $results, 3600);
+            return $results;
+        }
+
     }
 
     public function show($slug): CategoryResource

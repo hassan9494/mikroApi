@@ -135,7 +135,7 @@ class ProductController extends Controller
 
             // Cache if it's the homepage request
             if ($isHomepageRequest) {
-                Cache::put($cacheKey, $result, 120); // 2 minutes
+                Cache::put($cacheKey, $result, 3600); // 2 minutes
             }
 
             return $result;
@@ -158,7 +158,7 @@ class ProductController extends Controller
 
         // Cache if it's the homepage request
         if ($isHomepageRequest) {
-            Cache::put($cacheKey, $result, 120); // 2 minutes
+            Cache::put($cacheKey, $result, 3600); // 2 minutes
         }
 
         return $result;
