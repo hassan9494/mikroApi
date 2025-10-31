@@ -4,6 +4,7 @@ namespace Modules\Common\Entities;
 
 use App\Traits\Media;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 use Spatie\MediaLibrary\HasMedia;
 
 /**
@@ -28,5 +29,17 @@ class Promotion extends Model implements HasMedia
         'name',
         'link'
     ];
+
+    protected static function booted()
+    {
+        parent::booted();
+        static::saved(function ($promotion) {
+            Cache::forget('all_offers');
+        });
+
+        static::deleted(function ($promotion) {
+            Cache::forget('all_offers');
+        });
+    }
 
 }

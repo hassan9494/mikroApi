@@ -4,6 +4,7 @@ namespace Modules\Common\Entities;
 
 use App\Traits\Media;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 use Spatie\MediaLibrary\HasMedia;
 
 /**
@@ -26,5 +27,17 @@ class Slide extends Model implements HasMedia
         'order',
         'name',
     ];
+
+    protected static function booted()
+    {
+        parent::booted();
+        static::saved(function ($slide) {
+            Cache::forget('all_slides');
+        });
+
+        static::deleted(function ($slide) {
+            Cache::forget('all_slides');
+        });
+    }
 
 }
