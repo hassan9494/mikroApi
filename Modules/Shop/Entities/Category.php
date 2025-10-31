@@ -68,11 +68,11 @@ class Category extends Model implements HasMedia
     protected static function booted()
     {
         parent::booted();
-        static::saved(function ($product) {
+        static::saved(function ($category) {
             Cache::forget('all_categories');
         });
 
-        static::deleted(function ($product) {
+        static::deleted(function ($category) {
             Cache::forget('all_categories');
         });
     }
