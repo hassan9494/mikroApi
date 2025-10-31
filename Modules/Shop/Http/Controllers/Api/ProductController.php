@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\PersonalAccessToken;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Entities\Setting;
@@ -46,6 +47,9 @@ class ProductController extends Controller
     /**
      * @return AnonymousResourceCollection
      */
+    /**
+     * @return AnonymousResourceCollection
+     */
     public function index(): AnonymousResourceCollection
     {
         $token = request()->bearerToken();
@@ -59,17 +63,29 @@ class ProductController extends Controller
             }
         }
         $user = auth()->user();
-//        dd($user);
         $search = request()->get('search', '');
         $category = request()->get('category', '');
         $limit = request()->get('limit', 20);
         $filter = request()->get('filter', '');
         $inStock = request()->get('inStock', false);
+        $page = request()->get('page', 1);
 
         if ($search && strlen(trim($search)) < 2) {
             return ProductShortResource::collection([]);
         }
 
+        // Cache ONLY the homepage request (empty category, first page, default filters)
+        $isHomepageRequest = empty($search) && empty($category) && $page == 1 &&
+            $limit == 24 && empty($filter) && $inStock == false;
+
+        if ($isHomepageRequest) {
+            $cacheKey = 'homepage_products';
+
+            // Cache for 2 minutes (homepage changes rarely)
+            if (Cache::has($cacheKey)) {
+                return Cache::get($cacheKey);
+            }
+        }
 
         // Handle back in stock category
         if ($category === 'back_in_stock') {
@@ -85,21 +101,21 @@ class ProductController extends Controller
                     break;
                 case 'price-high':
                     $query->orderByRaw('
-                    CASE
-                        WHEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price")) = "0"
-                        THEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.normal_price"))
-                        ELSE JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price"))
-                    END DESC
-                ');
+                CASE
+                    WHEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price")) = "0"
+                    THEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.normal_price"))
+                    ELSE JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price"))
+                END DESC
+            ');
                     break;
                 case 'price-low':
                     $query->orderByRaw('
-                    CASE
-                        WHEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price")) = "0"
-                        THEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.normal_price"))
-                        ELSE JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price"))
-                    END ASC
-                ');
+                CASE
+                    WHEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price")) = "0"
+                    THEN JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.normal_price"))
+                    ELSE JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price"))
+                END ASC
+            ');
                     break;
                 case 'sale':
                     $query->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(products.price, "$.sale_price")) > 0');
@@ -109,29 +125,43 @@ class ProductController extends Controller
                     break;
             }
 
-
             // Apply in-stock filter
             if ($inStock === true) {
                 $query->where('products.stock', '>', 0);
             }
 
             $items = $query->paginate($limit);
-            return ProductShortResource::collection($items);
+            $result = ProductShortResource::collection($items);
+
+            // Cache if it's the homepage request
+            if ($isHomepageRequest) {
+                Cache::put($cacheKey, $result, 120); // 2 minutes
+            }
+
+            return $result;
         }
 
+        // Only cache the setting lookup (safe - won't cause storage issues)
+        $setting = Cache::remember('search_setting', 3600, function () {
+            return Setting::where('key', 'search')->first();
+        });
 
-            $setting = Setting::where('key','search')->first();
-//        dd($category);
-        if ($setting->value == 'elastic'){
+        if ($setting->value == 'elastic') {
             $items = $this->repository->search($search, $category, $limit, $filter, $inStock);
-        }else if ($setting->value == 'normalWithPriority'){
-            $items = $this->repository->search_with_priorities($search, $category, $limit, $filter, $inStock,$user);
-        }else{
+        } else if ($setting->value == 'normalWithPriority') {
+            $items = $this->repository->search_with_priorities($search, $category, $limit, $filter, $inStock, $user);
+        } else {
             $items = $this->repository->simple_search($search, $category, $limit, $filter, $inStock);
         }
 
-        return ProductShortResource::collection($items);
-//        return ProductShortResource::collection($items);
+        $result = ProductShortResource::collection($items);
+
+        // Cache if it's the homepage request
+        if ($isHomepageRequest) {
+            Cache::put($cacheKey, $result, 120); // 2 minutes
+        }
+
+        return $result;
     }
 
     public function old_index_1(): AnonymousResourceCollection
