@@ -171,8 +171,9 @@ class Product extends Model implements HasMedia
         parent::booted();
         static::saved(function ($product) {
             try {
-                $currentVersion = Cache::get('product_search_version', 1);
-                Cache::forever('product_search_version', $currentVersion + 1);
+//                $currentVersion = Cache::get('product_search_version', 1);
+//                Cache::forever('product_search_version', $currentVersion + 1);
+                Cache::forget('homepage_products');
                 if (config('scout.driver') === 'elasticsearch') {
                     // Use direct indexing instead of searchable()
                     $client = app('elasticsearch');
@@ -194,8 +195,9 @@ class Product extends Model implements HasMedia
 
         static::deleted(function ($product) {
             try {
-                $currentVersion = Cache::get('product_search_version', 1);
-                Cache::forever('product_search_version', $currentVersion + 1);
+//                $currentVersion = Cache::get('product_search_version', 1);
+//                Cache::forever('product_search_version', $currentVersion + 1);
+                Cache::forget('homepage_products');
                 if (config('scout.driver') === 'elasticsearch') {
                     $client = app('elasticsearch');
                     $params = [
