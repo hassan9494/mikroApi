@@ -33,4 +33,10 @@ class CategoryController extends Controller
         return CategoryResource::collection($items);
     }
 
+    public function show($slug): CategoryResource
+    {
+        $item = $this->repository->model()->where('slug', $slug)->first();
+        return new CategoryResource($item);
+    }
+
 }

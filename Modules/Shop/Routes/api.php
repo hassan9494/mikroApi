@@ -144,6 +144,10 @@ Route::namespace('Api')->group(function () {
         [ProductController::class, 'show']
     );
     Route::get(
+        'category/{slug}',
+        [CategoryController::class, 'show']
+    );
+    Route::get(
         'product/{id}/related',
         [ProductController::class, 'related']
     );
