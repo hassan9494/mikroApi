@@ -6,6 +6,7 @@ namespace Modules\Website\Http\Controllers\Api;
 use App\Traits\ApiResponser;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
 use Modules\Blog\Entities\Article;
 use Modules\Common\Entities\City;
 use Modules\Common\Entities\Link;
@@ -30,19 +31,27 @@ class WebsiteController extends Controller
      */
     public function offer()
     {
-        $models = Promotion::all()->sortBy('order');
-        $data = [];
-        foreach ($models as $model) {
-            if (!($image = $model->getFirstMediaUrl())) continue;
-            $data[] = [
-                'id' => $model->id,
-                'name' => $model->name,
-                'order' => $model->order,
-                'link' => $model->link,
-                'image' => $image,
-            ];
+        $cacheKey = 'all_offers';
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }else{
+            $models = Promotion::all()->sortBy('order');
+            $data = [];
+            foreach ($models as $model) {
+                if (!($image = $model->getFirstMediaUrl())) continue;
+                $data[] = [
+                    'id' => $model->id,
+                    'name' => $model->name,
+                    'order' => $model->order,
+                    'link' => $model->link,
+                    'image' => $image,
+                ];
+            }
+            $results =  $this->success($data);
+            Cache::put($cacheKey, $results, 3600);
+            return $results;
         }
-        return $this->success($data);
+
     }
 
     /**
@@ -50,18 +59,26 @@ class WebsiteController extends Controller
      */
     public function slide()
     {
-        $models = Slide::all()->sortBy('order');
-        $data = [];
-        foreach ($models as $model) {
-            if (!($image = $model->getFirstMediaUrl())) continue;
+        $cacheKey = 'all_slides';
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }else {
+            $models = Slide::all()->sortBy('order');
+            $data = [];
+            foreach ($models as $model) {
+                if (!($image = $model->getFirstMediaUrl())) continue;
                 $data[] = [
-                'id' => $model->id,
-                'name' => $model->name,
-                'order' => $model->order,
-                'image' => $image,
-            ];
+                    'id' => $model->id,
+                    'name' => $model->name,
+                    'order' => $model->order,
+                    'image' => $image,
+                ];
+            }
+            $results = $this->success($data);
+            Cache::put($cacheKey, $results, 3600);
+            return $results;
+
         }
-        return $this->success($data);
     }
 
     /**
@@ -69,10 +86,14 @@ class WebsiteController extends Controller
      */
     public function links()
     {
-        $model = Link::find(1);
-        $data = [];
+        $cacheKey = 'all_links';
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }else {
+            $model = Link::find(1);
+            $data = [];
 
-                $data = [
+            $data = [
                 'id' => $model->id,
                 'location' => $model->location,
                 'email' => $model->email,
@@ -83,7 +104,10 @@ class WebsiteController extends Controller
                 'youtube' => $model->youtube,
                 'call' => $model->call,
             ];
-        return $this->success($data);
+            $results = $this->success($data);
+            Cache::put($cacheKey, $results, 3600);
+            return $results;
+        }
     }
 
     /**
@@ -91,13 +115,20 @@ class WebsiteController extends Controller
      */
     public function setting()
     {
-        $model = Setting::find(2);
-        $data = [];
+        $cacheKey = 'all_settings';
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }else {
+            $model = Setting::find(2);
+            $data = [];
 
-                $data = [
+            $data = [
                 'value' => $model->value,
             ];
-        return $this->success($data);
+            $results = $this->success($data);
+            Cache::put($cacheKey, $results, 3600);
+            return $results;
+        }
     }
 
     /**
