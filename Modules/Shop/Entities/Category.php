@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 use Spatie\MediaLibrary\HasMedia;
 
 class Category extends Model implements HasMedia
@@ -62,6 +63,18 @@ class Category extends Model implements HasMedia
             'product_id',
             'category_id'
         );
+    }
+
+    protected static function booted()
+    {
+        parent::booted();
+        static::saved(function ($product) {
+            Cache::forget('all_categories');
+        });
+
+        static::deleted(function ($product) {
+            Cache::forget('all_categories');
+        });
     }
 
 }
