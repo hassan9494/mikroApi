@@ -240,6 +240,12 @@ class Order extends Model implements HasMedia
         return $this->belongsTo(ShippingProvider::class, 'shipping_provider_id');
     }
 
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class,'order_id');
+    }
+
     /**********************************************************************************************/
     /* Extras *************************************************************************************/
     /**********************************************************************************************/
