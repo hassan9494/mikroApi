@@ -47,7 +47,15 @@ class CategoryController extends Controller
 
     public function show($slug): CategoryResource
     {
-        $item = $this->repository->model()->where('slug', $slug)->first();
+        if ($slug == 'back_in_stock' || $slug == 'new_product'){
+            $item = $this->repository->model()->first();
+            $item->title = $slug;
+            $item->slug = $slug;
+            $item->image = null;
+        }else{
+            $item = $this->repository->model()->where('slug', $slug)->first();
+        }
+
         return new CategoryResource($item);
     }
 
