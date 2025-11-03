@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\OrderForReturnResource;
 use Modules\Admin\Http\Resources\OrderResource;
@@ -19,9 +20,11 @@ use Modules\Admin\Http\Services\UblInvoiceService;
 use Modules\Shop\Entities\Order;
 use Modules\Shop\Entities\OrderHistory;
 use Modules\Shop\Entities\Product;
+use Modules\Shop\Entities\Transaction;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
+use function Ramsey\Uuid\uuid;
 
 class OrderController extends ApiAdminController
 {
@@ -294,13 +297,39 @@ class OrderController extends ApiAdminController
             }
             if (request()->get('status') == 'COMPLETED'){
                 $data['completed_by'] = auth()->id();
+
             }
             $order = $this->repository->saveOrder($id, $data);
             $order->syncMedia($data['attachments'] ?? []);
             $this->repository->status(
                 $id, request()->get('status')
             );
+            if (request()->get('status') == 'COMPLETED'){
+                $old_transaction = Transaction::where('order_id',$order->id)->first();
+                if ($old_transaction){
+                    $old_transaction->update([
+                        'note' => '',
+                        'type' => 'deposit',
+                        'amount' => request()->get('amount'),
+                        'commission' => request()->get('commission'),
+                        'shipping' => request()->get('shipping_amount'),
+                        'total_amount' => request()->get('amount') + request()->get('shipping_amount') - request()->get('commission'),
+                        'payment_method_id' => request()->get('payment_method')
+                    ]);
+                }else{
+                    $transaction = $order->transactions()->create([
+                        'transaction_id' => Str::uuid(),
+                        'note' => '',
+                        'type' => 'deposit',
+                        'amount' => request()->get('amount'),
+                        'commission' => request()->get('commission'),
+                        'shipping' => request()->get('shipping_amount'),
+                        'total_amount' => request()->get('amount') + request()->get('shipping_amount') - request()->get('commission'),
+                        'payment_method_id' => request()->get('payment_method')
+                    ]);
+                }
 
+            }
         }else{
             if (request()->get('status') != null){
                 $this->repository->status(
@@ -412,6 +441,12 @@ class OrderController extends ApiAdminController
             'extra_items' => 'nullable|array',
 
             'attachments' => 'nullable|array',
+
+
+            'amount' => 'nullable',
+            'commission' => 'nullable',
+            'payment_method' => 'nullable',
+            'shipping_amount' => 'nullable',
         ]);
     }
 

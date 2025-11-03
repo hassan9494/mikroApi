@@ -5,6 +5,7 @@ use Modules\Admin\Http\Controllers\Api\AuthController;
 use Modules\Admin\Http\Controllers\Api\BoardController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
+use Modules\Admin\Http\Controllers\Api\PaymentMethodController;
 use Modules\Admin\Http\Controllers\Api\SettingController;
 use Modules\Admin\Http\Controllers\Api\TaskAttachmentController;
 use Modules\Admin\Http\Controllers\Api\TaxExemptController;
@@ -31,6 +32,7 @@ use Modules\Admin\Http\Controllers\Api\ShippingProviderController;
 use Modules\Admin\Http\Controllers\Api\SourceController;
 use Modules\Admin\Http\Controllers\Api\StatsController;
 use Modules\Admin\Http\Controllers\Api\TagController;
+use Modules\Admin\Http\Controllers\Api\TransactionController;
 use Modules\Admin\Http\Controllers\Api\UserController;
 use Modules\Admin\Http\Controllers\Api\PromotionController;
 use Modules\Admin\Http\Controllers\Api\SlideController;
@@ -256,6 +258,12 @@ Route::prefix('admin')
         // Slide Routes.
         Route::get('slide/datatable', [SlideController::class, 'datatable']);
         Route::resource('slide', 'SlideController');
+        // Slide Routes.
+        Route::get('payment_method/datatable', [PaymentMethodController::class, 'datatable']);
+        Route::resource('payment_method', 'PaymentMethodController');
+        // Slide Routes.
+        Route::get('transaction/datatable', [TransactionController::class, 'datatable']);
+        Route::resource('transaction', 'TransactionController');
 
         // Tag Routes.
         Route::get('tag/datatable', [TagController::class, 'datatable']);

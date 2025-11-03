@@ -3,6 +3,7 @@
 namespace Modules\Shop\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Modules\Shop\Entities\PaymentMethod;
 
 /**
  * Class RepositoryServiceProvider
@@ -77,6 +78,14 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->singleton(
             'Modules\Shop\Repositories\Coupon\CouponRepositoryInterface',
             'Modules\Shop\Repositories\Coupon\CouponRepository'
+        );
+        $this->app->singleton(
+            'Modules\Shop\Repositories\PaymentMethod\PaymentMethodRepositoryInterface',
+            'Modules\Shop\Repositories\PaymentMethod\PaymentMethodRepository'
+        );
+        $this->app->singleton(
+            'Modules\Shop\Repositories\Transaction\TransactionRepositoryInterface',
+            'Modules\Shop\Repositories\Transaction\TransactionRepository'
         );
     }
 

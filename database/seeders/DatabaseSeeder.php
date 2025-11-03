@@ -22,7 +22,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
-        $this->call(BoardSeeder::class);
+//        $this->call(BoardSeeder::class);
+        $this->call(PaymentMethodSeeder::class);
 //        Role::create(['name' => 'super']);
 //        Role::create(['name' => 'admin']);
 //        Role::create(['name' => 'user']);
