@@ -104,6 +104,7 @@ class OrderResource extends JsonResource
                         'min_price' => $parentProduct->calcMinPrice() ?? 0,
                         'image' => $parentProduct->getFirstMediaUrl() ?? '',
                         'location' => $parentProduct->location ?? '',
+                        'stock_location' => $parentProduct->stock_location ?? '',
                         'stock' => $parentProduct->stock ?? 0,
                         'has_colors' => true,
                         'all_colors' => $parentProduct->product_variants->map(function($variant) {
