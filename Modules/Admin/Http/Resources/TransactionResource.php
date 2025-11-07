@@ -23,6 +23,7 @@ class TransactionResource extends JsonResource
             'shipping' => $this->shipping,
             'total_amount' => $this->total_amount,
             'order_id' => $this->order_id,
+            'payment_method_id' => $this->payment_method_id,
             'paymentMethod' => $this->paymentMethod?->name,
         ];
     }
