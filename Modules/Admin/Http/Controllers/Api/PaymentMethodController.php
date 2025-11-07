@@ -65,6 +65,7 @@ class PaymentMethodController extends ApiAdminController
             'name' => 'required|max:255',
             'commission_type' => 'required',
             'commission' => 'nullable',
+            'commission_range' => 'nullable|json'
         ]);
     }
 

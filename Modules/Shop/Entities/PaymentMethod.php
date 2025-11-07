@@ -12,6 +12,9 @@ class PaymentMethod extends Model
 
     protected $fillable = ['name','commission_type','commission','commission_range'];
 
+    protected $casts = [
+        'commission_range' => 'array'
+    ];
 
     public function transaction()
     {

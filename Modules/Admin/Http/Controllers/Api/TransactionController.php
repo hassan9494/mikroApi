@@ -58,7 +58,7 @@ class TransactionController extends ApiAdminController
         $data = $this->validate();
         $model = $this->repository->create($data);
         return $this->success(
-            $model
+            new TransactionResource($model)
         );
     }
 
@@ -77,9 +77,9 @@ class TransactionController extends ApiAdminController
     public function validate(): array
     {
         return request()->validate([
-            'name' => 'required|max:255',
-            'commission_type' => 'required',
-            'commission' => 'nullable',
+            'amount' => 'required|numeric',
+            'payment_method_id' => 'required',
+            'type' => 'nullable',
         ]);
     }
 
