@@ -17,6 +17,7 @@ use Modules\Admin\Http\Resources\OutlayResource;
 use Modules\Admin\Http\Resources\ProductSalesReportResource;
 use Modules\Admin\Http\Resources\ProductStocksReportResource;
 use Modules\Admin\Http\Resources\ReturnOrderResource;
+use Modules\Admin\Http\Resources\TransactionResource;
 use Modules\Common\Repositories\CustomsStatement\CustomsStatementRepositoryInterface;
 use Modules\Common\Repositories\Dept\DeptRepositoryInterface;
 use Modules\Common\Repositories\Outlay\OutlayRepositoryInterface;
@@ -25,6 +26,7 @@ use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Repositories\ReturnOrder\ReturnOrderRepositoryInterface;
 use Modules\Shop\Repositories\Product\ProductRepository;
 use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
+use Modules\Shop\Repositories\Transaction\TransactionRepositoryInterface;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
@@ -63,6 +65,11 @@ class ReportController extends Controller
      * @var OrderRepositoryInterface
      */
     private OrderRepositoryInterface $orderRepository;
+
+    /**
+     * @var TransactionRepositoryInterface
+     */
+    private TransactionRepositoryInterface $transactionRepository;
     /**
      * @var ReturnOrderRepositoryInterface
      */
@@ -74,6 +81,7 @@ class ReportController extends Controller
      * @param ProductRepositoryInterface $productRepositoryInterface
      * @param OrderRepositoryInterface $orderRepository
      * @param ReturnOrderRepositoryInterface $returnOrderRepository
+     * @param TransactionRepositoryInterface $transactionRepository
      * @param OutlayRepositoryInterface $outlayRepositoryInterface
      * @param DeptRepositoryInterface $deptRepositoryInterface
      * @param CustomsStatementRepositoryInterface $customsStatementRepositoryInterface
@@ -85,6 +93,7 @@ class ReportController extends Controller
         OutlayRepositoryInterface $outlayRepositoryInterface,
         DeptRepositoryInterface $deptRepositoryInterface,
         CustomsStatementRepositoryInterface $customsStatementRepositoryInterface,
+        TransactionRepositoryInterface $transactionRepository,
         ProductRepository $pr
     )
     {
@@ -93,6 +102,7 @@ class ReportController extends Controller
         $this->returnOrderRepository = $returnOrderRepository;
         $this->outlayRepositoryInterface = $outlayRepositoryInterface;
         $this->deptRepositoryInterface = $deptRepositoryInterface;
+        $this->transactionRepository = $transactionRepository;
         $this->customsStatementRepositoryInterface = $customsStatementRepositoryInterface;
         $this->pr = $pr;
     }
@@ -204,9 +214,6 @@ class ReportController extends Controller
     /**
      * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
-    /**
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
-     */
     public function zemam()
     {
         // Initialize conditions
@@ -257,6 +264,53 @@ class ReportController extends Controller
         $data = $this->orderRepository->get($where, ['products'], $orWhere)->sortBy('tax_number');
 
         return OrderResource::collection($data);
+    }
+
+
+    /**
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     */
+    public function transaction()
+    {
+        // Initialize conditions
+        $where = [];
+
+        // Handle "from" and "newTo" logic
+        $from = request('from');
+        $newTo = request('newTo');
+
+        if ($from && $newTo) {
+            // Both "from" and "newTo" are set
+            $where[] = ['created_at', '>=', $from];
+            $where[] = ['created_at', '<=', $newTo];
+        } elseif ($from) {
+            // Only "from" is set
+            $where[] = ['created_at', '>=', $from];
+        } elseif ($newTo) {
+            // Only "newTo" is set
+            $where[] = ['created_at', '<=', $newTo];
+        }
+
+        // Default case: no "from" or "newTo"
+        if (!$from && !$newTo) {
+            // Leave conditions empty to fetch all data
+        }
+
+        // Handle "dept" logic
+        if ($type = request('type')) {
+            $where[] = ['type', $type];
+        } else {
+        }
+
+        // Handle "status" logic
+        if ($payment_method_id = request('payment_method_id')) {
+            $where[] = ['payment_method_id', $payment_method_id];
+        }
+
+        // Fetch data using orderRepository
+        $data = $this->transactionRepository->get($where, ['order'])->sortBy('id');
+
+        return TransactionResource::collection($data);
     }
 
 

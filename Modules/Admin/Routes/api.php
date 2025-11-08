@@ -246,6 +246,7 @@ Route::prefix('admin')
         Route::get('report/product', [ReportController::class, 'product']);
         Route::get('report/product-orders', [ReportController::class, 'products_order']);
         Route::get('report/zemam', [ReportController::class, 'zemam']);
+        Route::get('report/transaction', [ReportController::class, 'transaction']);
         Route::get('report/outlays', [ReportController::class, 'outlays']);
         Route::get('report/customs-statement', [ReportController::class, 'customs_statement']);
         Route::get('report/purchases', [ReportController::class, 'purchases']);
