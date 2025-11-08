@@ -264,6 +264,8 @@ Route::prefix('admin')
         Route::resource('payment_method', 'PaymentMethodController');
         // Slide Routes.
         Route::get('transaction/datatable', [TransactionController::class, 'datatable']);
+        Route::get('transaction/totals', [TransactionController::class, 'totals']);
+        Route::get('transaction/filteredTotals', [TransactionController::class, 'filteredTotals']);
         Route::resource('transaction', 'TransactionController');
 
         // Tag Routes.

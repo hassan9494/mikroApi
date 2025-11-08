@@ -313,7 +313,7 @@ class OrderController extends ApiAdminController
                         'amount' => request()->get('amount'),
                         'commission' => request()->get('commission'),
                         'shipping' => request()->get('shipping_amount'),
-                        'total_amount' => request()->get('amount') + request()->get('shipping_amount') - request()->get('commission'),
+                        'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
                         'payment_method_id' => request()->get('payment_method')
                     ]);
                 }else{
@@ -324,7 +324,7 @@ class OrderController extends ApiAdminController
                         'amount' => request()->get('amount'),
                         'commission' => request()->get('commission'),
                         'shipping' => request()->get('shipping_amount'),
-                        'total_amount' => request()->get('amount') + request()->get('shipping_amount') - request()->get('commission'),
+                        'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
                         'payment_method_id' => request()->get('payment_method')
                     ]);
                 }

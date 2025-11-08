@@ -4,8 +4,10 @@ namespace Modules\Admin\Http\Controllers\Api;
 
 use App\Traits\Datatable;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Modules\Admin\Http\Resources\MediaResource;
 use Modules\Admin\Http\Resources\TransactionResource;
+use Modules\Shop\Entities\Transaction;
 use Modules\Shop\Http\Resources\CategoryResource;
 use Modules\Shop\Repositories\Transaction\TransactionRepositoryInterface;
 
@@ -43,6 +45,112 @@ class TransactionController extends ApiAdminController
 
             ->resource(TransactionResource::class)
             ->json();
+    }
+
+
+    public function totals(): JsonResponse
+    {
+        $today = now()->format('Y-m-d');
+        $currentYear = now()->year;
+
+        // Today's totals grouped by payment method
+        $todayTotals = Transaction::whereDate('created_at', $today)
+            ->selectRaw('payment_method_id,
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+            ->groupBy('payment_method_id')
+            ->with('paymentMethod') // Eager load payment method details
+            ->get();
+
+        // This year's totals grouped by payment method
+        $yearTotals = Transaction::whereYear('created_at', $currentYear)
+            ->selectRaw('payment_method_id,
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+            ->groupBy('payment_method_id')
+            ->with('paymentMethod') // Eager load payment method details
+            ->get();
+
+        // Overall totals (without grouping)
+        $overallToday = Transaction::whereDate('created_at', $today)
+            ->selectRaw('
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+            ->first();
+
+        $overallYear = Transaction::whereYear('created_at', $currentYear)
+            ->selectRaw('
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+            ->first();
+
+        return response()->json([
+            'data'=>[
+                'today' => [
+                    'grouped_by_payment_method' => $todayTotals,
+                    'overall' => $overallToday
+                ],
+                'this_year' => [
+                    'grouped_by_payment_method' => $yearTotals,
+                    'overall' => $overallYear
+                ]
+            ]
+
+        ]);
+    }
+
+    public function filteredTotals(Request $request)
+    {
+        $query = Transaction::query();
+
+        // Apply date filters
+        if ($request->has('from') && $request->from) {
+            $query->where('created_at', '>=', $request->from);
+        }
+        if ($request->has('to') && $request->to) {
+            $query->where('created_at', '<=', $request->to . ' 23:59:59');
+        }
+
+        // Apply type filter
+        if ($request->has('type') && $request->type) {
+            $query->where('type', $request->type);
+        }
+
+        // Apply payment method filter
+        if ($request->has('payment_method_id') && $request->payment_method_id) {
+            $query->where('payment_method_id', $request->payment_method_id);
+        }
+
+        // Get totals grouped by payment method
+        $groupedTotals = $query->clone()
+            ->selectRaw('payment_method_id,
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+            ->groupBy('payment_method_id')
+            ->with('paymentMethod')
+            ->get();
+
+        // Get overall totals
+        $overallTotals = $query->clone()
+            ->selectRaw('
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+            ->first();
+
+        return response()->json([
+            'overall' => $overallTotals ?? (object)[
+                    'total_deposits' => 0,
+                    'total_withdrawals' => 0,
+                    'net_amount' => 0
+                ],
+            'grouped_by_payment_method' => $groupedTotals
+        ]);
     }
 
 
