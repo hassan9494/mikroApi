@@ -246,6 +246,7 @@ Route::prefix('admin')
         Route::get('report/product', [ReportController::class, 'product']);
         Route::get('report/product-orders', [ReportController::class, 'products_order']);
         Route::get('report/zemam', [ReportController::class, 'zemam']);
+        Route::get('report/transaction', [ReportController::class, 'transaction']);
         Route::get('report/outlays', [ReportController::class, 'outlays']);
         Route::get('report/customs-statement', [ReportController::class, 'customs_statement']);
         Route::get('report/purchases', [ReportController::class, 'purchases']);
@@ -263,6 +264,8 @@ Route::prefix('admin')
         Route::resource('payment_method', 'PaymentMethodController');
         // Slide Routes.
         Route::get('transaction/datatable', [TransactionController::class, 'datatable']);
+        Route::get('transaction/totals', [TransactionController::class, 'totals']);
+        Route::get('transaction/filteredTotals', [TransactionController::class, 'filteredTotals']);
         Route::resource('transaction', 'TransactionController');
 
         // Tag Routes.

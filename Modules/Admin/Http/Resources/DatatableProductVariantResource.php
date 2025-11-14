@@ -24,7 +24,8 @@ class DatatableProductVariantResource extends JsonResource
             'min_qty' => $this->variant->min_qty,
             'price' => $this->variant->price,
             'image' => $this->variant->getFirstMediaUrl(),
-            'product_id' => $this->product_id
+            'product_id' => $this->product_id,
+            'sku' => $this->variant->sku
 //            'sales' => $this->completedOrders,
 //            'brand_id' => $this->brand_id,
 //            'source_id' => $this->source_id,

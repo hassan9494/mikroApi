@@ -76,6 +76,7 @@ class OrderResource extends JsonResource
             'fatora_status' => $this->fatora_status,
             'qr_code' => $this->qr_code,
             'histories' => OrderHistoryResource::collection($this->whenLoaded('histories')),
+            'transaction' => new TransactionResource($this->whenLoaded('transactions')),
         ];
     }
 
@@ -104,6 +105,7 @@ class OrderResource extends JsonResource
                         'min_price' => $parentProduct->calcMinPrice() ?? 0,
                         'image' => $parentProduct->getFirstMediaUrl() ?? '',
                         'location' => $parentProduct->location ?? '',
+                        'stock_location' => $parentProduct->stock_location ?? '',
                         'stock' => $parentProduct->stock ?? 0,
                         'has_colors' => true,
                         'all_colors' => $parentProduct->product_variants->map(function($variant) {
@@ -134,7 +136,8 @@ class OrderResource extends JsonResource
                     'real_price' => $pivot->real_price,
                     'image' => $variant ? asset($variant->variant->getFirstMediaUrl()) : $product->getFirstMediaUrl(),
                     'location' => $variant->location ?? $product->location,
-                    'stock' => $variant->stock ?? $product->stock
+                    'stock' => $variant->stock ?? $product->stock,
+                    'stock_location' => $product->stock_location
                 ];
             } else {
                 // Regular product without colors
@@ -153,6 +156,7 @@ class OrderResource extends JsonResource
                     'image' => $product->getFirstMediaUrl(),
                     'location' => $product->location,
                     'stock' => $product->stock,
+                    'stock_location' => $product->stock_location,
                     'has_colors' => false,
                     'colors' => [],
                     'all_colors' => [] // Empty for products without colors

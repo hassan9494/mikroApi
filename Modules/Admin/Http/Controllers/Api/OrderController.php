@@ -149,6 +149,7 @@ class OrderController extends ApiAdminController
     {
         $model = $this->repository->findOrFail($id);
         $model->load('histories.user');
+        $model->load('transactions');
         return new OrderResource($model);
     }
 
@@ -304,32 +305,7 @@ class OrderController extends ApiAdminController
             $this->repository->status(
                 $id, request()->get('status')
             );
-            if (request()->get('status') == 'COMPLETED'){
-                $old_transaction = Transaction::where('order_id',$order->id)->first();
-                if ($old_transaction){
-                    $old_transaction->update([
-                        'note' => '',
-                        'type' => 'deposit',
-                        'amount' => request()->get('amount'),
-                        'commission' => request()->get('commission'),
-                        'shipping' => request()->get('shipping_amount'),
-                        'total_amount' => request()->get('amount') + request()->get('shipping_amount') - request()->get('commission'),
-                        'payment_method_id' => request()->get('payment_method')
-                    ]);
-                }else{
-                    $transaction = $order->transactions()->create([
-                        'transaction_id' => Str::uuid(),
-                        'note' => '',
-                        'type' => 'deposit',
-                        'amount' => request()->get('amount'),
-                        'commission' => request()->get('commission'),
-                        'shipping' => request()->get('shipping_amount'),
-                        'total_amount' => request()->get('amount') + request()->get('shipping_amount') - request()->get('commission'),
-                        'payment_method_id' => request()->get('payment_method')
-                    ]);
-                }
 
-            }
         }else{
             if (request()->get('status') != null){
                 $this->repository->status(
@@ -341,7 +317,32 @@ class OrderController extends ApiAdminController
         if (request()->get('status') && $oldStatus != request()->get('status')) {
             $order->recordStatusChange($oldStatus, request()->get('status'));
         }
+        if (request()->get('status') == 'COMPLETED'){
+            $old_transaction = Transaction::where('order_id',$order->id)->first();
+            if ($old_transaction){
+                $old_transaction->update([
+                    'note' => '',
+                    'type' => 'deposit',
+                    'amount' => request()->get('amount'),
+                    'commission' => request()->get('commission'),
+                    'shipping' => request()->get('shipping_amount'),
+                    'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
+                    'payment_method_id' => request()->get('payment_method')
+                ]);
+            }else{
+                $transaction = $order->transactions()->create([
+                    'transaction_id' => Str::uuid(),
+                    'note' => '',
+                    'type' => 'deposit',
+                    'amount' => request()->get('amount'),
+                    'commission' => request()->get('commission'),
+                    'shipping' => request()->get('shipping_amount'),
+                    'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
+                    'payment_method_id' => request()->get('payment_method')
+                ]);
+            }
 
+        }
         return $this->success();
     }
     private function getChangedFields($oldData, $newData)
@@ -404,7 +405,7 @@ class OrderController extends ApiAdminController
             'cashier_id' => 'nullable|exists:users,id',
 
             'customer.name' => 'required|max:255',
-            'customer.phone' => 'required|max:14|min:9',
+            'customer.phone' => 'required|max:18|min:9',
             'customer.email' => 'nullable|email|max:255',
             'customer_identity_number' => 'nullable',
             'identity_number_type' => 'nullable|max:3',
