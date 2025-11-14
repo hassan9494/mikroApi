@@ -136,7 +136,8 @@ class OrderResource extends JsonResource
                     'real_price' => $pivot->real_price,
                     'image' => $variant ? asset($variant->variant->getFirstMediaUrl()) : $product->getFirstMediaUrl(),
                     'location' => $variant->location ?? $product->location,
-                    'stock' => $variant->stock ?? $product->stock
+                    'stock' => $variant->stock ?? $product->stock,
+                    'stock_location' => $product->stock_location
                 ];
             } else {
                 // Regular product without colors
@@ -155,6 +156,7 @@ class OrderResource extends JsonResource
                     'image' => $product->getFirstMediaUrl(),
                     'location' => $product->location,
                     'stock' => $product->stock,
+                    'stock_location' => $product->stock_location,
                     'has_colors' => false,
                     'colors' => [],
                     'all_colors' => [] // Empty for products without colors

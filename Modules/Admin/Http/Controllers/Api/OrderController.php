@@ -405,7 +405,7 @@ class OrderController extends ApiAdminController
             'cashier_id' => 'nullable|exists:users,id',
 
             'customer.name' => 'required|max:255',
-            'customer.phone' => 'required|max:14|min:9',
+            'customer.phone' => 'required|max:18|min:9',
             'customer.email' => 'nullable|email|max:255',
             'customer_identity_number' => 'nullable',
             'identity_number_type' => 'nullable|max:3',

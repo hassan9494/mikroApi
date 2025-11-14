@@ -32,6 +32,7 @@ class ProductVariantsResource extends JsonResource
         $user = auth()->user();
         $media = $this->variant->getMedia();
         $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
+        $replacement_item = Product::where('id', $this->variant->replacement_item)->first();
         if (isset($user) && $user->hasRole(['Distributer'])){
             return [
                 'id' => $this->id,
@@ -60,6 +61,7 @@ class ProductVariantsResource extends JsonResource
                         'slug' => $e->slug,
                     ];
                 }),
+                'replacement_item' => $replacement_item ? new ProductResource($replacement_item) : null,
             ];
         }else {
             return [
@@ -88,7 +90,8 @@ class ProductVariantsResource extends JsonResource
                         'title' => $e->title,
                         'slug' => $e->slug,
                     ];
-                })
+                }),
+                'replacement_item' => $replacement_item ? new ProductResource($replacement_item) : null,
             ];
         }
 
