@@ -3,6 +3,7 @@
 namespace Modules\Shop\Entities;
 
 use App\Models\User;
+use App\Services\CouponService;
 use App\Traits\Media;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -252,7 +253,7 @@ class Order extends Model implements HasMedia
     /**
      * onSaving
      */
-    public function onSaving()
+    public function oldonSaving()
     {
         $this->calcSubtotal();
         $this->calcTotal();
@@ -289,6 +290,65 @@ class Order extends Model implements HasMedia
 //            $this->discount = 0;
         }
     }
+    // In Order model, update the onSaving method:
+
+    public function onSaving()
+    {
+        $this->calcSubtotal();
+        $this->calcTotal();
+        $this->calcProfit();
+
+        // If order is taxed and doesn't have a tax number, and it's not pending, then generate a serial tax number.
+        if ( !$this->tax_number && $this?->options?->taxed)
+    {
+        $lastorder = Order::whereNotNull('tax_number')->max('tax_number');
+        $this->tax_number = $lastorder ? $lastorder +1  : 13185;
+        $this->taxed_at = now();
+    }
+
+    $this->options->taxed = !!$this->tax_number;
+
+    $this->completed_at = $this->isCompleted && !$this->completed_at ? Carbon::now() : $this->completed_at;
+
+    // Handle coupon discount using the service
+//    if ($this->coupon_id) {
+//
+//        $coupon = Coupon::find($this->coupon_id);
+//
+//        if ($coupon) {
+//            $couponService = app(CouponService::class);
+//            $result = $couponService->applyToOrder($coupon, $this);
+//
+//            if ($result['valid']) {
+//                $this->discount = $result['discount'];
+//
+//                // Also update discount percentage for consistency
+//                $this->discount_percentage = $this->subtotal > 0 ? ($this->discount / $this->subtotal) * 100 : 0;
+//            } else {
+//
+//                // Coupon is invalid, remove it and reset discount
+//                $this->coupon_id = null;
+//                // Keep manual discount if any, otherwise reset to 0
+//                if ($this->discount > 0 && !$this->getOriginal('discount')) {
+//                    $this->discount = 0;
+//                    $this->discount_percentage = 0;
+//                }
+//                // You might want to log this or show a message
+//            }
+//
+//        }
+//    }
+//    else {
+//
+//        // No coupon, but we might have manual discount - ensure percentage is calculated
+//        if ($this->subtotal > 0 && $this->discount > 0) {
+//            $this->discount_percentage = ($this->discount / $this->subtotal) * 100;
+//        } else {
+//            $this->discount_percentage = 0;
+//        }
+//    }
+
+}
 
     /**
      * Calc Order Profit.

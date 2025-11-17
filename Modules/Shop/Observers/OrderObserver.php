@@ -28,6 +28,7 @@ class OrderObserver
      */
     public function creating(Order $order)
     {
+
         $this->checkCoupon($order->coupon_id);
     }
 
@@ -40,6 +41,7 @@ class OrderObserver
 
     public function saving(Order $order)
     {
+
         if ($order->isDirty('coupon_id')) {
             $this->checkCoupon($order->coupon_id);
         }

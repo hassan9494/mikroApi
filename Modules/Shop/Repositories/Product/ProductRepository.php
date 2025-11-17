@@ -1928,7 +1928,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             $rankingQuery = rtrim($rankingQuery, "+ ") . ") END AS search_rank";
 
             // Specify the columns you want to select
-            $query->addSelect(['id', 'name','exchange_factor','base_purchases_price', 'sku', 'slug','location', 'options', 'source_sku','price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]);
+            $query->addSelect(['id', 'name', 'brand_id','exchange_factor','base_purchases_price', 'sku', 'slug','location', 'options', 'source_sku','price', 'is_retired', 'hasVariants', 'replacement_item', 'stock', \DB::raw($rankingQuery)]);
 
             // Order by the new rank and other criteria
             $query->orderByDesc('search_rank')

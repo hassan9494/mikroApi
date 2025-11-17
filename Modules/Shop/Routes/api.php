@@ -167,6 +167,8 @@ Route::namespace('Api')->group(function () {
         'coupon/check',
         [CouponController::class, 'check']
     );
+    Route::post('coupons/validate-for-cart', [CouponController::class, 'validateForCart'])->middleware(['auth:sanctum']);
+    Route::post('coupons/validate-for-cart-guest', [CouponController::class, 'validateForCartGuest']);
 
     Route::prefix('admin')->group(function () {
         Route::post(

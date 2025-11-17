@@ -139,6 +139,7 @@ Route::prefix('admin')
         // Brand Routes.
         Route::get('brand/datatable', [BrandController::class, 'datatable']);
         Route::resource('brand', 'BrandController');
+        Route::get('brand/autocomplete', [BrandController::class, 'autocomplete']);
 
         // tax_exempt Routes.
         Route::get('tax_exempt/datatable', [TaxExemptController::class, 'datatable']);
@@ -289,8 +290,13 @@ Route::prefix('admin')
         Route::resource('shipping-provider', 'ShippingProviderController');
 
         // Shipping Provider Routes.
+        Route::get('coupons/check/valid', [CouponController::class, 'validCoupons']);
+        Route::get('coupon/valid', [CouponController::class, 'validCoupons']);
         Route::get('coupon/datatable', [CouponController::class, 'datatable']);
         Route::resource('coupon', 'CouponController');
+        Route::post('coupons/validate', [CouponController::class, 'validateCoupon']);
+
+
 
         // Article Routes.
         Route::get('article/datatable', [ArticleController::class, 'datatable']);

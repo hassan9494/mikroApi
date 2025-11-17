@@ -37,6 +37,15 @@ class BrandRepository extends EloquentRepository implements BrandRepositoryInter
             ->firstOrFail();
     }
 
+    public function autocomplete($searchWord, $limit = 20)
+    {
+        $query = Brand::all();
+        $searchWord = str_replace("'", "\'", $searchWord);
+
+
+        return $query;
+    }
+
     /**
      * @param int $cateLimit
      * @param int $productLimit

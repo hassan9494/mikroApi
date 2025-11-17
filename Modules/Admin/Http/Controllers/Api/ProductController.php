@@ -212,6 +212,7 @@ class ProductController extends Controller
                 'image' => $product->getFirstMediaUrl(),
                 'stock' => $product->stock,
                 'sku' => $product->sku,
+                'brand_id' => $product->brand_id,
                 'source_sku' => $product->source_sku,
                 'location' => $product->location,
                 'purchases_price'=>(float)$product->price->real_price,

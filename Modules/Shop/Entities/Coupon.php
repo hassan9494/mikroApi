@@ -2,7 +2,9 @@
 
 namespace Modules\Shop\Entities;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * Class Order
@@ -22,6 +24,11 @@ class Coupon extends Model
         'start_at',
         'end_at',
         'count',
+        'count_per_user',
+        'main_count',
+        'use_count',
+        'apply_count',
+        'apply_count_per_user',
         'active',
     ];
 
@@ -68,6 +75,45 @@ class Coupon extends Model
         }
         $total -= $this->amount;
         return $total * ((100 - $this->amount) / 100);
+    }
+
+    /**
+     * @return BelongsToMany
+     */
+    public function products(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Product::class,
+            'coupon_products',
+            'coupon_id',
+            'product_id'
+        )->withTrashed()->withPivot('product_name');
+    }
+
+    /**
+     * @return BelongsToMany
+     */
+    public function brands(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Brand::class,
+            'coupon_brands',
+            'coupon_id',
+            'brand_id'
+        )->withPivot('brand_name');
+    }
+
+    /**
+     * @return BelongsToMany
+     */
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            User::class,
+            'coupon_users',
+            'coupon_id',
+            'user_id'
+        )->withPivot('order_id','used_at');
     }
 
 

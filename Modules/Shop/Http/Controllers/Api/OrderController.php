@@ -77,6 +77,7 @@ class OrderController extends Controller
             'notes' => 'nullable|max:500',
             'coupon_id' => 'nullable|exists:coupons,id',
         ]);
+
         $data['user_id'] = Auth::user()->id;
         if (!Auth::user()->primaryAddress)
         {

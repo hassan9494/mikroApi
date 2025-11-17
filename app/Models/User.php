@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Modules\Shop\Entities\Address;
+use Modules\Shop\Entities\Coupon;
 use Modules\Shop\Entities\TaxExempt;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -81,6 +83,10 @@ class User extends Authenticatable implements MustVerifyEmail
                 $user->sendEmailVerificationNotification();
             }
         });
+    }
+    public function coupons(): BelongsToMany
+    {
+        return $this->belongsToMany(Coupon::class, 'coupon_users', 'user_id', 'coupon_id')->withPivot('order_id','used_at');
     }
 
 }
