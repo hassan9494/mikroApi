@@ -3,6 +3,7 @@
 namespace Modules\Shop\Observers;
 
 
+use Modules\Shop\Entities\Coupon;
 use Modules\Shop\Entities\Order;
 use Modules\Shop\Repositories\Coupon\CouponRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderShippingStatus;
@@ -37,6 +38,12 @@ class OrderObserver
      */
     public function created(Order $order)
     {
+        if ($order->coupon_id){
+            $coupon = Coupon::find($order->coupon_id);
+            $coupon->use_count += 1;
+            $coupon->save();
+        }
+
     }
 
     public function saving(Order $order)
@@ -99,6 +106,7 @@ class OrderObserver
     {
         if ($couponId) {
             $this->couponRepository->checkOrFail($couponId);
+
         }
     }
 

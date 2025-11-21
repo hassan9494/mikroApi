@@ -6,6 +6,7 @@ use Modules\Shop\Entities\Coupon;
 use App\Models\User;
 use Modules\Shop\Entities\Order;
 use Illuminate\Support\Facades\DB;
+use Modules\Shop\Entities\Product;
 
 class CouponService
 {
@@ -32,7 +33,6 @@ class CouponService
         if ($coupon->apply_count && $coupon->use_count >= $coupon->count) {
             return ['valid' => false, 'message' => 'Coupon usage limit exceeded'];
         }
-
         // Check per-user usage limit
         if ($user && $coupon->apply_count_per_user) {
             $userUsage = $this->getUserCouponUsage($coupon, $user);
@@ -91,6 +91,7 @@ class CouponService
 
         // Calculate totals for eligible and excluded items
         foreach ($orderProducts as $product) {
+            $mainProduct = Product::find($product['id']);
             if (!isset($product['id']) || !isset($product['price']) || !isset($product['quantity'])) {
                 continue;
             }
@@ -99,7 +100,7 @@ class CouponService
 
             // Check if product is excluded
             $isExcluded = in_array($product['id'], $excludedProductIds) ||
-                (isset($product['brand_id']) && in_array($product['brand_id'], $excludedBrandIds));
+                (isset($mainProduct->brand_id) && in_array($mainProduct->brand_id, $excludedBrandIds));
 
             if ($isExcluded) {
                 $excludedSubtotal += $productTotal;

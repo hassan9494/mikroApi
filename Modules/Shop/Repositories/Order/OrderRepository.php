@@ -67,8 +67,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     public function makeByGuest(array $data): Order
     {
         $city = $this->cities->findOrFail($data['city_id']);
-        $cart = $this->prepareUserProducts($data['products']);
-        if ($city->id == 2){
+        $cart = $this->prepareUserProducts($data['products'], null, $data['coupon_id'] ?? null);
+        $data['discount'] = $cart['finalDiscount'];
+        if ($city->id == 2) {
             $isFreeShipping = true;
             $shippingCost = 0;
 
@@ -76,9 +77,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $data['shipping']['free'] = $isFreeShipping; // Set free flag
             $data['shipping']['city'] = $city->name;
             $data['shipping']['status'] = 'WAITING';
-        }else{
+        } else {
             $shippingLimit = Setting::find(2)->value;
-            $isFreeShipping = $cart['subtotal'] >= $shippingLimit;
+            $isFreeShipping = ($cart['subtotal'] - $data['discount']) >= $shippingLimit;
             $shippingCost = $city->shipping_cost;
 
             $data['shipping']['cost'] = $shippingCost;
@@ -109,18 +110,18 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     public function makeByUser(array $data, Address $address, $user): Order
     {
 
-        $cart = $this->prepareUserProducts($data['products'], $user,$data['coupon_id']);
+        $cart = $this->prepareUserProducts($data['products'], $user, $data['coupon_id'] ?? null);
         $data['discount'] = $cart['finalDiscount'];
 
-        if ($address->city_id == 2){
+        if ($address->city_id == 2) {
             $data['shipping'] = $address->shipping;
             $data['shipping']['cost'] = 0;
             $data['shipping']['free'] = true; // Set free flag
-        }else{
+        } else {
             $shippingLimit = Setting::find(2)->value;
             // Apply free shipping if subtotal >= 20
-            $isFreeShipping = $cart['subtotal'] >= $shippingLimit;
-            $shippingCost =  $address->shipping['cost'];
+            $isFreeShipping = ($cart['subtotal'] - $data['discount']) >= $shippingLimit;
+            $shippingCost = $address->shipping['cost'];
             $data['shipping'] = $address->shipping;
             $data['shipping']['cost'] = $shippingCost;
             $data['shipping']['free'] = $isFreeShipping; // Set free flag
@@ -149,9 +150,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     {
         $query = $this->model
             ->whereNotNull('tax_number')
-            ->where(function($query) use ($q) {
-                $query->where('tax_number', 'LIKE', '%'.$q.'%')
-                    ->orWhere('id', 'LIKE', '%'.$q.'%');
+            ->where(function ($query) use ($q) {
+                $query->where('tax_number', 'LIKE', '%' . $q . '%')
+                    ->orWhere('id', 'LIKE', '%' . $q . '%');
             })
             ->limit($limit);
 
@@ -201,7 +202,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         }
 
         if (isset($data['shipping']) && is_array($data['shipping'])) {
-            $currentShipping = (array) $model->shipping;
+            $currentShipping = (array)$model->shipping;
 
             // Always preserve the city field from existing data
             if (isset($currentShipping['city'])) {
@@ -210,7 +211,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
             // Ensure cost is always stored as string for consistency
             if (isset($data['shipping']['cost'])) {
-                $data['shipping']['cost'] = (string) $data['shipping']['cost'];
+                $data['shipping']['cost'] = (string)$data['shipping']['cost'];
             }
         }
 
@@ -229,9 +230,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $model->products()->sync($cart['products']);
         }
 
-        if ($model->options->taxed == true){
+        if ($model->options->taxed == true) {
             $data['options']['taxed'] = true;
-        }elseif ($model->tax_number !== null){
+        } elseif ($model->tax_number !== null) {
             $data['options']['taxed'] = true;
         }
 
@@ -283,6 +284,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             }
         }
     }
+
     private function validateCouponForEdit($couponId, $user, array $products = []): void
     {
         $coupon = Coupon::find($couponId);
@@ -401,34 +403,44 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
      * @param array $items
      * @return array
      */
-    private function prepareUserProducts(array $items = [], $user = null,$coupon_id = null): array
+    private function prepareUserProducts(array $items = [], $user = null, $coupon_id = null): array
     {
 //        dd($coupon_id);
         $coupon = Coupon::find($coupon_id);
-        $excludedProductsIds = $coupon->products->pluck('id')->toArray();
-        $excludedBrandsIds = $coupon->brands->pluck('id')->toArray();
+        $excludedProductsIds = [];
+        $excludedBrandsIds = [];
+        if ($coupon) {
+            $productIds = $coupon->products;
+            $brandsIds = $coupon->brands;
+            $excludedProductsIds = $productIds->pluck('id')->toArray();
+            $excludedBrandsIds = $brandsIds->pluck('id')->toArray();
+        }
+
 
         $products = [];
         $subtotal = 0;
         $finalDiscount = 0;
         foreach ($items as $item) {
-            if (isset($item['id'])){
+            if (isset($item['id'])) {
                 $id = $item['id'];
                 $quantity = $item['quantity'];
 
                 $product = $this->products->findOrFail($id);
-                if ($coupon && $coupon->is_percentage){
-                    if (in_array($product->id,$excludedProductsIds)){
+                if ($coupon) {
+                    if ($coupon && $coupon->is_percentage) {
+                        if (in_array($product->id, $excludedProductsIds)) {
+                            $discount = 0;
+                        } elseif (in_array($product->brand_id, $excludedBrandsIds)) {
+                            $discount = 0;
+                        } else {
+                            $discount = ($product->calcPrice(1, null, $user) * $quantity * $coupon->amount) / 100;
+                        }
+                    } else {
                         $discount = 0;
-                    }elseif (in_array($product->brand_id,$excludedBrandsIds)){
-                        $discount = 0;
-                    }else{
-                        $discount = ($product->calcPrice(1, null, $user) * $quantity *$coupon->amount) / 100;
                     }
-                }else{
+                } else {
                     $discount = 0;
                 }
-
 
 
                 if (!$product->checkStock($quantity))
@@ -442,10 +454,18 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
                     'product_name' => $product->name,
                 ];
                 $subtotal += $product->calcPrice($quantity, null, $user);
-                $finalDiscount = $finalDiscount + $discount;
+                if ($coupon){
+                    if (!$coupon->is_percentage) {
+                        $finalDiscount = $coupon->amount;
+                    } else {
+                        $finalDiscount = $finalDiscount + $discount;
+                    }
+                }
+
+
             }
         }
-        return compact('products', 'subtotal','finalDiscount');
+        return compact('products', 'subtotal', 'finalDiscount');
     }
 
     /**
@@ -470,7 +490,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
                 if (!$product->checkStock($quantity))
                     throw new BadRequestException($product->name . ' has insufficient quantity');
             }
-            if ($product->price->real_price >= $item['price']){
+            if ($product->price->real_price >= $item['price']) {
                 throw new BadRequestException($product->name . ' has Low price');
             }
 

@@ -91,8 +91,9 @@ class CouponController extends Controller
         $eligibleItems = [];
 
         foreach ($request->items as $item) {
+            $product = Product::find($item['id']);
             $isExcluded = in_array($item['id'], $calculation['excluded_product_ids']) ||
-                (isset($item['brand_id']) && in_array($item['brand_id'], $calculation['excluded_brand_ids']));
+                (isset($product->brand_id) && in_array($product->brand_id, $calculation['excluded_brand_ids']));
             $product = Product::find($item['id']);
             $itemData = [
                 'id' => $item['id'],
