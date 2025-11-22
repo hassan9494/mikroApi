@@ -83,5 +83,7 @@ interface BrandRepositoryInterface extends BaseRepository
 
     public function model();
 
+    public function autocomplete($searchWord, $limit = 20);
+
 
 }

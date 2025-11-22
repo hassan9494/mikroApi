@@ -47,4 +47,24 @@ class BrandController extends ApiAdminController
             'order' => 'required',
         ]);
     }
+
+    /**
+     * @return JsonResponse
+     */
+    public function autocomplete(): JsonResponse
+    {
+        dd('test');
+        $q = request()->get('q');
+        $brands = $this->repository->autocomplete($q);
+        $response = [];
+        foreach ($brands as $brand)
+        {
+            $response[] = [
+                'id' => $brands->id,
+                'name' => $brands->name,
+
+            ];
+        }
+        return $this->success($response);
+    }
 }

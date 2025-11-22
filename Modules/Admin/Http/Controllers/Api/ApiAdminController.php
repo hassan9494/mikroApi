@@ -6,6 +6,7 @@ namespace Modules\Admin\Http\Controllers\Api;
 use App\Repositories\Base\BaseRepository;
 use App\Traits\ApiResponser;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
 class ApiAdminController extends Controller

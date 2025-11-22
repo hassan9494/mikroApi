@@ -92,10 +92,9 @@ class ProductShortResource extends JsonResource
                     'price' =>  $this->price->normal_price,
                     'sale_price' => $this->price->distributor_price ?: null,
                     'image' => $image,
-                    'sales' => $this->sales(null, null),
                     'replacement_item' =>  new ProductResource($replacement_item),
                     'hasVariants' =>  $this->hasVariants,
-                    'colors' => ProductVariantsResource::collection($this->product_variants)
+                    'colors' => ProductVariantsShortResource::collection($this->product_variants)
 
                 ];
             }
@@ -113,10 +112,8 @@ class ProductShortResource extends JsonResource
                     'price' =>  $this->price->normal_price,
                     'sale_price' => $this->price->sale_price ?: null,
                     'image' => $image,
-                    'sales' => $this->sales(null, null),
-                    'replacement_item' =>  new ProductResource($replacement_item),
                     'hasVariants' =>  $this->hasVariants,
-                    'colors' => ProductVariantsResource::collection($this->product_variants)
+                    'colors' => ProductVariantsShortResource::collection($this->product_variants)
 
                 ];
             }

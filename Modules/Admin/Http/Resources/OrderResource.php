@@ -104,6 +104,7 @@ class OrderResource extends JsonResource
                         'normal_price' => $parentProduct->calcPrice() ?? 0,
                         'min_price' => $parentProduct->calcMinPrice() ?? 0,
                         'image' => $parentProduct->getFirstMediaUrl() ?? '',
+                        'brand_id' => $parentProduct->brand_id,
                         'location' => $parentProduct->location ?? '',
                         'stock_location' => $parentProduct->stock_location ?? '',
                         'stock' => $parentProduct->stock ?? 0,
@@ -135,6 +136,7 @@ class OrderResource extends JsonResource
                     'discount' => $pivot->discount,
                     'real_price' => $pivot->real_price,
                     'image' => $variant ? asset($variant->variant->getFirstMediaUrl()) : $product->getFirstMediaUrl(),
+                    'brand_id' =>$variant ? $variant->variant->brand_id : $product->brand_id,
                     'location' => $variant->location ?? $product->location,
                     'stock' => $variant->stock ?? $product->stock,
                     'stock_location' => $product->stock_location
@@ -155,6 +157,7 @@ class OrderResource extends JsonResource
                     'min_price' => $product->calcMinPrice(),
                     'image' => $product->getFirstMediaUrl(),
                     'location' => $product->location,
+                    'brand_id' => $product->brand_id,
                     'stock' => $product->stock,
                     'stock_location' => $product->stock_location,
                     'has_colors' => false,
