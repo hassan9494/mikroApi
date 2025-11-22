@@ -18,6 +18,12 @@ class MediaController extends Controller
     public function store(): JsonResponse
     {
         $files = request()->file('files', false);
+
+        // Also check for 'media' field used by DragDropMedia
+        if (!$files) {
+            $files = request()->file('media', false);
+        }
+
         if (!$files) {
             foreach([0, 1, 2, 3, 4, 5, 6] as $index) {
                 if (request()->hasFile("file$index")) {
@@ -26,15 +32,33 @@ class MediaController extends Controller
                 }
             }
         }
-        if (!$files) abort(400);
+
+        if (!$files) {
+            return response()->json(['error' => 'No files uploaded'], 400);
+        }
+
+        // Ensure $files is always an array
+        if (!is_array($files)) {
+            $files = [$files];
+        }
+        // Check maximum file limit (11 images)
+        if (count($files) > 11) {
+            return response()->json([
+                'error' => 'Maximum 11 images allowed per product'
+            ], 400);
+        }
+
+
         $data = [];
-        foreach($files as $file)
-        {
-            $key = $file->store('temp');
+        foreach($files as $file) {
+            $key = $file->store('temp', 'public'); // Make sure to use 'public' disk
             $data[] = [
-                'url' => Storage::url($key), 'key' => $key, 'folder' => 'temp'
+                'url' => Storage::disk('public')->url($key),
+                'key' => $key,
+                'folder' => 'temp'
             ];
         }
+
         return $this->success(count($data) > 1 ? $data : $data[0]);
     }
 

@@ -188,6 +188,8 @@ class TransactionController extends ApiAdminController
             'amount' => 'required|numeric',
             'payment_method_id' => 'required',
             'type' => 'nullable',
+            'order_id' => 'nullable',
+            'commission' => 'nullable',
         ]);
     }
 
