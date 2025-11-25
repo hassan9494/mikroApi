@@ -29,10 +29,28 @@ class TransactionRepository extends EloquentRepository implements TransactionRep
 
     public function create($data)
     {
+        if (isset($data['order_id'])){
+            $data['type'] = 'deposit';
+            $data['total_amount'] = $data['amount'] - $data['commission'];
+        }else{
+            $data['total_amount'] = $data['amount'];
+        }
         $data['transaction_id'] = Str::uuid();
         $data['note'] = '';
-        $data['total_amount'] = $data['amount'];
+
         $model = parent::create($data);
+        return $model;
+    }
+
+    public function update($id,$data)
+    {
+        if ($data['commission']){
+            $data['total_amount'] = $data['amount'] - $data['commission'];
+        }else{
+            $data['total_amount'] = $data['amount'];
+        }
+
+        $model = parent::update($id, $data);
         return $model;
     }
 

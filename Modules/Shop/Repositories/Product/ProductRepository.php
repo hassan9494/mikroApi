@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Support\Enums\InvoiceStatus;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Class EloquentDevice
@@ -67,11 +68,96 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $model->categories()->attach($categories);
         $model->relatedProducts()->attach($data['related']);
 
-        // Sync media
-        $model->syncMedia($data['media'] ?? []);
+        if (isset($data['media'])) {
+            $this->syncMediaWithOrder($model, $data['media']);
+        }
+
 
         return $model;
     }
+
+    private function syncMediaWithOrder($model, $mediaData)
+    {
+        $mediaIds = [];
+        $order = 1;
+        // Check if total media would exceed 11 items
+        $currentMediaCount = $model->media()->count();
+        $newMediaCount = collect($mediaData)->where('new', true)->count();
+        $totalMediaCount = $currentMediaCount + $newMediaCount;
+
+        if ($totalMediaCount > 11) {
+            throw new \Exception('Maximum 11 images allowed per product. Current: ' . $currentMediaCount . ', New: ' . $newMediaCount);
+        }
+
+
+        foreach ($mediaData as $mediaItem) {
+            if (isset($mediaItem['deleted']) && $mediaItem['deleted']) {
+                // Skip deleted items
+                continue;
+            }
+
+            if (isset($mediaItem['id']) && !isset($mediaItem['new'])) {
+                // Update existing media order
+                $media = \Spatie\MediaLibrary\MediaCollections\Models\Media::find($mediaItem['id']);
+                if ($media) {
+                    $media->update(['order_column' => $order++]);
+                    $mediaIds[] = $media->id;
+                }
+            } elseif (isset($mediaItem['new']) && $mediaItem['new'] === true) {
+                // Handle new uploads - move from temp to permanent location
+                try {
+                    $tempPath = $mediaItem['key'];
+                    $filename = basename($tempPath);
+
+                    // Define permanent path
+                    $permanentPath = "products/{$model->id}/{$filename}";
+
+                    // Move file from temp to permanent location
+                    if (Storage::disk('public')->exists($tempPath)) {
+                        Storage::disk('public')->move($tempPath, $permanentPath);
+
+                        // Add to media library
+                        $media = $model->addMedia(Storage::disk('public')->path($permanentPath))
+                            ->toMediaCollection();
+
+                        $media->update(['order_column' => $order++]);
+                        $mediaIds[] = $media->id;
+
+                        // Update the key in case you need it for reference
+                        $mediaItem['key'] = $permanentPath;
+                    } else {
+                        \Log::error("Temp file not found: {$tempPath}");
+                        continue;
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Failed to add media: ' . $e->getMessage());
+                    continue;
+                }
+            }
+        }
+
+        // Delete media that are not in the list
+        $model->media()
+            ->whereNotIn('id', $mediaIds)
+            ->delete();
+
+        // Clean up any remaining temp files for this product
+        $this->cleanupTempFiles($model->id);
+    }
+
+    private function cleanupTempFiles($productId)
+    {
+        try {
+            $tempFiles = Storage::disk('public')->files('temp');
+            foreach ($tempFiles as $file) {
+                // You might want to add more specific logic to identify files for this product
+                Storage::disk('public')->delete($file);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error cleaning up temp files: ' . $e->getMessage());
+        }
+    }
+
 
 
     public function update($id, $data)
@@ -128,7 +214,10 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }
         if (count($kit) != 0)
             $model->kit()->sync($kit);
-        $model->syncMedia($data['media'] ?? []);
+        if (isset($data['media'])) {
+            $this->syncMediaWithOrder($model, $data['media']);
+        }
+
     }
 
     /**

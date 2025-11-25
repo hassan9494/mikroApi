@@ -61,7 +61,7 @@ class ProductResource extends JsonResource
             }),
 
             'image' => asset($this->getFirstMediaUrl()),
-            'media' => MediaResource::collection($this->getMedia()),
+            'media' => MediaResource::collection($this->getMedia()->sortBy('order_column')),
 
             'meta' => $this->meta,
             'options' => $this->options,
