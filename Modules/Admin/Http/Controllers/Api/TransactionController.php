@@ -26,13 +26,7 @@ class TransactionController extends ApiAdminController
     public function show($id)
     {
         $model = $this->repository->findOrFail($id);
-        return $this->success([
-            'id' => $model->id,
-            'name' => $model->name,
-            'commission_type' => $model->commission_type,
-            'commission' => $model->commission,
-            'commission_range' => $model->commission_range
-        ]);
+        return $this->success(new TransactionResource($model));
     }
 
     /**
@@ -164,6 +158,7 @@ class TransactionController extends ApiAdminController
     public function store(): JsonResponse
     {
         $data = $this->validate();
+        $data['created_by'] = auth()->id();
         $model = $this->repository->create($data);
         return $this->success(
             new TransactionResource($model)
@@ -173,6 +168,7 @@ class TransactionController extends ApiAdminController
     public function update($id): JsonResponse
     {
         $data = $this->validate();
+        $data['updated_by'] = auth()->id();
         $model = $this->repository->update($id, $data);
         return $this->success(
             $model

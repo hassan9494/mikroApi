@@ -42,6 +42,7 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
 //        $parentProduct->colors_nick_names = $parentProduct->colors_nick_names + $data['name'] + $product->name;
         $data['short_description'] = $product->short_description;
         $data['short_description'] = $product->short_description;
+        $data['casher_note'] = $product->casher_note;
         $data['price'] = $product->price;
         $data['stock'] = $product->stock;
         $option['available'] =$product->options->available;
@@ -87,6 +88,7 @@ class ProductVariantsRepository extends EloquentRepository implements ProductVar
         $parentProduct->colors_nick_names = implode(' , ', array_unique($currentNames));
         $data['short_description'] = $product->short_description;
         $data['short_description'] = $product->short_description;
+        $data['casher_note'] = $product->casher_note;
         $data['price'] = $product->price;
         $data['stock'] = $product->stock;
         $option['available'] =$product->options->available;

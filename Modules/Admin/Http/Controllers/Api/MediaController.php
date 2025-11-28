@@ -42,9 +42,9 @@ class MediaController extends Controller
             $files = [$files];
         }
         // Check maximum file limit (11 images)
-        if (count($files) > 11) {
+        if (count($files) > 13) {
             return response()->json([
-                'error' => 'Maximum 11 images allowed per product'
+                'error' => 'Maximum 13 images allowed per product'
             ], 400);
         }
 
@@ -71,14 +71,22 @@ class MediaController extends Controller
             'upload' => 'required|image'
         ]);
         $file = request()->file('upload');
-        $key = $file->store('content');
+
+        // Change from this:
+        // $key = $file->store('content');
+
+        // To this (use public disk):
+        $key = $file->store('content', 'public');
+
         return response()->json(
             [
                 'uploaded' => true,
-                'url' => Storage::url($key),
+                // Use public disk URL
+                'url' => Storage::disk('public')->url($key),
             ]
         );
     }
+
 
     /**
      * @return JsonResponse

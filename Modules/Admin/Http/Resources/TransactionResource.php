@@ -26,6 +26,12 @@ class TransactionResource extends JsonResource
             'payment_method_id' => $this->payment_method_id,
             'created_at' => $this->created_at,
             'paymentMethod' => $this->paymentMethod?->name,
+            'receipt' => $this->receipt,
+            'order' => $this->order,
+            'created_by' => $this->created_by,
+            'created_user' => $this->createdUser?->name,
+            'updated_user' => $this->updatedUser?->name,
+            'updated_by' => $this->updated_by,
         ];
     }
 
