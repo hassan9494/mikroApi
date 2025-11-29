@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\ReturnOrderResource;
 use Modules\Admin\Http\Services\UblInvoiceService;
@@ -119,13 +120,32 @@ class ReturnOrderController extends ApiAdminController
                 $id, request()->get('status'), request()->get('products')
             );
 
-        } else {
+        }
+        else {
             if (request()->get('status') != null) {
                 $this->repository->status(
                     $id, request()->get('status'), request()->get('products')
                 );
             }
 
+        }
+
+        if (request()->get('status') == 'COMPLETED') {
+            if (request()->get('amount') > 0){
+                $transaction = $order->transactions()->create([
+                    'transaction_id' => Str::uuid(),
+                    'note' => '',
+                    'type' => 'refund',
+                    'amount' => request()->get('amount'),
+                    'commission' => request()->get('commission'),
+                    'shipping' => request()->get('shipping_amount'),
+                    'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
+                    'payment_method_id' => request()->get('payment_method'),
+                    'created_by' => auth()->id()
+                ]);
+            }
+
+//        }
         }
         return $this->success();
     }
@@ -188,6 +208,10 @@ class ReturnOrderController extends ApiAdminController
             'extra_items' => 'nullable|array',
 
             'attachments' => 'nullable|array',
+            'amount' => 'nullable',
+            'commission' => 'nullable',
+            'payment_method' => 'nullable',
+            'shipping_amount' => 'nullable',
         ]);
     }
 

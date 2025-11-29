@@ -13,7 +13,7 @@ class Transaction extends Model
     use SoftDeletes;
 
     protected $fillable = ['transaction_id','note','type','amount','commission','shipping','total_amount'
-    ,'order_id','payment_method_id','created_by','updated_by'];
+    ,'order_id','payment_method_id','created_by','updated_by','return_order_id'];
 
 
     public function paymentMethod()
@@ -30,6 +30,11 @@ class Transaction extends Model
     public function order()
     {
         return $this->belongsTo(Order::class,'order_id');
+    }
+
+    public function return_order()
+    {
+        return $this->belongsTo(ReturnOrder::class,'return_order_id');
     }
 
     public function createdUser()

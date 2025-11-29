@@ -119,28 +119,31 @@ class TransactionController extends ApiAdminController
             $query->where('payment_method_id', $request->payment_method_id);
         }
 
-        // Get totals grouped by payment method
+        // Get totals grouped by payment method - UPDATED FOR REFUNDS
         $groupedTotals = $query->clone()
             ->selectRaw('payment_method_id,
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
-            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+        SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+        SUM(CASE WHEN type = "refund" THEN total_amount ELSE 0 END) as total_refunds,
+        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
             ->groupBy('payment_method_id')
             ->with('paymentMethod')
             ->get();
 
-        // Get overall totals
+        // Get overall totals - UPDATED FOR REFUNDS
         $overallTotals = $query->clone()
             ->selectRaw('
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
-            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+        SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+        SUM(CASE WHEN type = "refund" THEN total_amount ELSE 0 END) as total_refunds,
+        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
             ->first();
 
         return response()->json([
             'overall' => $overallTotals ?? (object)[
                     'total_deposits' => 0,
                     'total_withdrawals' => 0,
+                    'total_refunds' => 0,
                     'net_amount' => 0
                 ],
             'grouped_by_payment_method' => $groupedTotals
@@ -185,6 +188,7 @@ class TransactionController extends ApiAdminController
             'payment_method_id' => 'required',
             'type' => 'nullable',
             'order_id' => 'nullable',
+            'return_order_id' => 'nullable',
             'commission' => 'nullable',
         ]);
     }

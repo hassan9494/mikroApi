@@ -69,5 +69,10 @@ class ReturnOrder extends Model implements HasMedia
         return $totalAfterDiscount - $realPrice;
     }
 
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class,'return_order_id');
+    }
+
 
 }
