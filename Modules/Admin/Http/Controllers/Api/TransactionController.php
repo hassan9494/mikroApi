@@ -36,9 +36,19 @@ class TransactionController extends ApiAdminController
     {
         return Datatable::make($this->repository->model())
             ->search('id', 'transaction_id', 'order_id')
-
             ->resource(TransactionResource::class)
             ->json();
+    }
+
+    /**
+     * @return JsonResponse
+     */
+    public function deletedDatatable()
+    {
+        $products = Transaction::onlyTrashed()->get();
+        $total = Transaction::onlyTrashed()->count();
+        $items = TransactionResource::collection($products);
+        return ['data'=>['items'=>$items,'total'=>$total]];
     }
 
 
@@ -191,6 +201,21 @@ class TransactionController extends ApiAdminController
             'return_order_id' => 'nullable',
             'commission' => 'nullable',
         ]);
+    }
+
+    /**
+     * @param $id
+     * @return JsonResponse
+     * @throws \Exception
+     */
+    public function destroy($id): JsonResponse
+    {
+        $transaction = Transaction::find($id);
+        $transaction->update([
+            'deleted_by' => auth()->id()
+        ]);
+        $this->repository->delete($id);
+        return $this->success();
     }
 
 }

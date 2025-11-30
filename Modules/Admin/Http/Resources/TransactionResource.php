@@ -34,6 +34,8 @@ class TransactionResource extends JsonResource
             'created_user' => $this->createdUser?->name,
             'updated_user' => $this->updatedUser?->name,
             'updated_by' => $this->updated_by,
+            'deleted_user' => $this->deletedUser?->name,
+            'deleted_by' => $this->deleted_by,
         ];
     }
 
