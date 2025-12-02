@@ -244,7 +244,7 @@ class Order extends Model implements HasMedia
 
     public function transactions()
     {
-        return $this->hasOne(Transaction::class);
+        return $this->hasMany(Transaction::class);
     }
 
     /**********************************************************************************************/

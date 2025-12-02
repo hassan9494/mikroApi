@@ -32,6 +32,9 @@ class TransactionRepository extends EloquentRepository implements TransactionRep
         if (isset($data['order_id'])){
             $data['type'] = 'deposit';
             $data['total_amount'] = $data['amount'] - $data['commission'];
+        }elseif (isset($data['return_order_id'])){
+            $data['type'] = 'refund';
+            $data['total_amount'] = $data['amount'] - $data['commission'];
         }else{
             $data['total_amount'] = $data['amount'];
         }

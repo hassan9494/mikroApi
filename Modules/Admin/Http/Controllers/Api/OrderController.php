@@ -317,19 +317,20 @@ class OrderController extends ApiAdminController
         if (request()->get('status') && $oldStatus != request()->get('status')) {
             $order->recordStatusChange($oldStatus, request()->get('status'));
         }
-        if (request()->get('status') == 'COMPLETED'){
-            $old_transaction = Transaction::where('order_id',$order->id)->first();
-            if ($old_transaction){
-                $old_transaction->update([
-                    'note' => '',
-                    'type' => 'deposit',
-                    'amount' => request()->get('amount'),
-                    'commission' => request()->get('commission'),
-                    'shipping' => request()->get('shipping_amount'),
-                    'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
-                    'payment_method_id' => request()->get('payment_method')
-                ]);
-            }else{
+        if (request()->get('status') == 'COMPLETED') {
+//            $old_transaction = Transaction::where('order_id', $order->id)->first();
+//            if ($old_transaction){
+//                $old_transaction->update([
+//                    'note' => '',
+//                    'type' => 'deposit',
+//                    'amount' => request()->get('amount'),
+//                    'commission' => request()->get('commission'),
+//                    'shipping' => request()->get('shipping_amount'),
+//                    'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
+//                    'payment_method_id' => request()->get('payment_method')
+//                ]);
+//            }else{
+            if (request()->get('amount') > 0){
                 $transaction = $order->transactions()->create([
                     'transaction_id' => Str::uuid(),
                     'note' => '',
@@ -338,10 +339,12 @@ class OrderController extends ApiAdminController
                     'commission' => request()->get('commission'),
                     'shipping' => request()->get('shipping_amount'),
                     'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
-                    'payment_method_id' => request()->get('payment_method')
+                    'payment_method_id' => request()->get('payment_method'),
+                    'created_by' => auth()->id()
                 ]);
             }
 
+//        }
         }
         return $this->success();
     }

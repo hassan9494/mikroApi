@@ -49,13 +49,15 @@ class ProductResource extends JsonResource
                 'is_retired' => $this->is_retired,
                 'price' => $this->price->normal_price,
                 'sale_price' => $this->price->distributor_price ?: null,
-                'description' => $this->description,
+                'description' => $this->convertOembedToIframe($this->description),
                 'short_description' => $this->short_description,
                 'short_description_ar' => $this->short_description_ar ?? '',
-                'packageInclude' => $this->packageInclude,
-                'features' => $this->features,
-                'documents' => $this->documents,
-                'code' => $this->code,
+                'casher_note' => $this->casher_note ?? '',
+                'packageInclude' => $this-> convertOembedToIframe($this->packageInclude),
+                'features' => $this->convertOembedToIframe($this->features),
+                'documents' => $this->convertOembedToIframe($this->documents),
+                'code' => $this->convertOembedToIframe($this->code),
+
                 'datasheets' => $this->datasheets ?? [],
                 'image' => $image,
                 'gallery' => MediaResource::collection($media),
@@ -90,13 +92,14 @@ class ProductResource extends JsonResource
                 'is_retired' => $this->is_retired,
                 'price' => $this->price->normal_price,
                 'sale_price' => $this->price->sale_price ?: null,
-                'description' => $this->description,
+                'description' => $this->convertOembedToIframe($this->description),
                 'short_description' => $this->short_description,
                 'short_description_ar' => $this->short_description_ar ?? '',
-                'packageInclude' => $this->packageInclude,
-                'features' => $this->features,
-                'documents' => $this->documents,
-                'code' => $this->code,
+                'casher_note' => $this->casher_note ?? '',
+                'packageInclude' => $this-> convertOembedToIframe($this->packageInclude),
+                'features' => $this->convertOembedToIframe($this->features),
+                'documents' => $this->convertOembedToIframe($this->documents),
+                'code' => $this->convertOembedToIframe($this->code),
                 'datasheets' => $this->datasheets ?? [],
                 'image' => $image,
                 'gallery' => MediaResource::collection($media),
@@ -148,5 +151,50 @@ class ProductResource extends JsonResource
             ];
         })->toArray();
     }
+
+    private function convertOembedToIframe($content)
+    {
+        if (empty($content)) {
+            return $content;
+        }
+
+        // Convert oembed tags to iframes for YouTube
+        $content = preg_replace_callback(
+            '/<figure class="media"><oembed url="([^"]+)"><\/oembed><\/figure>/',
+            function ($matches) {
+                $url = $matches[1];
+
+                // Handle YouTube URLs
+                if (strpos($url, 'youtube.com') !== false || strpos($url, 'youtu.be') !== false) {
+                    $videoId = '';
+
+                    // Extract video ID from different YouTube URL formats
+                    if (preg_match('/youtube\.com\/watch\?v=([^&]+)/', $url, $videoMatches)) {
+                        $videoId = $videoMatches[1];
+                    } elseif (preg_match('/youtu\.be\/([^?]+)/', $url, $videoMatches)) {
+                        $videoId = $videoMatches[1];
+                    }
+
+                    if ($videoId) {
+                        return '<div class="video-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 20px 0;">
+                        <iframe
+                            src="https://www.youtube.com/embed/' . $videoId . '"
+                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                            allowfullscreen
+                            title="YouTube Video">
+                        </iframe>
+                    </div>';
+                    }
+                }
+
+                // Return original if we can't process it
+                return $matches[0];
+            },
+            $content
+        );
+
+        return $content;
+    }
+
 }
 

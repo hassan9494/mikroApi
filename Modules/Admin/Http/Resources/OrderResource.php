@@ -76,7 +76,7 @@ class OrderResource extends JsonResource
             'fatora_status' => $this->fatora_status,
             'qr_code' => $this->qr_code,
             'histories' => OrderHistoryResource::collection($this->whenLoaded('histories')),
-            'transaction' => new TransactionResource($this->whenLoaded('transactions')),
+            'transaction' => TransactionResource::collection($this->transactions),
         ];
     }
 

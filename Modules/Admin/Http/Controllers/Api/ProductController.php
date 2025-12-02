@@ -345,6 +345,7 @@ class ProductController extends Controller
             //'gallery' => 'nullable',
             'short_description' => 'nullable',
             'short_description_ar' => 'nullable',
+            'casher_note' => 'nullable',
             'description' => 'nullable',
             'packageInclude' => 'nullable',
             'location' => 'nullable',

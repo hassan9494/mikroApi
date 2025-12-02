@@ -38,6 +38,7 @@ class ReturnOrderResource extends JsonResource
             'tax_amount' => $this->tax_amount,
             'fatora_status' => $this->fatora_status,
             'qr_code' => $this->qr_code,
+            'transaction' => TransactionResource::collection($this->transactions),
         ];
     }
 

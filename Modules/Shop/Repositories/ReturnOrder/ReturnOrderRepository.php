@@ -131,6 +131,15 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
                 if ($item['returned_quantity'] > 0) {
 
                     $product->stock = $product->stock + $item['returned_quantity'];
+                    if ($product->options->kit)
+                    {
+
+                        foreach ($product->kit()->get() as $kit){
+
+                            $totalQty = $kit->pivot->quantity * $item['returned_quantity'];
+                            $kit->updateStock($totalQty, false);
+                        }
+                    }
                     $product->save();
                 }
             }
@@ -142,6 +151,15 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
                 if ($item['returned_quantity'] > 0) {
 
                     $product->stock = $product->stock - $item['returned_quantity'];
+                    if ($product->options->kit)
+                    {
+
+                        foreach ($product->kit()->get() as $kit){
+
+                            $totalQty = $kit->pivot->quantity * $item['returned_quantity'];
+                            $kit->updateStock($totalQty, true);
+                        }
+                    }
                     $product->save();
                 }
             }

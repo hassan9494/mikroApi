@@ -47,6 +47,7 @@ class Product extends Model implements HasMedia
         'source_sku',
         'short_description',
         'short_description_ar',
+        'casher_note',
         'description',
         'documents',
         'data_sheet',

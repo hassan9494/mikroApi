@@ -6,9 +6,11 @@ use App\Models\OldCategory;
 use Elastic\Elasticsearch\ClientBuilder;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use Modules\Common\Entities\Receipt;
 use Modules\Shop\Entities\Category;
 use Modules\Shop\Entities\Invoice;
 use Modules\Shop\Entities\Order;
+use Modules\Shop\Entities\PaymentMethod;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Entities\ProductVariant;
 
@@ -131,6 +133,24 @@ Route::get('/product_sear', function() {
     $data = $product->toSearchableArray();
     $test =  $product->searchable();
     dd($data);
+});
+
+Route::get('/receipt-payment-method', function() {
+    $receipts = Receipt::all();
+    foreach ($receipts as $receipt){
+        if ($receipt->type == 'CASH'){
+            $receipt->payment_method_id = 1;
+            $receipt->save();
+        }elseif ($receipt->type == 'CHECK'){
+            $receipt->payment_method_id = 5;
+            $receipt->save();
+        }elseif ($receipt->type == 'TRANSFER'){
+            $receipt->payment_method_id = 4;
+            $receipt->save();
+        }
+
+    }
+    return $receipts;
 });
 
 // routes/web.php

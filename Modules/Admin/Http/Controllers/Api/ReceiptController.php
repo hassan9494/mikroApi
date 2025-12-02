@@ -2,7 +2,11 @@
 
 namespace Modules\Admin\Http\Controllers\Api;
 
+use App\Traits\Datatable;
+use Illuminate\Http\JsonResponse;
+use Modules\Admin\Http\Resources\ReceiptResource;
 use Modules\Common\Repositories\Receipt\ReceiptRepositoryInterface;
+use Modules\Shop\Entities\Transaction;
 
 class ReceiptController extends ApiAdminController
 {
@@ -14,6 +18,39 @@ class ReceiptController extends ApiAdminController
     public function __construct(ReceiptRepositoryInterface $repository)
     {
         parent::__construct($repository);
+    }
+
+
+
+    /**
+     * @return JsonResponse
+     */
+    public function datatable(): JsonResponse
+    {
+        return Datatable::make($this->repository->model())
+            ->search('id', 'name', 'tax_number')
+            ->resource(ReceiptResource::class)
+            ->json();
+    }
+
+    public function store() : JsonResponse
+    {
+        $data = $this->validate();
+        if (isset($data['transaction_id'])){
+            $transcation = Transaction::find($data['transaction_id']);
+            $receipt = $transcation->receipt;
+            if ($receipt){
+                $model = $this->repository->update($receipt->id, $data);
+            }else{
+                $model = $this->repository->create($data);
+            }
+        }else{
+            $model = $this->repository->create($data);
+        }
+
+        return $this->success(
+            $model
+        );
     }
 
 
@@ -35,7 +72,9 @@ class ReceiptController extends ApiAdminController
             'date' => 'required|date',
             'explanation' => 'nullable',
             'notes' => 'nullable',
-            'type' => 'required',
+            'type' => 'nullable',
+            'payment_method_id' => 'required',
+            'transaction_id' => 'nullable',
             'check_number' => 'nullable'
         ]);
     }

@@ -3,6 +3,8 @@
 namespace Modules\Common\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Shop\Entities\PaymentMethod;
+use Modules\Shop\Entities\Transaction;
 
 class Receipt extends Model
 {
@@ -21,6 +23,8 @@ class Receipt extends Model
         'explanation',
         'type',
         'check_number',
+        'payment_method_id',
+        'transaction_id',
     ];
 
     /**
@@ -36,6 +40,16 @@ class Receipt extends Model
     public function getNumberAttribute(): string
     {
         return sprintf("%05d", $this->id);
+    }
+
+    public function paymentMethod()
+    {
+        return $this->belongsTo(PaymentMethod::class,'payment_method_id');
+    }
+
+    public function transaction()
+    {
+        return $this->belongsTo(Transaction::class,'transaction_id');
     }
 
 }

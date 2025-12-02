@@ -5,6 +5,7 @@ namespace Modules\Shop\Entities;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Common\Entities\Receipt;
 
 class PaymentMethod extends Model
 {
@@ -19,5 +20,13 @@ class PaymentMethod extends Model
     public function transaction()
     {
         return $this->hasMany(Transaction::class,'payment_method_id');
+    }
+
+
+
+
+    public function receipts()
+    {
+        return $this->hasMany(Receipt::class,'payment_method_id');
     }
 }

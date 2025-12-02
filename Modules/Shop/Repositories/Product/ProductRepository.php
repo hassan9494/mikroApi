@@ -85,10 +85,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         $newMediaCount = collect($mediaData)->where('new', true)->count();
         $totalMediaCount = $currentMediaCount + $newMediaCount;
 
-        if ($totalMediaCount > 11) {
-            throw new \Exception('Maximum 11 images allowed per product. Current: ' . $currentMediaCount . ', New: ' . $newMediaCount);
+        if ($totalMediaCount > 13) {
+            throw new \Exception('Maximum 13 images allowed per product. Current: ' . $currentMediaCount . ', New: ' . $newMediaCount);
         }
-
 
         foreach ($mediaData as $mediaItem) {
             if (isset($mediaItem['deleted']) && $mediaItem['deleted']) {
