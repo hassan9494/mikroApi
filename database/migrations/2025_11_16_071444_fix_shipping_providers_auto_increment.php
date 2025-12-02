@@ -10,11 +10,11 @@ class FixShippingProvidersAutoIncrement extends Migration
     public function up()
     {
         // For MySQL
-        DB::statement('ALTER TABLE shipping_providers MODIFY id BIGINT UNSIGNED AUTO_INCREMENT');
+//        DB::statement('ALTER TABLE shipping_providers MODIFY id BIGINT UNSIGNED AUTO_INCREMENT');
     }
 
     public function down()
     {
-        DB::statement('ALTER TABLE shipping_providers MODIFY id BIGINT UNSIGNED NOT NULL');
+//        DB::statement('ALTER TABLE shipping_providers MODIFY id BIGINT UNSIGNED NOT NULL');
     }
 }
