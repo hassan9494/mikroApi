@@ -47,7 +47,7 @@ class TransactionRepository extends EloquentRepository implements TransactionRep
 
     public function update($id,$data)
     {
-        if ($data['commission']){
+        if (isset($data['commission'])){
             $data['total_amount'] = $data['amount'] - $data['commission'];
         }else{
             $data['total_amount'] = $data['amount'];

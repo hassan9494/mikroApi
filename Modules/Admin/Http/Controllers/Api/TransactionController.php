@@ -60,36 +60,80 @@ class TransactionController extends ApiAdminController
         // Today's totals grouped by payment method
         $todayTotals = Transaction::whereDate('created_at', $today)
             ->selectRaw('payment_method_id,
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
-            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+        SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+        SUM(CASE WHEN type = "refund" THEN total_amount ELSE 0 END) as total_refunds,
+        SUM(CASE
+            WHEN type = "deposit" THEN total_amount
+            WHEN type = "withdraw" THEN -total_amount
+            WHEN type = "refund" THEN -total_amount
+        END) as net_amount,
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
+        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
+        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
+        SUM(amount) as total_amount_raw,
+        SUM(commission) as total_commission,
+        SUM(shipping) as total_shipping')
             ->groupBy('payment_method_id')
-            ->with('paymentMethod') // Eager load payment method details
+            ->with('paymentMethod')
             ->get();
 
         // This year's totals grouped by payment method
         $yearTotals = Transaction::whereYear('created_at', $currentYear)
             ->selectRaw('payment_method_id,
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
-            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+        SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+        SUM(CASE WHEN type = "refund" THEN total_amount ELSE 0 END) as total_refunds,
+        SUM(CASE
+            WHEN type = "deposit" THEN total_amount
+            WHEN type = "withdraw" THEN -total_amount
+            WHEN type = "refund" THEN -total_amount
+        END) as net_amount,
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
+        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
+        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
+        SUM(amount) as total_amount_raw,
+        SUM(commission) as total_commission,
+        SUM(shipping) as total_shipping')
             ->groupBy('payment_method_id')
-            ->with('paymentMethod') // Eager load payment method details
+            ->with('paymentMethod')
             ->get();
 
         // Overall totals (without grouping)
         $overallToday = Transaction::whereDate('created_at', $today)
             ->selectRaw('
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
-            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+        SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+        SUM(CASE WHEN type = "refund" THEN total_amount ELSE 0 END) as total_refunds,
+        SUM(CASE
+            WHEN type = "deposit" THEN total_amount
+            WHEN type = "withdraw" THEN -total_amount
+            WHEN type = "refund" THEN -total_amount
+        END) as net_amount,
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
+        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
+        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
+        SUM(amount) as total_amount_raw,
+        SUM(commission) as total_commission,
+        SUM(shipping) as total_shipping')
             ->first();
 
         $overallYear = Transaction::whereYear('created_at', $currentYear)
             ->selectRaw('
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
-            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
-            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+        SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+        SUM(CASE WHEN type = "refund" THEN total_amount ELSE 0 END) as total_refunds,
+        SUM(CASE
+            WHEN type = "deposit" THEN total_amount
+            WHEN type = "withdraw" THEN -total_amount
+            WHEN type = "refund" THEN -total_amount
+        END) as net_amount,
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
+        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
+        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
+        SUM(amount) as total_amount_raw,
+        SUM(commission) as total_commission,
+        SUM(shipping) as total_shipping')
             ->first();
 
         return response()->json([
@@ -103,7 +147,6 @@ class TransactionController extends ApiAdminController
                     'overall' => $overallYear
                 ]
             ]
-
         ]);
     }
 
@@ -129,24 +172,44 @@ class TransactionController extends ApiAdminController
             $query->where('payment_method_id', $request->payment_method_id);
         }
 
-        // Get totals grouped by payment method - UPDATED FOR REFUNDS
+        // Get totals grouped by payment method - UPDATED WITH CORRECT LOGIC
         $groupedTotals = $query->clone()
             ->selectRaw('payment_method_id,
-        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
-        SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
-        SUM(CASE WHEN type = "refund" THEN total_amount ELSE 0 END) as total_refunds,
-        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+            SUM(CASE WHEN type = "refund" THEN total_amount ELSE 0 END) as total_refunds,
+            SUM(CASE
+                WHEN type = "deposit" THEN total_amount
+                WHEN type = "withdraw" THEN -total_amount
+                WHEN type = "refund" THEN -total_amount
+            END) as net_amount,
+            SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
+            SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
+            SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
+            SUM(amount) as total_amount_raw,
+            SUM(commission) as total_commission,
+            SUM(shipping) as total_shipping')
             ->groupBy('payment_method_id')
             ->with('paymentMethod')
             ->get();
 
-        // Get overall totals - UPDATED FOR REFUNDS
+        // Get overall totals - UPDATED WITH CORRECT LOGIC
         $overallTotals = $query->clone()
             ->selectRaw('
-        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
-        SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
-        SUM(CASE WHEN type = "refund" THEN total_amount ELSE 0 END) as total_refunds,
-        SUM(CASE WHEN type = "deposit" THEN total_amount ELSE -total_amount END) as net_amount')
+            SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
+            SUM(CASE WHEN type = "withdraw" THEN total_amount ELSE 0 END) as total_withdrawals,
+            SUM(CASE WHEN type = "refund" THEN total_amount ELSE 0 END) as total_refunds,
+            SUM(CASE
+                WHEN type = "deposit" THEN total_amount
+                WHEN type = "withdraw" THEN -total_amount
+                WHEN type = "refund" THEN -total_amount
+            END) as net_amount,
+            SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
+            SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
+            SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
+            SUM(amount) as total_amount_raw,
+            SUM(commission) as total_commission,
+            SUM(shipping) as total_shipping')
             ->first();
 
         return response()->json([
@@ -154,7 +217,13 @@ class TransactionController extends ApiAdminController
                     'total_deposits' => 0,
                     'total_withdrawals' => 0,
                     'total_refunds' => 0,
-                    'net_amount' => 0
+                    'net_amount' => 0,
+                    'deposit_amount_raw' => 0,
+                    'withdraw_amount_raw' => 0,
+                    'refund_amount_raw' => 0,
+                    'total_amount_raw' => 0,
+                    'total_commission' => 0,
+                    'total_shipping' => 0
                 ],
             'grouped_by_payment_method' => $groupedTotals
         ]);
@@ -200,6 +269,7 @@ class TransactionController extends ApiAdminController
             'order_id' => 'nullable',
             'return_order_id' => 'nullable',
             'commission' => 'nullable',
+            'created_at' => 'nullable|date',
         ]);
     }
 
