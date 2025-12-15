@@ -37,6 +37,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function create($data)
     {
+        $data = $this->handleStockDistribution($data);
         // Preserve newlines in short description
         if (isset($data['short_description'])) {
             $data['short_description'] = str_replace("\n", '<br>', $data['short_description']);
@@ -75,6 +76,49 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         return $model;
     }
+
+    private function handleStockDistribution(array $data): array
+    {
+        // SPECIAL CASE 1: During creation/update, if both available are 0/null
+        // and stock is provided, put all stock in store_available
+        if (isset($data['stock']) && (int)$data['stock'] > 0) {
+            $stockAvailable = $data['stock_available'] ?? 0;
+            $storeAvailable = $data['store_available'] ?? 0;
+
+            // If both are 0 or null, distribute all stock to store_available
+            if ((int)$stockAvailable === 0 && (int)$storeAvailable === 0) {
+                $data['store_available'] = (int) $data['stock'];
+                $data['stock_available'] = 0;
+            }
+        }
+
+        // SPECIAL CASE 2: If only stock is provided (no available values)
+        // Put all in store_available
+        if (isset($data['stock']) &&
+            !isset($data['stock_available']) &&
+            !isset($data['store_available'])) {
+            $data['stock_available'] = 0;
+            $data['store_available'] = (int) $data['stock'];
+        }
+
+        // Calculate stock from available values if provided
+        if (isset($data['stock_available'], $data['store_available'])) {
+            $data['stock'] = (int)$data['stock_available'] + (int)$data['store_available'];
+        }
+
+        // SPECIAL CASE 3: During form submission, ensure consistency
+        if (isset($data['stock']) && isset($data['stock_available'])) {
+            // If stock_available is more than total stock, cap it
+            $stockAvailable = min((int)$data['stock_available'], (int)$data['stock']);
+            $storeAvailable = (int)$data['stock'] - $stockAvailable;
+
+            $data['stock_available'] = $stockAvailable;
+            $data['store_available'] = max(0, $storeAvailable);
+        }
+
+        return $data;
+    }
+
 
     private function syncMediaWithOrder($model, $mediaData)
     {
@@ -161,6 +205,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function update($id, $data)
     {
+        $data = $this->handleStockDistribution($data);
         if (isset($data['short_description'])) {
             $data['short_description'] = str_replace("\n", '<br>', $data['short_description']);
         }

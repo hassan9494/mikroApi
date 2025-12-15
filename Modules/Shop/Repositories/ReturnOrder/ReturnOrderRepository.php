@@ -63,8 +63,7 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
             foreach ($data['products'] as $item) {
                 $product = $this->products->findOrFail($item['id']);
                 if ($item['returned_quantity'] > 0) {
-                    $product->stock = $product->stock + $item['returned_quantity'];
-                    $product->save();
+                    $product->updateStock($item['returned_quantity'], false);
                 }
             }
         }
@@ -84,38 +83,60 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
     {
         $model = $this->findOrFail($id);
         $order = Order::find($data['order_id']);
-        // If order is in PENDING status, then we can upgrade products and subtotal according to products
-        $cart = $this->prepareCartProducts($data['products'] ?? [], $model,$order,$data['extra_items']);
+
+        // Get old returned quantities before update
+        $oldReturnedQuantities = [];
+        foreach ($model->products as $product) {
+            $oldReturnedQuantities[$product->id] = $product->pivot->returned_quantity;
+        }
+
+        $cart = $this->prepareCartProducts($data['products'] ?? [], $model, $order, $data['extra_items']);
         $data['subtotal'] = $cart['subtotal'];
+
         if(isset($data['extra_items'])){
             foreach ($data['extra_items'] as $extra){
                 $data['subtotal'] += $extra['returned_quantity'] * $extra['price'];
             }
         }
+
         $data['total'] = $cart['subtotal'] - $data['discount'];
-        // must be before uodate, see onSaving inside Order model.
+
+        // Update products first
         $model->products()->sync($cart['products']);
-//        if ($model->status != 'COMPLETED' && $data['status'] == 'COMPLETED'){
-//            foreach ($data['products'] as $item) {
-//                $product = $this->products->findOrFail($item['id']);
-//                if ($item['returned_quantity'] > 0) {
-//                    $product->stock = $product->stock + $item['returned_quantity'];
-//                    $product->save();
-//                }
-//            }
-//        }
+
+        // Handle stock adjustments if the return order is completed
+        if ($model->status == 'COMPLETED') {
+            foreach ($data['products'] as $item) {
+                $product = $this->products->findOrFail($item['id']);
+                $oldQty = $oldReturnedQuantities[$item['id']] ?? 0;
+                $newQty = $item['returned_quantity'];
+
+                if ($newQty != $oldQty) {
+                    $difference = $newQty - $oldQty;
+                    if ($difference > 0) {
+                        // Increase stock
+                        $product->updateStock($difference, false);
+                    } else if ($difference < 0) {
+                        // Decrease stock (if we reduced the returned quantity)
+                        $product->updateStock(abs($difference), true);
+                    }
+                }
+            }
+        }
+
         $data['status'] = $model->status;
         $model->update($data);
 
         return $model;
     }
 
+
     /**
      * @param $id
      * @param $status
      * @return mixed
      */
-    public function status($id, $status,$products): mixed
+    public function status($id, $status, $products): mixed
     {
         $status = $status ?? OrderStatus::DRAFT()->value;
 
@@ -126,41 +147,18 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
 
         if ($order->status != 'COMPLETED' && $status == 'COMPLETED'){
             foreach ($products as $item) {
-
                 $product = $this->products->findOrFail($item['id']);
                 if ($item['returned_quantity'] > 0) {
-
-                    $product->stock = $product->stock + $item['returned_quantity'];
-                    if ($product->options->kit)
-                    {
-
-                        foreach ($product->kit()->get() as $kit){
-
-                            $totalQty = $kit->pivot->quantity * $item['returned_quantity'];
-                            $kit->updateStock($totalQty, false);
-                        }
-                    }
-                    $product->save();
+                    // Use the updateStock method instead of directly updating stock
+                    $product->updateStock($item['returned_quantity'], false); // false = increase stock
                 }
             }
-        }else{
-
+        } else if ($order->status == 'COMPLETED' && $status != 'COMPLETED') {
             foreach ($products as $item) {
-
                 $product = $this->products->findOrFail($item['id']);
                 if ($item['returned_quantity'] > 0) {
-
-                    $product->stock = $product->stock - $item['returned_quantity'];
-                    if ($product->options->kit)
-                    {
-
-                        foreach ($product->kit()->get() as $kit){
-
-                            $totalQty = $kit->pivot->quantity * $item['returned_quantity'];
-                            $kit->updateStock($totalQty, true);
-                        }
-                    }
-                    $product->save();
+                    // Use the updateStock method for decreasing stock as well
+                    $product->updateStock($item['returned_quantity'], true); // true = decrease stock
                 }
             }
         }
@@ -168,6 +166,7 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
         $order->update(['status' => $status]);
         return $order;
     }
+
 
     /**
      * @return mixed

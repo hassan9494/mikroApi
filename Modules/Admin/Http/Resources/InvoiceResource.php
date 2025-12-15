@@ -43,6 +43,8 @@ class InvoiceResource extends JsonResource
                 'sku' => $product->sku,
                 'source_sku' => $product->pivot->source_sku,
                 'quantity' => $product->pivot->quantity,
+                'stock_available_qty' => $product->pivot->stock_available_qty ?? 0,
+                'store_available_qty' => $product->pivot->store_available_qty ?? $product->pivot->quantity,
                 'purchases_price' => $product->pivot->purchases_price,
                 'base_purchases_price' => number_format($product->pivot->base_purchases_price,3),
                 'exchange_factor' => number_format($product->pivot->exchange_factor,3),

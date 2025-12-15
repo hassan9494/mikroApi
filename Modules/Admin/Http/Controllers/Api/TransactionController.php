@@ -71,7 +71,7 @@ class TransactionController extends ApiAdminController
         SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
         SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
         SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
-        SUM(amount) as total_amount_raw,
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as total_deposit_amount, -- Only deposit amounts
         SUM(commission) as total_commission,
         SUM(shipping) as total_shipping')
             ->groupBy('payment_method_id')
@@ -92,7 +92,7 @@ class TransactionController extends ApiAdminController
         SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
         SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
         SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
-        SUM(amount) as total_amount_raw,
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as total_deposit_amount, -- Only deposit amounts
         SUM(commission) as total_commission,
         SUM(shipping) as total_shipping')
             ->groupBy('payment_method_id')
@@ -113,7 +113,7 @@ class TransactionController extends ApiAdminController
         SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
         SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
         SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
-        SUM(amount) as total_amount_raw,
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as total_deposit_amount, -- Only deposit amounts
         SUM(commission) as total_commission,
         SUM(shipping) as total_shipping')
             ->first();
@@ -131,7 +131,7 @@ class TransactionController extends ApiAdminController
         SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
         SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
         SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
-        SUM(amount) as total_amount_raw,
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as total_deposit_amount, -- Only deposit amounts
         SUM(commission) as total_commission,
         SUM(shipping) as total_shipping')
             ->first();
@@ -172,7 +172,7 @@ class TransactionController extends ApiAdminController
             $query->where('payment_method_id', $request->payment_method_id);
         }
 
-        // Get totals grouped by payment method - UPDATED WITH CORRECT LOGIC
+        // Get totals grouped by payment method - CORRECTED LOGIC
         $groupedTotals = $query->clone()
             ->selectRaw('payment_method_id,
             SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
@@ -186,14 +186,14 @@ class TransactionController extends ApiAdminController
             SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
             SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
             SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
-            SUM(amount) as total_amount_raw,
+            SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as total_deposit_amount, -- Only deposit amounts
             SUM(commission) as total_commission,
             SUM(shipping) as total_shipping')
             ->groupBy('payment_method_id')
             ->with('paymentMethod')
             ->get();
 
-        // Get overall totals - UPDATED WITH CORRECT LOGIC
+        // Get overall totals - CORRECTED LOGIC
         $overallTotals = $query->clone()
             ->selectRaw('
             SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
@@ -207,7 +207,7 @@ class TransactionController extends ApiAdminController
             SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
             SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
             SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
-            SUM(amount) as total_amount_raw,
+            SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as total_deposit_amount, -- Only deposit amounts
             SUM(commission) as total_commission,
             SUM(shipping) as total_shipping')
             ->first();
@@ -221,7 +221,7 @@ class TransactionController extends ApiAdminController
                     'deposit_amount_raw' => 0,
                     'withdraw_amount_raw' => 0,
                     'refund_amount_raw' => 0,
-                    'total_amount_raw' => 0,
+                    'total_deposit_amount' => 0, // New field
                     'total_commission' => 0,
                     'total_shipping' => 0
                 ],

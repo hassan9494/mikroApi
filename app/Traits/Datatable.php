@@ -68,10 +68,12 @@ class Datatable
                 $where[0] = ['stock','<',DB::raw('min_qty')];
                 $where[1] = ['min_qty','>',0];
                 $where[2] = [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+                $where[3] = ['hasVariants',false];
             }
             elseif ($value === "stock"){
                 $where = [];
                 $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+                $where[] = ['hasVariants',false];
             }
             elseif ($value === "nwaqes"){
                 $where = [];
@@ -79,6 +81,7 @@ class Datatable
                 $where[1] = ['min_qty','>',0];
                 $where[2]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
                 $where[3] = ['is_retired',0];
+                $where[] = ['hasVariants',false];
             }
             elseif ($value === "sales"){
                 $where = [];

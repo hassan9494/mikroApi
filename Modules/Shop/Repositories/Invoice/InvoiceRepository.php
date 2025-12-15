@@ -82,26 +82,44 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
      * @param Invoice|null $order
      * @return array
      */
+    /**
+     * @param array $items
+     * @param Invoice|null $invoice
+     * @return array
+     */
     private function prepareCartProducts(array $items = [], Invoice $invoice = null): array
     {
         $products = [];
         $subtotal = 0;
+
         foreach ($items as $item)
         {
             $id = $item['id'];
-            $quantity = $item['quantity'];
+            $quantity = (int) $item['quantity'];
+            $stockAvailableQty = (int) ($item['stock_available_qty'] ?? 0);
+            $storeAvailableQty = (int) ($item['store_available_qty'] ?? $quantity);
+
+            \Log::info('Processing product distribution', [
+                'product_id' => $id,
+                'quantity' => $quantity,
+                'stock_available_qty' => $stockAvailableQty,
+                'store_available_qty' => $storeAvailableQty
+            ]);
+
+            // Validate that sum equals total quantity
+            if (($stockAvailableQty + $storeAvailableQty) != $quantity) {
+                throw new BadRequestException(
+                    "Stock distribution must sum to total quantity for product ID: {$id}. " .
+                    "Stock: {$stockAvailableQty}, Store: {$storeAvailableQty}, Total: {$quantity}"
+                );
+            }
 
             $product = $this->products->findOrFail($id);
 
-            // if (!$checkStock) continue;
-
-
-
-            // If custom price enabled, then use custom price otherwise use normal_price
             $price = $item['purchases_price'];
             $distributor_price = $item['distributer_price'];
-            $base_purchases_price= $item['base_purchases_price'];
-            $exchange_factor= $item['exchange_factor'];
+            $base_purchases_price = $item['base_purchases_price'];
+            $exchange_factor = $item['exchange_factor'];
             $normal_price = $item['normal'];
             $sale_price = $item['sale_price'];
             $source_sku = $item['source_sku'];
@@ -113,6 +131,8 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
 
             $products[$id] = [
                 'quantity' => $quantity,
+                'stock_available_qty' => $stockAvailableQty,
+                'store_available_qty' => $storeAvailableQty,
                 'purchases_price' => $price,
                 'source_sku' => $source_sku,
                 'normal' => $normal_price,
@@ -122,11 +142,12 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                 'exchange_factor' => $exchange_factor,
                 'base_purchases_price' => $base_purchases_price,
             ];
+
+            \Log::info('Saving product pivot data', $products[$id]);
         }
 
         return compact('products', 'subtotal');
     }
-
     /**
      * @param $id
      * @param $status
@@ -140,7 +161,12 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
         if ($invoice->status == InvoiceStatus::COMPLETED()->value && $status != InvoiceStatus::COMPLETED()->value){
             $products = $invoice->products;
             foreach ($products as $product) {
+                $stockAvailableQty = $product->pivot->stock_available_qty ?? 0;
+                $storeAvailableQty = $product->pivot->store_available_qty ?? $product->pivot->quantity;
                 $product->stock = $product->stock - $product->pivot->quantity;
+                $product->stock_available = max(0, $product->stock_available - $stockAvailableQty);
+                $product->store_available = max(0, $product->store_available - $storeAvailableQty);
+                $product->stock = $product->stock_available + $product->store_available;
                 $product->save();
             }
         }else{
@@ -150,7 +176,12 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
             if ($status == InvoiceStatus::COMPLETED()->value) {
                 $products = $invoice->products;
                 foreach ($products as $product) {
+                    $stockAvailableQty = $product->pivot->stock_available_qty ?? 0;
+                    $storeAvailableQty = $product->pivot->store_available_qty ?? $product->pivot->quantity;
                     $product->stock = $product->stock + $product->pivot->quantity;
+                    $product->stock_available = $product->stock_available + $stockAvailableQty;
+                    $product->store_available = $product->store_available + $storeAvailableQty;
+                    $product->stock = $product->stock_available + $product->store_available;
                     $price = $product->price;
                     $price->real_price = $product->pivot->purchases_price;
                     $price->sale_price = $product->pivot->sale_price;

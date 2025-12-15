@@ -211,6 +211,8 @@ class ProductController extends Controller
                 'min_price' => $product->calcMinPrice(),
                 'image' => $product->getFirstMediaUrl(),
                 'stock' => $product->stock,
+                'stock_available' => $product->stock_available,
+                'store_available' => $product->store_available,
                 'sku' => $product->sku,
                 'brand_id' => $product->brand_id,
                 'source_sku' => $product->source_sku,
@@ -244,12 +246,53 @@ class ProductController extends Controller
         ]);
 
         foreach ($data['products'] as $item) {
-            $this->repository->update(
-                $item['id'],
-                \Arr::only($item, ['stock', 'price']))
-            ;
+            $product = Product::find($item['id']);
+
+            // Get current stock values
+            $currentStoreAvailable = $product->store_available ?? 0;
+            $currentStockAvailable = $product->stock_available ?? 0;
+            $currentTotal = $product->stock ?? ($currentStoreAvailable + $currentStockAvailable);
+
+            // Get the new total stock
+            $newTotal = (int)$item['stock'];
+            $difference = $newTotal - $currentTotal;
+
+            if ($difference > 0) {
+                // Stock increase: add to store_available first
+                $product->store_available = $currentStoreAvailable + $difference;
+                $product->stock_available = $currentStockAvailable;
+            } elseif ($difference < 0) {
+                // Stock decrease: remove from store_available first, then stock_available
+                $decreaseAmount = abs($difference);
+
+                // First, try to take from store_available
+                $fromStore = min($decreaseAmount, $currentStoreAvailable);
+                $remainingDecrease = $decreaseAmount - $fromStore;
+
+                // Then, take from stock_available if needed
+                $fromStock = min($remainingDecrease, $currentStockAvailable);
+
+                $product->store_available = $currentStoreAvailable - $fromStore;
+                $product->stock_available = $currentStockAvailable - $fromStock;
+            } else {
+                // No change
+                $product->store_available = $currentStoreAvailable;
+                $product->stock_available = $currentStockAvailable;
+            }
+
+            // Update total stock
+            $product->stock = $product->store_available + $product->stock_available;
+
+            // Update price if provided
+            if (isset($item['price'])) {
+                $product->price = $item['price'];
+            }
+
+            $product->save();
         }
+
         return $this->success();
+
     }
 
     public function sku(): JsonResponse
@@ -353,7 +396,9 @@ class ProductController extends Controller
             'features' => 'nullable',
             'code' => 'nullable',
             'documents' => 'nullable',
-            'stock' => 'required',
+            'stock' => 'required|integer|min:0',
+            'stock_available' => 'nullable|integer|min:0',
+            'store_available' => 'nullable|integer|min:0',
             'meta' => 'required|array',
             'price' => 'required|array',
             'datasheets' => 'nullable|array',
@@ -414,6 +459,63 @@ class ProductController extends Controller
 
         return response()->json(['message' => 'Updated successfully']);
     }
+
+    public function adjustStock(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'stock_available' => 'required|integer|min:0',
+            'store_available' => 'required|integer|min:0',
+        ]);
+
+        $product = Product::findOrFail($id);
+
+        $product->update([
+            'stock_available' => $request->stock_available,
+            'store_available' => $request->store_available,
+            'stock' => $request->stock_available + $request->store_available,
+        ]);
+
+        return $this->success([
+            'message' => 'Stock distribution updated successfully',
+            'product' => new ProductResource($product),
+        ]);
+    }
+
+    /**
+     * Transfer stock between locations
+     */
+    public function transferStock(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'from' => 'required|in:stock_available,store_available',
+            'to' => 'required|in:stock_available,store_available',
+            'quantity' => 'required|integer|min:1',
+        ]);
+
+        $product = Product::findOrFail($id);
+
+        $fromField = $request->from;
+        $toField = $request->to;
+        $quantity = $request->quantity;
+
+        // Check if there's enough stock in the source location
+        if ($product->$fromField < $quantity) {
+            return $this->error('Not enough stock in the source location', 400);
+        }
+
+        // Transfer stock
+        $product->update([
+            $fromField => $product->$fromField - $quantity,
+            $toField => $product->$toField + $quantity,
+            'stock' => $product->stock_available + $product->store_available,
+        ]);
+
+        return $this->success([
+            'message' => 'Stock transferred successfully',
+            'product' => new ProductResource($product),
+        ]);
+    }
+
 
 
 }

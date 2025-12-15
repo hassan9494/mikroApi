@@ -134,7 +134,7 @@ class InvoiceController extends ApiAdminController
      */
     public function validate(): array
     {
-        return request()->validate([
+        $data = request()->validate([
             'note' => 'nullable|max:500',
             'number' => 'nullable|max:500',
             'tax_number' => 'nullable|numeric',
@@ -149,10 +149,29 @@ class InvoiceController extends ApiAdminController
             'products.*.normal' => 'required|numeric',
             'products.*.sale_price' => 'required|numeric',
             'products.*.source_sku' => 'nullable|max:500',
-            'products.*.quantity' => 'required|numeric',
+            'products.*.quantity' => 'required|numeric|min:0',
+            'products.*.stock_available_qty' => 'required|numeric|min:0',
+            'products.*.store_available_qty' => 'required|numeric|min:0',
             'source_id' => 'nullable|integer',
             'attachments' => 'nullable|array',
         ]);
+
+        // Add custom validation to ensure sum equals quantity
+        foreach ($data['products'] ?? [] as $key => $product) {
+            $stockQty = $product['stock_available_qty'] ?? 0;
+            $storeQty = $product['store_available_qty'] ?? 0;
+            $totalQty = $product['quantity'] ?? 0;
+
+            if (($stockQty + $storeQty) != $totalQty) {
+                throw ValidationException::withMessages([
+                    "products.{$key}.stock_available_qty" => "Stock distribution must sum to total quantity",
+                    "products.{$key}.store_available_qty" => "Stock distribution must sum to total quantity"
+                ]);
+            }
+        }
+
+        return $data;
     }
+
 
 }

@@ -470,11 +470,15 @@ class ReportController extends Controller
                         'min_qty', '>', 0
                     ],
                     [
+                        'hasVariants', false
+                    ],
+                    [
                         'stock', '<', DB::raw('min_qty')
                     ],
                     [
                         'source_id', request('source_id')
                     ],
+
                     [
                         DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
                     ]
@@ -484,12 +488,16 @@ class ReportController extends Controller
                 $where = [];
                 $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
                 $where[]= ['source_id', '=', request('source_id')];
+                $where[]= ['hasVariants', false];
             }
             else {
                 ////test
                 $where = [
                     [
                         'min_qty', '>', 0
+                    ],
+                    [
+                        'hasVariants',false
                     ],
                     [
                         'is_retired', 0
@@ -513,6 +521,9 @@ class ReportController extends Controller
                         'min_qty', '>', 0
                     ],
                     [
+                        'hasVariants', false
+                    ],
+                    [
                         'stock', '<', DB::raw('min_qty')
                     ],
                     [
@@ -523,12 +534,16 @@ class ReportController extends Controller
             elseif (request('needConditionReport') != null && request('needConditionReport') == 'stock'){
                 $where = [];
                 $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+                $where[]= ['hasVariants', false];
             }
             else {
                 ////test
                 $where = [
                     [
                         'min_qty', '>', 0
+                    ],
+                    [
+                        'hasVariants', false
                     ],
                     [
                         'is_retired', 0
@@ -561,40 +576,48 @@ class ReportController extends Controller
                 if ($needCondition === 'need') {
                     $where = [
                         ['min_qty', '>', 0],
+                        ['hasVariants', false],
                         ['stock', '<', 'min_qty'], // Changed from DB::raw to string
                         ['source_id', request('source_id')],
                         ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false'] // Changed from DB::raw to string
                     ];
-                } elseif ($needCondition === 'stock') {
+                }
+                elseif ($needCondition === 'stock') {
                     $where = [
                         ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false'],
                         ['source_id', request('source_id')],
+                        ['hasVariants', false],
                     ];
                 } else {
                     $where = [
                         ['min_qty', '>', 0],
                         ['is_retired', 0],
                         ['stock', '<', 'min_qty'],
+                        ['hasVariants', false],
                         ['source_id', request('source_id')],
                         ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false']
                     ];
                 }
-            } else {
+            }
+            else {
                 if ($needCondition === 'need') {
                     $where = [
                         ['min_qty', '>', 0],
                         ['stock', '<', 'min_qty'],
+                        ['hasVariants', false],
                         ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false']
                     ];
                 } elseif ($needCondition === 'stock') {
                     $where = [
-                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false']
+                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false'],
+                        ['hasVariants', false],
                     ];
                 } else {
                     $where = [
                         ['min_qty', '>', 0],
                         ['is_retired', 0],
                         ['stock', '<', 'min_qty'],
+                        ['hasVariants', false],
                         ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false']
                     ];
                 }
