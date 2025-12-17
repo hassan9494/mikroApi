@@ -55,7 +55,7 @@ class AuthController extends Controller
         }
 
 
-        if (!\Auth::user()->hasRole('admin|super|Manager|Cashier|Product Manager|Admin cash'))
+        if (!\Auth::user()->hasRole('admin|super|Manager|Cashier|Product Manager|Admin cash|Stock Manager'))
         {
             return $this->error('You dont have the right permissions', 401);
         }

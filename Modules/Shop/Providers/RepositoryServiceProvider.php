@@ -87,6 +87,11 @@ class RepositoryServiceProvider extends ServiceProvider
             'Modules\Shop\Repositories\Transaction\TransactionRepositoryInterface',
             'Modules\Shop\Repositories\Transaction\TransactionRepository'
         );
+        $this->app->singleton(
+            'Modules\Shop\Repositories\StockAdjustment\StockAdjustmentRepositoryInterface',
+            'Modules\Shop\Repositories\StockAdjustment\StockAdjustmentRepository'
+        );
+
     }
 
 }
