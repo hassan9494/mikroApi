@@ -9,8 +9,8 @@ class UpdateStockAdjustmentsAddTransferToAdjustmentLocation extends Migration
 {
     public function up(): void
     {
-        DB::statement("ALTER TABLE `stock_adjustments`
-            MODIFY COLUMN `adjustment_location` ENUM('total', 'stock_available', 'store_available', 'transfer') NOT NULL DEFAULT 'total'");
+//        DB::statement("ALTER TABLE `stock_adjustments`
+//            MODIFY COLUMN `adjustment_location` ENUM('total', 'stock_available', 'store_available', 'transfer') NOT NULL DEFAULT 'total'");
     }
 
     public function down(): void

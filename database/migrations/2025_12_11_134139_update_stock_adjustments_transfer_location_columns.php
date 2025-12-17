@@ -13,12 +13,12 @@ class UpdateStockAdjustmentsTransferLocationColumns extends Migration
     public function up(): void
     {
         // Change transfer_from_location from INT to VARCHAR or ENUM
-        DB::statement("ALTER TABLE `stock_adjustments`
-            MODIFY COLUMN `transfer_from_location` VARCHAR(50) NULL");
-
-        // Change transfer_to_location from INT to VARCHAR or ENUM
-        DB::statement("ALTER TABLE `stock_adjustments`
-            MODIFY COLUMN `transfer_to_location` VARCHAR(50) NULL");
+//        DB::statement("ALTER TABLE `stock_adjustments`
+//            MODIFY COLUMN `transfer_from_location` VARCHAR(50) NULL");
+//
+//        // Change transfer_to_location from INT to VARCHAR or ENUM
+//        DB::statement("ALTER TABLE `stock_adjustments`
+//            MODIFY COLUMN `transfer_to_location` VARCHAR(50) NULL");
 
         // If you want to use ENUM instead:
         // DB::statement("ALTER TABLE `stock_adjustments`

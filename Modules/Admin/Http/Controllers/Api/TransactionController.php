@@ -57,7 +57,7 @@ class TransactionController extends ApiAdminController
         $today = now()->format('Y-m-d');
         $currentYear = now()->year;
 
-        // Today's totals grouped by payment method
+        // Today's totals grouped by payment method - SIMPLIFIED FOR WITHDRAW
         $todayTotals = Transaction::whereDate('created_at', $today)
             ->selectRaw('payment_method_id,
         SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
@@ -68,17 +68,21 @@ class TransactionController extends ApiAdminController
             WHEN type = "withdraw" THEN -total_amount
             WHEN type = "refund" THEN -total_amount
         END) as net_amount,
-        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
-        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
-        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
-        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as total_deposit_amount, -- Only deposit amounts
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount,
+        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount,
+        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount,
+        SUM(CASE
+            WHEN type = "deposit" THEN amount
+            WHEN type = "withdraw" THEN -amount
+            WHEN type = "refund" THEN -amount
+        END) as remaining_deposit_amount, -- NEW: What you want for withdraw list
         SUM(commission) as total_commission,
         SUM(shipping) as total_shipping')
             ->groupBy('payment_method_id')
             ->with('paymentMethod')
             ->get();
 
-        // This year's totals grouped by payment method
+        // This year's totals grouped by payment method - SIMPLIFIED FOR WITHDRAW
         $yearTotals = Transaction::whereYear('created_at', $currentYear)
             ->selectRaw('payment_method_id,
         SUM(CASE WHEN type = "deposit" THEN total_amount ELSE 0 END) as total_deposits,
@@ -89,10 +93,14 @@ class TransactionController extends ApiAdminController
             WHEN type = "withdraw" THEN -total_amount
             WHEN type = "refund" THEN -total_amount
         END) as net_amount,
-        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
-        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
-        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
-        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as total_deposit_amount, -- Only deposit amounts
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount,
+        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount,
+        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount,
+        SUM(CASE
+            WHEN type = "deposit" THEN amount
+            WHEN type = "withdraw" THEN -amount
+            WHEN type = "refund" THEN -amount
+        END) as remaining_deposit_amount, -- NEW: What you want for withdraw list
         SUM(commission) as total_commission,
         SUM(shipping) as total_shipping')
             ->groupBy('payment_method_id')
@@ -110,10 +118,14 @@ class TransactionController extends ApiAdminController
             WHEN type = "withdraw" THEN -total_amount
             WHEN type = "refund" THEN -total_amount
         END) as net_amount,
-        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
-        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
-        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
-        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as total_deposit_amount, -- Only deposit amounts
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount,
+        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount,
+        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount,
+        SUM(CASE
+            WHEN type = "deposit" THEN amount
+            WHEN type = "withdraw" THEN -amount
+            WHEN type = "refund" THEN -amount
+        END) as remaining_deposit_amount, -- NEW: What you want for withdraw list
         SUM(commission) as total_commission,
         SUM(shipping) as total_shipping')
             ->first();
@@ -128,10 +140,14 @@ class TransactionController extends ApiAdminController
             WHEN type = "withdraw" THEN -total_amount
             WHEN type = "refund" THEN -total_amount
         END) as net_amount,
-        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount_raw,
-        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount_raw,
-        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount_raw,
-        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as total_deposit_amount, -- Only deposit amounts
+        SUM(CASE WHEN type = "deposit" THEN amount ELSE 0 END) as deposit_amount,
+        SUM(CASE WHEN type = "withdraw" THEN amount ELSE 0 END) as withdraw_amount,
+        SUM(CASE WHEN type = "refund" THEN amount ELSE 0 END) as refund_amount,
+        SUM(CASE
+            WHEN type = "deposit" THEN amount
+            WHEN type = "withdraw" THEN -amount
+            WHEN type = "refund" THEN -amount
+        END) as remaining_deposit_amount, -- NEW: What you want for withdraw list
         SUM(commission) as total_commission,
         SUM(shipping) as total_shipping')
             ->first();
