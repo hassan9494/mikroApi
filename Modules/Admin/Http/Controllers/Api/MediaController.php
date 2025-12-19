@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\Storage;
 
 class MediaController extends Controller
 {
-
     use ApiResponser;
+
+    // Define the disk to use consistently
+    protected $disk = 'public';
 
     /**
      * @return JsonResponse
@@ -19,7 +21,6 @@ class MediaController extends Controller
     {
         $files = request()->file('files', false);
 
-        // Also check for 'media' field used by DragDropMedia
         if (!$files) {
             $files = request()->file('media', false);
         }
@@ -41,19 +42,19 @@ class MediaController extends Controller
         if (!is_array($files)) {
             $files = [$files];
         }
-        // Check maximum file limit (11 images)
+
+        // Check maximum file limit (13 images)
         if (count($files) > 13) {
             return response()->json([
                 'error' => 'Maximum 13 images allowed per product'
             ], 400);
         }
 
-
         $data = [];
         foreach($files as $file) {
-            $key = $file->store('temp', 'public'); // Make sure to use 'public' disk
+            $key = $file->store('temp', $this->disk);
             $data[] = [
-                'url' => Storage::disk('public')->url($key),
+                'url' => Storage::disk($this->disk)->url($key),
                 'key' => $key,
                 'folder' => 'temp'
             ];
@@ -71,22 +72,13 @@ class MediaController extends Controller
             'upload' => 'required|image'
         ]);
         $file = request()->file('upload');
+        $key = $file->store('content', $this->disk);
 
-        // Change from this:
-        // $key = $file->store('content');
-
-        // To this (use public disk):
-        $key = $file->store('content', 'public');
-
-        return response()->json(
-            [
-                'uploaded' => true,
-                // Use public disk URL
-                'url' => Storage::disk('public')->url($key),
-            ]
-        );
+        return response()->json([
+            'uploaded' => true,
+            'url' => Storage::disk($this->disk)->url($key),
+        ]);
     }
-
 
     /**
      * @return JsonResponse
@@ -97,16 +89,14 @@ class MediaController extends Controller
             'file' => 'required|file'
         ]);
         $file = request()->file('file');
-        $key = $file->store('temp');
-        return response()->json(
-            [
-                'id' => request()->get('id'),
-                'key' => $key,
-                'name' => basename($key),
-                'url' => \Storage::url($key),
-                'uploaded' => true,
-            ]
-        );
+        $key = $file->store('temp', $this->disk);
+        return response()->json([
+            'id' => request()->get('id'),
+            'key' => $key,
+            'name' => basename($key),
+            'url' => Storage::disk($this->disk)->url($key),
+            'uploaded' => true,
+        ]);
     }
 
     /**
@@ -118,17 +108,14 @@ class MediaController extends Controller
             'file' => 'required|file'
         ]);
         $file = request()->file('file');
-        $key = $file->store('temp');
-        return response()->json(
-            [
-                'id' => request()->get('id'),
-                'key' => $key,
-                'name' => basename($key),
-                'url' => \Storage::url($key),
-                'uploaded' => true,
-            ]
-        );
+        $key = $file->store('temp', $this->disk);
+        return response()->json([
+            'id' => request()->get('id'),
+            'key' => $key,
+            'name' => basename($key),
+            'url' => Storage::disk($this->disk)->url($key),
+            'uploaded' => true,
+        ]);
     }
-
-
 }
+

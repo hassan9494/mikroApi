@@ -56,7 +56,10 @@ trait Media
      */
     protected function addMediaToCollection($path, $collection)
     {
-        $mimeType = Storage::mimeType($path);
+        // (should match MediaController)
+        $disk = 'public';
+
+        $mimeType = Storage::disk($disk)->mimeType($path);
         $filename = pathinfo($path, PATHINFO_BASENAME);
 
         // Check if the file is an image (GD/Intervention supports these)
@@ -70,24 +73,26 @@ trait Media
 
         if ($isImage) {
             // Convert images to WebP
-            $image = Image::make(Storage::path($path));
+            $image = Image::make(Storage::disk($disk)->path($path));
             $filename = pathinfo($path, PATHINFO_FILENAME) . '.webp';
             $webpPath = 'temp/' . $filename;
 
-            Storage::put($webpPath, $image->encode('webp', 80));
-            $this->addMediaFromDisk($webpPath, 'local')
-                ->usingFileName($filename)
+            Storage::disk($disk)->put($webpPath, $image->encode('webp', 80));
+            $this->addMediaFromDisk($webpPath, $disk)  // Use the same disk
+            ->usingFileName($filename)
                 ->toMediaCollection($collection);
 
-            Storage::delete($webpPath);
+            Storage::disk($disk)->delete($webpPath);
         } else {
             // For non-images (PDF, DOCX, etc.), save the original file
-            $this->addMediaFromDisk($path, 'local')
-                ->usingFileName($filename)
+            $this->addMediaFromDisk($path, $disk)  // Use the same disk
+            ->usingFileName($filename)
                 ->toMediaCollection($collection);
         }
-    }
 
+        // Delete the original temp file after processing
+        Storage::disk($disk)->delete($path);
+    }
     /**
      * Sync media files (images + non-images)
      */
@@ -109,9 +114,10 @@ trait Media
     {
         if (request()->hasFile('file')) {
             $this->media()->delete();
-            $path = request()->file('file')->store('temp');
+            $disk = 'public';  // Use the same disk
+            $path = request()->file('file')->store('temp', $disk);
             $this->addMediaToCollection($path, $collection);
-            Storage::delete($path);
+            Storage::disk($disk)->delete($path);
         }
     }
 }
