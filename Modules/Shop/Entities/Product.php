@@ -31,7 +31,7 @@ use App\Traits\Media;
 class Product extends Model implements HasMedia
 {
     use HasFactory;
-    use Searchable;
+//    use Searchable;
     use Stock;
     use Finance;
     use Media;
@@ -82,7 +82,9 @@ class Product extends Model implements HasMedia
         'is_show_for_search',
         'search_factor',
         'is_color_sun',
-        'colors_nick_names'
+        'colors_nick_names',
+        'available',
+        'featured'
     ];
 
     protected $attributes = [

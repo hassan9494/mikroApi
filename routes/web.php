@@ -383,14 +383,15 @@ Route::get('/test-custom-search', function() {
 
     return response()->json($response);
 });
-Route::get('/test-category-slugs', function() {
-    $product = \Modules\Shop\Entities\Product::with('categories')->first();
+Route::get('/convertarraytoboolproduct', function() {
+    $products = \Modules\Shop\Entities\Product::all();
+    foreach ($products as $product){
 
-    return [
-        'product_id' => $product->id,
-        'category_slugs' => $product->categories->pluck('slug'),
-        'in_elastic' => $product->toSearchableArray()['category_slugs']
-    ];
+        $product->update([
+            'featured' => $product->options->featured,
+            'available' => $product->options->available,
+        ]);
+    }
 });
 
 
