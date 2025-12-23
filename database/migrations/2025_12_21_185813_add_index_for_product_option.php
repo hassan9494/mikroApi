@@ -14,7 +14,7 @@ class AddIndexForProductOption extends Migration
     public function up()
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->index('options');
+//            $table->index('options');
         });
     }
 
