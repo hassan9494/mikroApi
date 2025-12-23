@@ -383,15 +383,23 @@ Route::get('/test-custom-search', function() {
 
     return response()->json($response);
 });
-Route::get('/convertarraytoboolproduct', function() {
-    $products = \Modules\Shop\Entities\Product::where('id' ,'<=',7000)->where('id' ,'>',5000)->get();
-    foreach ($products as $product){
+Route::get('/convertarraytoboolproduct/{from?}/{to?}', function($from = 5000, $to = 6500) {
+    // Ensure parameters are integers
+    $from = (int) $from;
+    $to = (int) $to;
 
+    $products = \Modules\Shop\Entities\Product::where('id', '<=', $to)
+        ->where('id', '>', $from)
+        ->get();
+
+    foreach ($products as $product) {
         $product->update([
             'featured' => $product->options->featured,
             'available' => $product->options->available,
         ]);
     }
+
+    return "Updated products from ID {$from} to {$to}";
 });
 
 
