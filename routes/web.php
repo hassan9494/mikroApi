@@ -384,7 +384,7 @@ Route::get('/test-custom-search', function() {
     return response()->json($response);
 });
 Route::get('/convertarraytoboolproduct', function() {
-    $products = \Modules\Shop\Entities\Product::where('id' ,'<=',6506)->get();
+    $products = \Modules\Shop\Entities\Product::where('id' ,'<=',5000)->get();
     foreach ($products as $product){
 
         $product->update([
