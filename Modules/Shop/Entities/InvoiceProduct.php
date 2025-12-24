@@ -8,7 +8,6 @@ use Modules\Shop\Support\Enums\InvoiceStatus;
 class InvoiceProduct extends Pivot
 {
     protected $table = 'invoice_products';
-
     protected $fillable = [
         'purchases_price',
         'distributer_price',
@@ -22,7 +21,6 @@ class InvoiceProduct extends Pivot
         'stock_available_qty',
         'store_available_qty'
     ];
-
 
     public function invoice()
     {

@@ -36,13 +36,13 @@ class InvoiceController extends ApiAdminController
         $canShowComplete = $user->hasPermissionTo('show_completed_invoices','web');
         $model = $this->repository->findOrFail($id);
         if ($model->status == 'COMPLETED'){
-          if (!$canShowComplete){
-              return \response()->json([
-                  'data' => null,
-                  'message' => 'test',
-                  'code' => 401
-              ],403);
-          }
+            if (!$canShowComplete){
+                return \response()->json([
+                    'data' => null,
+                    'message' => 'test',
+                    'code' => 401
+                ],403);
+            }
         }
         return new InvoiceResource($model);
     }
@@ -75,8 +75,8 @@ class InvoiceController extends ApiAdminController
         $data = $this->validate();
 
         $invoice = $this->repository->make($data);
-            // Mark as processing
-            $this->repository->status($invoice->id, InvoiceStatus::DRAFT()->value);
+        // Mark as processing
+        $this->repository->status($invoice->id, InvoiceStatus::DRAFT()->value);
 
 
         $invoice->syncMedia($data['attachments'] ?? []);
@@ -172,6 +172,5 @@ class InvoiceController extends ApiAdminController
 
         return $data;
     }
-
 
 }

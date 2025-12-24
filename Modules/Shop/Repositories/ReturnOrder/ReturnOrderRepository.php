@@ -43,31 +43,33 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
      */
     public function make(array $data): ReturnOrder
     {
-
         $lastOrder = ReturnOrder::max('id') + 1;
         $order = Order::find($data['order_id']);
-        $cart = $this->prepareCartProducts($data['products'] ?? [], null, $order,$data['extra_items']);
+        $cart = $this->prepareCartProducts($data['products'] ?? [], null, $order, $data['extra_items']);
         $data['subtotal'] = $cart['subtotal'];
+
         if(isset($data['extra_items'])){
             foreach ($data['extra_items'] as $extra){
                 $data['subtotal'] += $extra['returned_quantity'] * $extra['price'];
             }
         }
+
         $data['total'] = $cart['subtotal'] - $data['discount'];
         $data['uuid'] = Str::uuid();
         $data['number'] = 'R_' . $lastOrder;
         $order = $this->model->create($data);
 
         $order->products()->attach($cart['products']);
+
+        // Use updateStock method for initial stock update
         if ($order->status == 'COMPLETED'){
             foreach ($data['products'] as $item) {
                 $product = $this->products->findOrFail($item['id']);
                 if ($item['returned_quantity'] > 0) {
-                    $product->updateStock($item['returned_quantity'], false);
+                    $product->updateStock($item['returned_quantity'], false); // false = increase stock
                 }
             }
         }
-
 
         return $order;
     }
@@ -129,13 +131,13 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
 
         return $model;
     }
-
-
     /**
      * @param $id
      * @param $status
      * @return mixed
      */
+// In Modules\Shop\Repositories\ReturnOrder\ReturnOrderRepository.php
+
     public function status($id, $status, $products): mixed
     {
         $status = $status ?? OrderStatus::DRAFT()->value;
@@ -166,7 +168,6 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
         $order->update(['status' => $status]);
         return $order;
     }
-
 
     /**
      * @return mixed

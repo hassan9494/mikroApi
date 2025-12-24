@@ -82,7 +82,9 @@ class Product extends Model implements HasMedia
         'is_show_for_search',
         'search_factor',
         'is_color_sun',
-        'colors_nick_names'
+        'colors_nick_names',
+        'available',
+        'featured'
     ];
 
     protected $attributes = [
@@ -98,6 +100,7 @@ class Product extends Model implements HasMedia
         'stock' => 'integer',
         'stock_available' => 'integer',
         'store_available' => 'integer'
+
 
     ];
 
@@ -316,6 +319,7 @@ class Product extends Model implements HasMedia
                 'exchange_factor',
                 'stock_available_qty',
                 'store_available_qty'
+
             ]);
     }
 
@@ -414,6 +418,25 @@ class Product extends Model implements HasMedia
         return true;
     }
 
+    // In Product.php, update the getStockAttribute method:
+// public function getStockAttribute()
+// {
+//     // Get raw values from database
+//     $stockAvailable = $this->attributes['stock_available'] ?? 0;
+//     $storeAvailable = $this->attributes['store_available'] ?? 0;
+//     $rawStock = $this->attributes['stock'] ?? 0;
+
+//     // SPECIAL CASE: If both available are 0 or null, and raw stock has value
+//     // Put all stock in store_available
+//     if (($stockAvailable == 0 || is_null($stockAvailable)) &&
+//         ($storeAvailable == 0 || is_null($storeAvailable)) &&
+//         $rawStock > 0) {
+//         return $rawStock;
+//     }
+
+//     // Otherwise return the sum of available stock
+//     return ($stockAvailable ?? 0) + ($storeAvailable ?? 0);
+// }
     public function validateAndAdjustStockDistribution()
     {
         // Get raw values from database

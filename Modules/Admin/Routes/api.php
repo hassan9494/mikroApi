@@ -41,6 +41,7 @@ use Modules\Admin\Http\Controllers\Api\TaskController;
 use Modules\Admin\Http\Controllers\Api\TransferOrderController;
 
 
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -71,14 +72,14 @@ Route::prefix('admin')
         // Stock Adjustments User Routes
         Route::post('stock-adjustments', [StockAdjustmentController::class, 'store']);
         Route::get('stock-adjustments/my-requests', [StockAdjustmentController::class, 'myRequests']);
-        Route::get('stock-adjustments/all-requests', [StockAdjustmentController::class, 'getAllRequests']);
+        Route::get('stock-adjustments/all-requests', [StockAdjustmentController::class, 'getAllRequests']); // ADD THIS
         Route::get('stock-adjustments/my-requests/datatable', [StockAdjustmentController::class, 'myRequestsDatatable']);
         Route::get('stock-adjustments/{id}', [StockAdjustmentController::class, 'show']);
     });
 
 
 Route::prefix('admin')
-    ->middleware(['auth:sanctum' ,'role:admin|super|Manager|Cashier|Product Manager|Admin cash|Stock Manager'])
+    ->middleware(['auth:sanctum' ,'role:admin|super|Manager|Cashier|Product Manager|Admin cash'])
     ->namespace('Api')
     ->group(function () {
         Route::post('order/{id}/record-edit-view', [OrderController::class, 'recordEditView']);
@@ -140,6 +141,7 @@ Route::prefix('admin')
             });
         });
 
+
         Route::prefix('stock-adjustments')->group(function () {
             Route::get('/', [StockAdjustmentController::class, 'index']);
             Route::get('/datatable', [StockAdjustmentController::class, 'datatable']);
@@ -148,7 +150,6 @@ Route::prefix('admin')
             Route::post('/{id}/approve', [StockAdjustmentController::class, 'approve']);
             Route::post('/{id}/reject', [StockAdjustmentController::class, 'reject']);
         });
-
 
 
 
@@ -232,8 +233,6 @@ Route::prefix('admin')
         Route::post('product/stock2', [ProductController::class, 'stock2']);
         Route::post('product/stock3', [ProductController::class, 'stock3']);
         Route::resource('product', 'ProductController');
-        Route::post('products/{id}/adjust-stock', [ProductController::class, 'adjustStock']);
-        Route::post('products/{id}/transfer-stock', [ProductController::class, 'transferStock']);
 
 
 

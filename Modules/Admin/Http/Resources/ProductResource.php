@@ -18,6 +18,7 @@ class ProductResource extends JsonResource
     public function toArray($request): array
     {
         $replacement_item = Product::where('id',$this->replacement_item)->first();
+
         // Get the raw stock value from database
         $rawStock = $this->getAttributes()['stock'] ?? 0;
         $stock_available = $this->stock_available ?? 0;

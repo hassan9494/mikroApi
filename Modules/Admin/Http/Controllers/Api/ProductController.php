@@ -122,31 +122,31 @@ class ProductController extends Controller
         $product = Product::find(88);
 //        foreach ($oldProducts as $product){
 
-            $media = [];
-            $x = request();
-            $x['name'] = $product->name;
-            $x['sku'] = $product->sku;
-            $x['short_description'] = $product->short_description;
+        $media = [];
+        $x = request();
+        $x['name'] = $product->name;
+        $x['sku'] = $product->sku;
+        $x['short_description'] = $product->short_description;
         $x['short_description_ar'] = $product->short_description_ar;
-            $x['description'] = $product->description;
-            $x['features'] = $product->features;
-            $x['code'] = $product->code;
-            $x['documents'] = $product->documents;
-            $x['stock'] = $product->stock;
-            $x['meta'] = $product->meta;
-            $x['price'] = $product->price;
-            $x['datasheets'] = $product->datasheets;
-            $x['price'] = $product->price;
-            $x['options'] = $product->options;
+        $x['description'] = $product->description;
+        $x['features'] = $product->features;
+        $x['code'] = $product->code;
+        $x['documents'] = $product->documents;
+        $x['stock'] = $product->stock;
+        $x['meta'] = $product->meta;
+        $x['price'] = $product->price;
+        $x['datasheets'] = $product->datasheets;
+        $x['price'] = $product->price;
+        $x['options'] = $product->options;
 
-            $x['gallery'] = $product->gallery;
+        $x['gallery'] = $product->gallery;
 
-            $test = str_replace('[', '', $product->gallery);
-            $test2 = str_replace(']', '', $test);
-            foreach (explode(',', $test2) as $key=>$item){
-                $media[$key] = [
-                    'id' => $item, 'key' => "temp/".str_replace('"', '', $item), 'new' => true,'url' =>"/storage/temp/".str_replace('"', '', $item)
-                ];
+        $test = str_replace('[', '', $product->gallery);
+        $test2 = str_replace(']', '', $test);
+        foreach (explode(',', $test2) as $key=>$item){
+            $media[$key] = [
+                'id' => $item, 'key' => "temp/".str_replace('"', '', $item), 'new' => true,'url' =>"/storage/temp/".str_replace('"', '', $item)
+            ];
 
 //            }
 //            $x['media'] = $media;
@@ -214,7 +214,6 @@ class ProductController extends Controller
                 'stock_available' => $product->stock_available,
                 'store_available' => $product->store_available,
                 'sku' => $product->sku,
-                'brand_id' => $product->brand_id,
                 'source_sku' => $product->source_sku,
                 'location' => $product->location,
                 'purchases_price'=>(float)$product->price->real_price,
@@ -228,7 +227,6 @@ class ProductController extends Controller
         }
         return $this->success($response);
     }
-
 
 
     /**
@@ -292,7 +290,6 @@ class ProductController extends Controller
         }
 
         return $this->success();
-
     }
 
     public function sku(): JsonResponse
@@ -459,7 +456,6 @@ class ProductController extends Controller
 
         return response()->json(['message' => 'Updated successfully']);
     }
-
     public function adjustStock(Request $request, $id): JsonResponse
     {
         $request->validate([
@@ -515,7 +511,4 @@ class ProductController extends Controller
             'product' => new ProductResource($product),
         ]);
     }
-
-
-
 }

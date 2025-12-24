@@ -55,6 +55,16 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         if ($data['price']['real_price'] == '' || $data['price']['real_price'] == null) {
             $data['price']['real_price'] = $data['price']['normal_price'] * 0.6;
         }
+        if ($data['options']['available']){
+            $data['available'] = $data['options']['available'];
+        }else{
+            $data['available'] = false;
+        }
+        if ($data['options']['featured']){
+            $data['featured'] = $data['options']['featured'];
+        }else{
+            $data['featured'] = false;
+        }
 
         // Create the model with the modified data
         $data['sku'] = 'me-';
@@ -226,6 +236,18 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }
         if (!empty($data['sku']) && ($data['sku'] == null || $data['sku'] == '')) {
             $data['sku'] = 'me-' . $id;
+        }
+
+
+        if ($data['options']['available']){
+            $data['available'] = $data['options']['available'];
+        }else{
+            $data['available'] = false;
+        }
+        if ($data['options']['featured']){
+            $data['featured'] = $data['options']['featured'];
+        }else{
+            $data['featured'] = false;
         }
 
         $model = parent::update($id, $data);
@@ -850,7 +872,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         } else {
             // Default to featured products if no category or search word is provided
-            $query->where(['options->featured' => true]);
+            $query->where(['featured' => true]);
         }
 
 
@@ -1016,12 +1038,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     $user->hasRole('Manager') ||
                     $user->hasRole('Cashier')  ||
                     $user->hasRole('Acountant')){
-                    $query->where('options->available',true);
+                    $query->where('available',true);
                 }else{
-                    $query->where('options->available',true)->where('is_show_for_search',1);
+                    $query->where('available',true)->where('is_show_for_search',1);
                 }
             }else{
-                $query->where('options->available',true)->where('is_show_for_search',1);
+                $query->where('available',true)->where('is_show_for_search',1);
             }
 
 
@@ -1044,7 +1066,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             }
         } else {
             // Default to featured products if no category or search word is provided
-            $query->where(['options->featured' => true]);
+            $query->where(['featured' => true]);
         }
 
         // Apply filter based on the selected option
@@ -1796,7 +1818,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             }
         } else {
             // Default to featured products if no category or search word is provided
-            $query->where(['options->featured' => true]);
+            $query->where(['featured' => true]);
         }
 
         // Apply filter based on the selected option

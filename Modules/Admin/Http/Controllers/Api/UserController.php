@@ -51,14 +51,12 @@ class UserController extends ApiAdminController
 
         if ($user->hasRole(['super'])){
             $whereHas = ['super','admin','Admin cash','Distributer','Cashier','Product Manager','Manager', 'Stock Manager'];
-
         }elseif($user->hasRole(['admin']))
         {
             $whereHas =  ['admin','Admin cash','Distributer','Cashier','Product Manager','Manager', 'Stock Manager'];
         }else{
             $whereHas =  ['Admin cash','Distributer','Cashier','Product Manager','Manager', 'Stock Manager'];
         }
-
 
         return $this->success(
             $this->repository->datatable($search, ['roles'],[],$whereHas)
