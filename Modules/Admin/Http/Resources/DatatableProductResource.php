@@ -14,7 +14,7 @@ class DatatableProductResource extends JsonResource
      * @return array
      */
     public function toArray($request): array
-    {
+
         $rawStock = $this->getAttributes()['stock'] ?? 0;
         $stock_available = $this->stock_available ?? 0;
         $store_available = $this->store_available ?? 0;
