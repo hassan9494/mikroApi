@@ -41,6 +41,39 @@ class StockAdjustmentRepository extends EloquentRepository implements StockAdjus
             // Get product with lock to prevent race conditions
             $product = $adjustment->product()->lockForUpdate()->first();
 
+            // Validate quantities before processing
+            $stockAvailableBefore = $product->stock_available ?? 0;
+            $storeAvailableBefore = $product->store_available ?? 0;
+
+            // Additional validation for decrease operations
+            if ($adjustment->adjustment_type === 'decrease') {
+                $maxAllowed = 0;
+
+                if ($adjustment->adjustment_location === 'total') {
+                    $maxAllowed = $stockAvailableBefore + $storeAvailableBefore;
+                } elseif ($adjustment->adjustment_location === 'stock_available') {
+                    $maxAllowed = $stockAvailableBefore;
+                } elseif ($adjustment->adjustment_location === 'store_available') {
+                    $maxAllowed = $storeAvailableBefore;
+                }
+
+                if ($adjustment->quantity > $maxAllowed) {
+                    throw new \Exception("Cannot decrease more than available stock. Maximum allowed: {$maxAllowed}");
+                }
+            }
+            // Additional validation for transfer operations
+            if ($adjustment->adjustment_type === 'transfer') {
+                $maxTransfer = 0;
+                if ($adjustment->transfer_from_location === 'stock_available') {
+                    $maxTransfer = $stockAvailableBefore;
+                } else {
+                    $maxTransfer = $storeAvailableBefore;
+                }
+
+                if ($adjustment->quantity > $maxTransfer) {
+                    throw new \Exception("Cannot transfer more than available in source location. Maximum allowed: {$maxTransfer}");
+                }
+            }
             // Store historical stock values for all locations
             $stockBefore = $product->stock;
             $stockAvailableBefore = $product->stock_available ?? 0;

@@ -260,36 +260,36 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
                 'name' => $product_name,
             ];
         }
-            if (isset($extra_items)){
-                foreach ($extra_items as $item) {
-                    $oldReturnedQuantity = 0;
-                    $id = $item['id'];
-                    $returned_quantity = $item['returned_quantity'];
-                    $quantity = $item['quantity'];
-                    $discount = $item['discount'] * ($item['returned_quantity'] / $item['quantity']);
+        if (isset($extra_items)){
+            foreach ($extra_items as $item) {
+                $oldReturnedQuantity = 0;
+                $id = $item['id'];
+                $returned_quantity = $item['returned_quantity'];
+                $quantity = $item['quantity'];
+                $discount = $item['discount'] * ($item['returned_quantity'] / $item['quantity']);
 
-                    if ($item['quantity'] <$item['returned_quantity'] ){
-                        throw new BadRequestException($product->name . ': You can not return quantity more than in the main order.');
-                    }
-                    $prevReturnOrders = ReturnOrder::where('order_id', $oldorder->id)->where('status', 'COMPLETED')->get();
+                if ($item['quantity'] <$item['returned_quantity'] ){
+                    throw new BadRequestException($product->name . ': You can not return quantity more than in the main order.');
+                }
+                $prevReturnOrders = ReturnOrder::where('order_id', $oldorder->id)->where('status', 'COMPLETED')->get();
 
-                    foreach ($prevReturnOrders as $prevReturnOrder) {
-                        $allextras = $prevReturnOrder->extra_items;
-                        foreach ($allextras as $extraold){
-                            if ($extraold->name == $item['name']){
-                                $test = $extraold;
-                            }
+                foreach ($prevReturnOrders as $prevReturnOrder) {
+                    $allextras = $prevReturnOrder->extra_items;
+                    foreach ($allextras as $extraold){
+                        if ($extraold->name == $item['name']){
+                            $test = $extraold;
                         }
-
-                        $oldReturnedQuantity = $oldReturnedQuantity + $test->returned_quantity;
-
-
                     }
+
+                    $oldReturnedQuantity = $oldReturnedQuantity + $test->returned_quantity;
+
+
+                }
 //            dd($oldReturnedQuantity);
-                    if (($item['quantity'] <= $oldReturnedQuantity) && $returned_quantity > 0 && $oldReturnedQuantity > 0) {
-                        throw new BadRequestException($item['name'] . ': The entire quantity of the product has been returned.');
-                    }
-                    // If custom price enabled, then use custom price otherwise use normal_price
+                if (($item['quantity'] <= $oldReturnedQuantity) && $returned_quantity > 0 && $oldReturnedQuantity > 0) {
+                    throw new BadRequestException($item['name'] . ': The entire quantity of the product has been returned.');
+                }
+                // If custom price enabled, then use custom price otherwise use normal_price
 //                    $price = $item['price'];
 //                    $subtotal += $product->calcPrice($returned_quantity, $price);
 //                    $product_name = $product->name;
@@ -302,8 +302,8 @@ class ReturnOrderRepository extends EloquentRepository implements ReturnOrderRep
 //                        'discount' => $discount,
 //                        'name' => $product_name,
 //                    ];
-                }
             }
+        }
 
 
         return compact('products', 'subtotal');

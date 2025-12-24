@@ -7,6 +7,7 @@ use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
 use Modules\Admin\Http\Controllers\Api\PaymentMethodController;
 use Modules\Admin\Http\Controllers\Api\SettingController;
+use Modules\Admin\Http\Controllers\Api\StockAdjustmentController;
 use Modules\Admin\Http\Controllers\Api\TaskAttachmentController;
 use Modules\Admin\Http\Controllers\Api\TaxExemptController;
 use Modules\Admin\Http\Controllers\Api\LocationController;
@@ -37,7 +38,9 @@ use Modules\Admin\Http\Controllers\Api\UserController;
 use Modules\Admin\Http\Controllers\Api\PromotionController;
 use Modules\Admin\Http\Controllers\Api\SlideController;
 use Modules\Admin\Http\Controllers\Api\TaskController;
-use Modules\Admin\Http\Controllers\Api\StockAdjustmentController;
+
+use Modules\Admin\Http\Controllers\Api\TransferOrderController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -151,6 +154,7 @@ Route::prefix('admin')
 
 
 
+
         // Category Routes.
         Route::get('category/datatable', [CategoryController::class, 'datatable']);
         Route::get('sub-category/datatable', [CategoryController::class, 'subCategory']);
@@ -233,6 +237,7 @@ Route::prefix('admin')
         Route::post('products/{id}/transfer-stock', [ProductController::class, 'transferStock']);
 
 
+
         // Variants Product Routes.
         Route::get('variant-product/datatable', [ProductVariantsController::class, 'datatable']);
         Route::resource('variant-product', 'ProductVariantsController');
@@ -279,6 +284,16 @@ Route::prefix('admin')
         Route::get('report/delivery', [ReportController::class, 'delivery']);
         Route::get('report/purchases-by-product', [ReportController::class, 'purchasesByProduct']);
         Route::get('report/product-purchases', [ReportController::class, 'productPurchases']);
+
+        Route::prefix('transfer-orders')->group(function () {
+            Route::get('/', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'index']);
+            Route::post('/', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'store']);
+            Route::get('/{id}', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'show']);
+            Route::put('/{id}', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'update']);
+            Route::delete('/{id}', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'destroy']);
+            Route::post('/{id}/toggle-status', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'toggleStatus']);
+            Route::get('/statistics/overview', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'statistics']);
+        });
 
 
         // Slide Routes.
