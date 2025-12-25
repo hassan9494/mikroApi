@@ -114,7 +114,7 @@ class TransferOrderController extends Controller
                 // Calculate expected AFTER values based on the transfer
                 $stockAvailableAfter = $stockAvailableBefore;
                 $storeAvailableAfter = $storeAvailableBefore;
-dd($stockAvailableAfter);
+
                 // Apply the transfer effect
                 if ($productData['from_location'] === 'stock_available') {
                     $stockAvailableAfter -= $productData['quantity'];
