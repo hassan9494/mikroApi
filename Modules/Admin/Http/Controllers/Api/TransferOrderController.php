@@ -6,9 +6,7 @@ use App\Traits\ApiResponser;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Modules\Admin\Http\Resources\TransferOrderResource;
-use Modules\Shop\Entities\Product;
 use Modules\Shop\Entities\TransferOrder;
 use Modules\Shop\Entities\TransferOrderProduct;
 use Modules\Shop\Entities\TransferOrderHistory;
@@ -19,9 +17,6 @@ class TransferOrderController extends Controller
 
     public function index(Request $request)
     {
-        if (!Gate::allows('transfer_order_list_view')) {
-            abort(403, 'Unauthorized');
-        }
 
         $query = TransferOrder::with(['createdBy', 'approvedBy', 'products.product'])
             ->orderBy('created_at', 'desc');
@@ -75,9 +70,7 @@ class TransferOrderController extends Controller
 
     public function store(Request $request)
     {
-        if (!Gate::allows('transfer_order_create')) {
-            abort(403, 'Unauthorized');
-        }
+
 
         $validated = $request->validate([
             'notes' => 'nullable|string|max:1000',
@@ -100,7 +93,7 @@ class TransferOrderController extends Controller
 
             // Add products with CURRENT stock values and CALCULATED after values
             foreach ($validated['products'] as $productData) {
-                $product = Product::find($productData['product_id']);
+                $product = \Modules\Shop\Entities\Product::find($productData['product_id']);
 
                 if (!$product) {
                     throw new \Exception("Product not found: {$productData['product_id']}");
@@ -178,17 +171,12 @@ class TransferOrderController extends Controller
             'histories.product'
         ])->findOrFail($id);
 
-        if (!Gate::allows('transfer_order_list_view')) {
-            abort(403, 'Unauthorized');
-        }
 
         return $this->success(new TransferOrderResource($transferOrder));
     }
     public function update(Request $request, $id)
     {
-        if (!Gate::allows('transfer_order_edit')) {
-            abort(403, 'Unauthorized');
-        }
+
 
         $transferOrder = TransferOrder::with(['products.product'])->findOrFail($id);
 
@@ -405,9 +393,6 @@ class TransferOrderController extends Controller
     // New method to toggle between PENDING and COMPLETED
     public function toggleStatus($id)
     {
-        if (!Gate::allows('transfer_order_complete')) {
-            abort(403, 'Unauthorized');
-        }
 
         $transferOrder = TransferOrder::with(['products.product'])->findOrFail($id);
 
@@ -539,9 +524,7 @@ class TransferOrderController extends Controller
 
     public function destroy($id)
     {
-        if (!Gate::allows('transfer_order_delete')) {
-            abort(403, 'Unauthorized');
-        }
+
 
         $transferOrder = TransferOrder::findOrFail($id);
 
@@ -578,9 +561,6 @@ class TransferOrderController extends Controller
 
     public function statistics()
     {
-        if (!Gate::allows('transfer_order_list_view')) {
-            abort(403, 'Unauthorized');
-        }
 
         $total = TransferOrder::count();
         $pending = TransferOrder::pending()->count();
