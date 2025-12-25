@@ -3,9 +3,9 @@
 namespace Modules\Shop\Repositories\TransferOrder;
 
 use App\Repositories\Base\EloquentRepository;
-use App\Models\TransferOrder;
-use App\Models\TransferOrderProduct;
-use App\Models\TransferOrderHistory;
+use Modules\Shop\Entities\TransferOrder;
+use Modules\Shop\Entities\TransferOrderProduct;
+use Modules\Shop\Entities\TransferOrderHistory;
 use App\Models\StockAdjustment;
 use Illuminate\Support\Facades\DB;
 

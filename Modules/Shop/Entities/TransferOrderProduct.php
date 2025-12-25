@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Models;
+namespace Modules\Shop\Entities;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\User;
 
 class TransferOrderProduct extends Model
 {
@@ -15,11 +16,23 @@ class TransferOrderProduct extends Model
         'product_id',
         'from_location',
         'to_location',
-        'quantity'
+        'quantity',
+        'stock_before',
+        'stock_after',
+        'stock_available_before',
+        'stock_available_after',
+        'store_available_before',
+        'store_available_after'
     ];
 
     protected $casts = [
         'quantity' => 'integer',
+        'stock_before' => 'integer',
+        'stock_after' => 'integer',
+        'stock_available_before' => 'integer',
+        'stock_available_after' => 'integer',
+        'store_available_before' => 'integer',
+        'store_available_after' => 'integer',
     ];
 
     // Relationships
@@ -55,5 +68,17 @@ class TransferOrderProduct extends Model
     public function getTransferDescriptionAttribute()
     {
         return "Transfer {$this->quantity} units from {$this->from_location_label} to {$this->to_location_label}";
+    }
+
+    public function getStockImpactAttribute()
+    {
+        return [
+            'stock_before' => $this->stock_before,
+            'stock_after' => $this->stock_after,
+            'stock_available_before' => $this->stock_available_before,
+            'stock_available_after' => $this->stock_available_after,
+            'store_available_before' => $this->store_available_before,
+            'store_available_after' => $this->store_available_after,
+        ];
     }
 }

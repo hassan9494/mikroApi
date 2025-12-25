@@ -8,9 +8,10 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Modules\Admin\Http\Resources\TransferOrderResource;
-use App\Models\TransferOrder;
-use App\Models\TransferOrderProduct;
-use App\Models\TransferOrderHistory;
+use Modules\Shop\Entities\Product;
+use Modules\Shop\Entities\TransferOrder;
+use Modules\Shop\Entities\TransferOrderProduct;
+use Modules\Shop\Entities\TransferOrderHistory;
 
 class TransferOrderController extends Controller
 {
@@ -99,7 +100,7 @@ class TransferOrderController extends Controller
 
             // Add products with CURRENT stock values and CALCULATED after values
             foreach ($validated['products'] as $productData) {
-                $product = \Modules\Shop\Entities\Product::find($productData['product_id']);
+                $product = Product::find($productData['product_id']);
 
                 if (!$product) {
                     throw new \Exception("Product not found: {$productData['product_id']}");
@@ -113,7 +114,7 @@ class TransferOrderController extends Controller
                 // Calculate expected AFTER values based on the transfer
                 $stockAvailableAfter = $stockAvailableBefore;
                 $storeAvailableAfter = $storeAvailableBefore;
-
+dd($stockAvailableAfter);
                 // Apply the transfer effect
                 if ($productData['from_location'] === 'stock_available') {
                     $stockAvailableAfter -= $productData['quantity'];
