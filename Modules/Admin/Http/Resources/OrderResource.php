@@ -106,8 +106,11 @@ class OrderResource extends JsonResource
                         'image' => $parentProduct->getFirstMediaUrl() ?? '',
                         'brand_id' => $parentProduct->brand_id,
                         'location' => $parentProduct->location ?? '',
-                        'stock_location' => $parentProduct->stock_location ?? '',
                         'stock' => $parentProduct->stock ?? 0,
+                        'stock_available' => $parentProduct->stock_available ?? 0,
+                        'store_available' => $parentProduct->store_available ?? 0,
+                        'stock_location' => $product->stock_location,
+
                         'has_colors' => true,
                         'all_colors' => $parentProduct->product_variants->map(function($variant) {
                             return [
@@ -139,6 +142,8 @@ class OrderResource extends JsonResource
                     'brand_id' =>$variant ? $variant->variant->brand_id : $product->brand_id,
                     'location' => $variant->location ?? $product->location,
                     'stock' => $variant->stock ?? $product->stock,
+                    'stock_available' => $variant->stock_available ?? $product->stock_available,
+                    'store_available' => $variant->store_available ?? $product->store_available,
                     'stock_location' => $product->stock_location
                 ];
             } else {
@@ -159,6 +164,8 @@ class OrderResource extends JsonResource
                     'location' => $product->location,
                     'brand_id' => $product->brand_id,
                     'stock' => $product->stock,
+                    'stock_available' => $product->stock_available,
+                    'store_available' => $product->store_available,
                     'stock_location' => $product->stock_location,
                     'has_colors' => false,
                     'colors' => [],

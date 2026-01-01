@@ -34,6 +34,8 @@ class TransferOrderResource extends JsonResource
                     'product_name' => $product->product->name ?? 'Unknown',
                     'product_sku' => $product->product->sku ?? 'N/A',
                     'product_image' => $product->product->getFirstMediaUrl() ? asset($product->product->getFirstMediaUrl()) : null,
+                    'product_location' => $product-> product->location,
+                    'product_stock_location' => $product->product->stock_location,
                     'from_location' => $product->from_location,
                     'to_location' => $product->to_location,
                     'quantity' => $product->quantity,

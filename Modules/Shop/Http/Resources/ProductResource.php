@@ -33,6 +33,10 @@ class ProductResource extends JsonResource
         $media = $this->getMedia();
         $replacement_item = Product::where('id',$this->replacement_item)->first();
         $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
+        $rawStock = $this->getAttributes()['stock'] ?? 0;
+        $stock_available = $this->stock_available ?? 0;
+        $store_available = $this->store_available ?? 0;
+
         if (isset($user) && $user->hasRole(['Distributer'])){
             return [
                 'id' => $this->id,
@@ -45,6 +49,8 @@ class ProductResource extends JsonResource
                 'stock_location' => $this->stock_location,
                 'slug' => $this->slug,
                 'availableQty' => $this->stock,
+                'stock_available' => $stock_available,
+                'store_available' => $store_available,
                 'is_available' => $this->options->available,
                 'is_retired' => $this->is_retired,
                 'price' => $this->price->normal_price,
@@ -88,6 +94,8 @@ class ProductResource extends JsonResource
                 'stock_location' => $this->stock_location,
                 'slug' => $this->slug,
                 'availableQty' => $this->stock,
+                'stock_available' => $stock_available,
+                'store_available' => $store_available,
                 'is_available' => $this->options->available,
                 'is_retired' => $this->is_retired,
                 'price' => $this->price->normal_price,
