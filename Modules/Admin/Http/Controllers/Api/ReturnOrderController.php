@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\ReturnOrderResource;
 use Modules\Admin\Http\Services\UblInvoiceService;
@@ -134,6 +135,35 @@ class ReturnOrderController extends ApiAdminController
                     request()->get('products')
                 );
             }
+        }
+        if (request()->get('status') == 'COMPLETED') {
+//            $old_transaction = Transaction::where('order_id', $order->id)->first();
+//            if ($old_transaction){
+//                $old_transaction->update([
+//                    'note' => '',
+//                    'type' => 'deposit',
+//                    'amount' => request()->get('amount'),
+//                    'commission' => request()->get('commission'),
+//                    'shipping' => request()->get('shipping_amount'),
+//                    'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
+//                    'payment_method_id' => request()->get('payment_method')
+//                ]);
+//            }else{
+            if (request()->get('amount') > 0){
+                $transaction = $order->transactions()->create([
+                    'transaction_id' => Str::uuid(),
+                    'note' => '',
+                    'type' => 'refund',
+                    'amount' => request()->get('amount'),
+                    'commission' => request()->get('commission'),
+                    'shipping' => request()->get('shipping_amount'),
+                    'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
+                    'payment_method_id' => request()->get('payment_method'),
+                    'created_by' => auth()->id()
+                ]);
+            }
+
+//        }
         }
 
         return $this->success();
