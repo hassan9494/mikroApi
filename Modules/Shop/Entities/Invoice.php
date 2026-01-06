@@ -59,7 +59,7 @@ class Invoice extends Model implements HasMedia
             'invoice_products',
             'invoice_id',
             'product_id'
-        )->withTrashed()->withPivot('purchases_price','distributer_price', 'quantity','source_sku','normal','sale_price','product_name','base_purchases_price','exchange_factor','stock_available_qty','store_available_qty');
+        )->withTrashed()->withPivot('purchases_price','distributer_price', 'quantity','allocation','source_sku','normal','sale_price','product_name','base_purchases_price','exchange_factor','stock_available_qty','store_available_qty');
     }
 
     public function source()

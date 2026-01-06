@@ -98,12 +98,14 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
             $quantity = (int) $item['quantity'];
             $stockAvailableQty = (int) ($item['stock_available_qty'] ?? 0);
             $storeAvailableQty = (int) ($item['store_available_qty'] ?? $quantity);
+            $allocation = $item['allocation'] ?? 'store';  // Add this line
 
             \Log::info('Processing product distribution', [
                 'product_id' => $id,
                 'quantity' => $quantity,
                 'stock_available_qty' => $stockAvailableQty,
-                'store_available_qty' => $storeAvailableQty
+                'store_available_qty' => $storeAvailableQty,
+                'allocation' => $allocation
             ]);
 
             // Validate that sum equals total quantity
@@ -131,6 +133,7 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
 
             $products[$id] = [
                 'quantity' => $quantity,
+                'allocation' => $allocation,
                 'stock_available_qty' => $stockAvailableQty,
                 'store_available_qty' => $storeAvailableQty,
                 'purchases_price' => $price,

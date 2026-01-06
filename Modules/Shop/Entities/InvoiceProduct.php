@@ -12,6 +12,7 @@ class InvoiceProduct extends Pivot
         'purchases_price',
         'distributer_price',
         'quantity',
+        'allocation',
         'source_sku',
         'normal',
         'sale_price',
