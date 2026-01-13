@@ -155,6 +155,7 @@ class InvoiceController extends ApiAdminController
             'products.*.store_available_qty' => 'required|numeric|min:0',
             'source_id' => 'nullable|integer',
             'attachments' => 'nullable|array',
+            'source_type' => 'required|in:air,sea,local',
         ]);
 
         // Add custom validation to ensure sum equals quantity

@@ -162,6 +162,7 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
 
         $invoice = $this->findOrFail($id, ['products']);
         if ($invoice->status == InvoiceStatus::COMPLETED()->value && $status != InvoiceStatus::COMPLETED()->value){
+
             $products = $invoice->products;
             foreach ($products as $product) {
                 $stockAvailableQty = $product->pivot->stock_available_qty ?? 0;
@@ -172,11 +173,15 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                 $product->stock = $product->stock_available + $product->store_available;
                 $product->save();
             }
-        }else{
+        }
+        else{
+
             if ($invoice->status == InvoiceStatus::COMPLETED()->value && $status == InvoiceStatus::COMPLETED()->value){
                 return $invoice;
             }
+
             if ($status == InvoiceStatus::COMPLETED()->value) {
+
                 $products = $invoice->products;
                 foreach ($products as $product) {
                     $stockAvailableQty = $product->pivot->stock_available_qty ?? 0;
@@ -196,8 +201,36 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                     $product->base_purchases_price = $product->pivot->base_purchases_price;
                     $product->exchange_factor = $product->pivot->exchange_factor;
                     $product->price = $price;
-                    $product->source_sku = $product->pivot->source_sku;
-                    $product->source_id = $invoice->source_id;
+                    if ($invoice->source_type == 'air'){
+                        if ($product->pivot->source_sku != '' && $product->pivot->source_sku != null){
+                            $product->air_source_sku = $product->pivot->source_sku;
+                        }
+                        if ($invoice->source_id != '' && $invoice->source_id != null){
+                            $product->air_source_id = $invoice->source_id;
+                        }
+
+                    }
+                    elseif ($invoice->source_type == 'sea'){
+                        if ($product->pivot->source_sku != '' && $product->pivot->source_sku != null){
+                            $product->sea_source_sku = $product->pivot->source_sku;
+                        }
+                        if ($invoice->source_id != '' && $invoice->source_id != null){
+                            $product->sea_source_id = $invoice->source_id;
+                        }
+
+                    }
+                    elseif ($invoice->source_type == 'local'){
+
+                        if ($product->pivot->source_sku != '' && $product->pivot->source_sku != null){
+
+                            $product->local_source_sku = $product->pivot->source_sku;
+                        }
+                        if ($invoice->source_id != '' && $invoice->source_id != null){
+                            $product->local_source_id = $invoice->source_id;
+                        }
+
+                    }
+
                     $product->save();
                 }
             }

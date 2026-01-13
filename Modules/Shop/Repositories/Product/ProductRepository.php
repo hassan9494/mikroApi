@@ -224,6 +224,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }
 
         if (!empty($data['stock'])){
+
             $data['stock'] = (int)$data['stock'];
         }
 
@@ -239,12 +240,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }
 
 
-        if ($data['options']['available']){
+        if (isset($data['options']) && $data['options']['available']){
             $data['available'] = $data['options']['available'];
         }else{
             $data['available'] = false;
         }
-        if ($data['options']['featured']){
+        if (isset($data['options']) && $data['options']['featured']){
             $data['featured'] = $data['options']['featured'];
         }else{
             $data['featured'] = false;

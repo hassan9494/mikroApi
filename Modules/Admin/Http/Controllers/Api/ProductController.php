@@ -215,6 +215,9 @@ class ProductController extends Controller
                 'store_available' => $product->store_available,
                 'sku' => $product->sku,
                 'source_sku' => $product->source_sku,
+                'air_source_sku' => $product->air_source_sku,
+                'sea_source_sku' => $product->sea_source_sku,
+                'local_source_sku' => $product->local_source_sku,
                 'location' => $product->location,
                 'purchases_price'=>(float)$product->price->real_price,
                 'base_purchases_price'=>(float)$product->base_purchases_price,
@@ -298,24 +301,20 @@ class ProductController extends Controller
             'products.*.id' => 'exists:products,id',
             'products.*.stock' => 'numeric|min:0',
             'products.*.brand_id' => 'nullable|numeric|min:0',
-            'products.*.source_id' => 'nullable|numeric|min:0',
             'products.*.stock_location' => 'sometimes|string|nullable',
             'products.*.location' => 'sometimes|string|nullable',
             'products.*.sku' => 'sometimes|string|nullable',
-            'products.*.source_sku' => 'sometimes|string|nullable',
 
         ]);
 
         foreach ($data['products'] as $item) {
-            if ($item['source_sku'] == null){
-                $item['source_sku'] = "";
-            }
+
             if ($item['sku'] == null){
                 $item['sku'] = "";
             }
             $this->repository->update(
                 $item['id'],
-                \Arr::only($item, ['stock', 'stock_location', 'location', 'sku', 'source_sku','brand_id','source_id']))
+                \Arr::only($item, ['stock', 'stock_location', 'location', 'sku','brand_id']))
             ;
         }
         return $this->success();
@@ -325,19 +324,21 @@ class ProductController extends Controller
     {
         $data = request()->validate([
             'products.*.id' => 'exists:products,id',
-            'products.*.min_qty' => 'numeric|min:0',
             'products.*.purchases_qty' => 'numeric|min:0',
-            'products.*.order_qty' => 'numeric|nullable',
+            'products.*.stock' => 'numeric|min:0',
             'products.*.stock_available' => 'numeric|nullable',
             'products.*.store_available' => 'numeric|nullable',
 
         ]);
 
         foreach ($data['products'] as $item) {
+            if ($item['stock']){
+                $item['stock'] = (int)$item['stock'];
+            }
 
             $this->repository->update(
                 $item['id'],
-                \Arr::only($item, ['order_qty', 'min_qty', 'stock_available', 'store_available','purchases_qty']))
+                \Arr::only($item, [ 'stock', 'stock_available', 'store_available','purchases_qty']))
             ;
         }
         return $this->success();
@@ -405,20 +406,31 @@ class ProductController extends Controller
             'media' => 'nullable|array',
             'kit' => 'nullable|array',
             'related' => 'nullable|array',
-            'source_sku' => 'nullable|max:255',
-            'min_qty' => 'required',
-            'order_qty' => 'numeric|nullable',
             'exchange_factor' => 'numeric|nullable',
             'base_purchases_price' => 'numeric|nullable',
             'search_factor' => 'numeric|nullable',
             'maxCartAmount' => 'nullable',
             'brand_id' => 'nullable|integer',
-            'source_id' => 'nullable|integer',
             'is_retired' => 'nullable|boolean',
             'replacement_item' => 'nullable|array',
             'hasVariants' => 'nullable|boolean',
             'is_show_for_search' => 'nullable|boolean',
             'is_color_sun' => 'nullable|boolean',
+
+            'air_source_id' => 'nullable|integer',
+            'air_source_sku' => 'nullable|max:255',
+            'air_min_qty' => 'numeric|nullable',
+            'air_order_qty' => 'numeric|nullable',
+
+            'sea_source_id' => 'nullable|integer',
+            'sea_source_sku' => 'nullable|max:255',
+            'sea_min_qty' => 'numeric|nullable',
+            'sea_order_qty' => 'numeric|nullable',
+
+            'local_source_id' => 'nullable|integer',
+            'local_source_sku' => 'nullable|max:255',
+            'local_min_qty' => 'numeric|nullable',
+            'local_order_qty' => 'numeric|nullable',
 
         ]);
     }
@@ -430,24 +442,51 @@ class ProductController extends Controller
         foreach ($products as $productData) {
             $product = Product::find($productData['id']);
             if ($product) {
-                // Update the fields that are specific to stock3
-                if (isset($productData['min_qty'])) {
-                    $product->min_qty = $productData['min_qty'];
+                // Update the fields that are specific to stock3 Air
+                if (isset($productData['air_min_qty'])) {
+                    $product->air_min_qty = $productData['air_min_qty'];
                 }
-                if (isset($productData['order_qty'])) {
-                    $product->order_qty = $productData['order_qty'];
+                if (isset($productData['air_order_qty'])) {
+                    $product->air_order_qty = $productData['air_order_qty'];
                 }
-                if (isset($productData['source_id'])) {
-                    $product->source_id = $productData['source_id'];
+                if (isset($productData['air_source_id'])) {
+                    $product->air_source_id = $productData['air_source_id'];
                 }
-                if (isset($productData['location'])) {
-                    $product->location = $productData['location'];
+                if (isset($productData['air_source_sku'])) {
+                    $product->air_source_sku = $productData['air_source_sku'];
                 }
-                if (isset($productData['stock_location'])) {
-                    $product->stock_location = $productData['stock_location'];
+
+                // Update the fields that are specific to stock3 Sea
+                if (isset($productData['sea_min_qty'])) {
+                    $product->sea_min_qty = $productData['sea_min_qty'];
                 }
-                if (isset($productData['stock'])) {
-                    $product->stock = $productData['stock'];
+                if (isset($productData['sea_order_qty'])) {
+                    $product->sea_order_qty = $productData['sea_order_qty'];
+                }
+                if (isset($productData['sea_source_id'])) {
+                    $product->sea_source_id = $productData['sea_source_id'];
+                }
+                if (isset($productData['sea_source_sku'])) {
+                    $product->sea_source_sku = $productData['sea_source_sku'];
+                }
+
+                // Update the fields that are specific to stock3 Local
+                if (isset($productData['local_min_qty'])) {
+                    $product->local_min_qty = $productData['local_min_qty'];
+                }
+                if (isset($productData['local_order_qty'])) {
+                    $product->local_order_qty = $productData['local_order_qty'];
+                }
+                if (isset($productData['local_source_id'])) {
+                    $product->local_source_id = $productData['local_source_id'];
+                }
+                if (isset($productData['local_source_sku'])) {
+                    $product->local_source_sku = $productData['local_source_sku'];
+                }
+
+
+                if (isset($productData['purchases_qty'])) {
+                    $product->purchases_qty = $productData['purchases_qty'];
                 }
 
                 $product->save();

@@ -84,7 +84,22 @@ class Product extends Model implements HasMedia
         'is_color_sun',
         'colors_nick_names',
         'available',
-        'featured'
+        'featured',
+
+        'air_source_id',
+        'air_source_sku',
+        'air_min_qty',
+        'air_order_qty',
+
+        'sea_source_id',
+        'sea_source_sku',
+        'sea_min_qty',
+        'sea_order_qty',
+
+        'local_source_id',
+        'local_source_sku',
+        'local_min_qty',
+        'local_order_qty',
     ];
 
     protected $attributes = [
@@ -391,6 +406,21 @@ class Product extends Model implements HasMedia
     public function source()
     {
         return $this->belongsTo(Source::class,'source_id');
+    }
+
+    public function airSource()
+    {
+        return $this->belongsTo(Source::class,'air_source_id');
+    }
+
+    public function seaSource()
+    {
+        return $this->belongsTo(Source::class,'sea_source_id');
+    }
+
+    public function localSource()
+    {
+        return $this->belongsTo(Source::class,'local_source_id');
     }
 
     public function replacement_item(): HasOne

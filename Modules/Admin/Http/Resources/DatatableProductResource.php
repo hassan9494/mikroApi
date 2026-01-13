@@ -56,6 +56,21 @@ class DatatableProductResource extends JsonResource
             'stock_location' => $this->stock_location,
             'variants_count' => $this->product_variants->count(),
             'parent' => $this->parent?->product?->name,
+
+            'air_source_id' => $this->air_source_id,
+            'air_source_sku' => $this->air_source_sku,
+            'air_min_qty' => $this->air_min_qty,
+            'air_order_qty' => $this->air_order_qty,
+
+            'sea_source_id' => $this->sea_source_id,
+            'sea_source_sku' => $this->sea_source_sku,
+            'sea_min_qty' => $this->sea_min_qty,
+            'sea_order_qty' => $this->sea_order_qty,
+
+            'local_source_id' => $this->local_source_id,
+            'local_source_sku' => $this->local_source_sku,
+            'local_min_qty' => $this->local_min_qty,
+            'local_order_qty' => $this->local_order_qty,
         ];
 
     }
