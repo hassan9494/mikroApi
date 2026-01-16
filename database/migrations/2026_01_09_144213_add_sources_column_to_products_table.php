@@ -15,15 +15,15 @@ class AddSourcesColumnToProductsTable extends Migration
     {
         Schema::table('products', function (Blueprint $table) {
             $table->integer('air_source_id')->unsigned()->nullable();
-            $table->string('air_source_sku');
+            $table->string('air_source_sku')->nullable();
             $table->integer('air_min_qty')->default(0);
             $table->integer('air_order_qty')->default(0);
             $table->integer('sea_source_id')->unsigned()->nullable();
-            $table->string('sea_source_sku');
+            $table->string('sea_source_sku')->nullable();
             $table->integer('sea_min_qty')->default(0);
             $table->integer('sea_order_qty')->default(0);
             $table->integer('local_source_id')->unsigned()->nullable();
-            $table->string('local_source_sku');
+            $table->string('local_source_sku')->nullable();
             $table->integer('local_min_qty')->default(0);
             $table->integer('local_order_qty')->default(0);
         });

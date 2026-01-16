@@ -401,6 +401,57 @@ Route::get('/convertarraytoboolproduct/{from?}/{to?}', function($from = 5000, $t
 
     return "Updated products from ID {$from} to {$to}";
 });
+Route::get('/convertProductSources/{from?}/{to?}', function($from = 5000, $to = 6500) {
+    // Ensure parameters are integers
+    $from = (int) $from;
+    $to = (int) $to;
+
+    $products = \Modules\Shop\Entities\Product::where('id', '<=', $to)
+        ->where('id', '>', $from)
+        ->get();
+
+    // Convert to collections or use in_array()
+    $airSources = collect([1, 15, 14, 13, 16, 2]);
+    $seaSources = collect([5, 17, 22, 18]);
+    $localSources = collect([11, 4, 9, 3, 12, 27, 26, 7, 23, 10, 29, 19, 25, 21, 20, 28, 24, 8, 6]);
+
+    $updatedCount = 0;
+
+    foreach ($products as $product) {
+        $updateData = [];
+
+        if ($airSources->contains($product->source_id)) {
+            $updateData = [
+                'air_source_id' => $product->source_id,
+                'air_source_sku' => $product->source_sku,
+                'air_min_qty' => $product->min_qty,
+                'air_order_qty' => $product->order_qty,
+            ];
+        } elseif ($seaSources->contains($product->source_id)) {
+            $updateData = [
+                'sea_source_id' => $product->source_id,
+                'sea_source_sku' => $product->source_sku,
+                'sea_min_qty' => $product->min_qty,
+                'sea_order_qty' => $product->order_qty,
+            ];
+        } elseif ($localSources->contains($product->source_id)) {
+            $updateData = [
+                'local_source_id' => $product->source_id,
+                'local_source_sku' => $product->source_sku,
+                'local_min_qty' => $product->min_qty,
+                'local_order_qty' => $product->order_qty,
+            ];
+        }
+
+        // Only update if we found a matching source
+        if (!empty($updateData)) {
+            $product->update($updateData);
+            $updatedCount++;
+        }
+    }
+
+    return "Updated {$updatedCount} products from ID {$from} to {$to}. Total processed: " . $products->count();
+});
 
 
 
