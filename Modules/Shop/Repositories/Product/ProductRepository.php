@@ -37,6 +37,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function create($data)
     {
+        $data = $this->handleStockDistribution($data);
         // Preserve newlines in short description
         if (isset($data['short_description'])) {
             $data['short_description'] = str_replace("\n", '<br>', $data['short_description']);
@@ -53,6 +54,16 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }
         if ($data['price']['real_price'] == '' || $data['price']['real_price'] == null) {
             $data['price']['real_price'] = $data['price']['normal_price'] * 0.6;
+        }
+        if ($data['options']['available']){
+            $data['available'] = $data['options']['available'];
+        }else{
+            $data['available'] = false;
+        }
+        if ($data['options']['featured']){
+            $data['featured'] = $data['options']['featured'];
+        }else{
+            $data['featured'] = false;
         }
 
         // Create the model with the modified data
@@ -75,6 +86,49 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         return $model;
     }
+
+    private function handleStockDistribution(array $data): array
+    {
+        // SPECIAL CASE 1: During creation/update, if both available are 0/null
+        // and stock is provided, put all stock in store_available
+        if (isset($data['stock']) && (int)$data['stock'] > 0) {
+            $stockAvailable = $data['stock_available'] ?? 0;
+            $storeAvailable = $data['store_available'] ?? 0;
+
+            // If both are 0 or null, distribute all stock to store_available
+            if ((int)$stockAvailable === 0 && (int)$storeAvailable === 0) {
+                $data['store_available'] = (int) $data['stock'];
+                $data['stock_available'] = 0;
+            }
+        }
+
+        // SPECIAL CASE 2: If only stock is provided (no available values)
+        // Put all in store_available
+        if (isset($data['stock']) &&
+            !isset($data['stock_available']) &&
+            !isset($data['store_available'])) {
+            $data['stock_available'] = 0;
+            $data['store_available'] = (int) $data['stock'];
+        }
+
+        // Calculate stock from available values if provided
+        if (isset($data['stock_available'], $data['store_available'])) {
+            $data['stock'] = (int)$data['stock_available'] + (int)$data['store_available'];
+        }
+
+        // SPECIAL CASE 3: During form submission, ensure consistency
+        if (isset($data['stock']) && isset($data['stock_available'])) {
+            // If stock_available is more than total stock, cap it
+            $stockAvailable = min((int)$data['stock_available'], (int)$data['stock']);
+            $storeAvailable = (int)$data['stock'] - $stockAvailable;
+
+            $data['stock_available'] = $stockAvailable;
+            $data['store_available'] = max(0, $storeAvailable);
+        }
+
+        return $data;
+    }
+
 
     private function syncMediaWithOrder($model, $mediaData)
     {
@@ -161,6 +215,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
     public function update($id, $data)
     {
+        $data = $this->handleStockDistribution($data);
         if (isset($data['short_description'])) {
             $data['short_description'] = str_replace("\n", '<br>', $data['short_description']);
         }
@@ -169,6 +224,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }
 
         if (!empty($data['stock'])){
+
             $data['stock'] = (int)$data['stock'];
         }
 
@@ -181,6 +237,18 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         }
         if (!empty($data['sku']) && ($data['sku'] == null || $data['sku'] == '')) {
             $data['sku'] = 'me-' . $id;
+        }
+
+
+        if (isset($data['options']) && $data['options']['available']){
+            $data['available'] = $data['options']['available'];
+        }else{
+            $data['available'] = false;
+        }
+        if (isset($data['options']) && $data['options']['featured']){
+            $data['featured'] = $data['options']['featured'];
+        }else{
+            $data['featured'] = false;
         }
 
         $model = parent::update($id, $data);
@@ -805,7 +873,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
 
         } else {
             // Default to featured products if no category or search word is provided
-            $query->where(['options->featured' => true]);
+            $query->where(['featured' => true]);
         }
 
 
@@ -971,12 +1039,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     $user->hasRole('Manager') ||
                     $user->hasRole('Cashier')  ||
                     $user->hasRole('Acountant')){
-                    $query->where('options->available',true);
+                    $query->where('available',true);
                 }else{
-                    $query->where('options->available',true)->where('is_show_for_search',1);
+                    $query->where('available',true)->where('is_show_for_search',1);
                 }
             }else{
-                $query->where('options->available',true)->where('is_show_for_search',1);
+                $query->where('available',true)->where('is_show_for_search',1);
             }
 
 
@@ -999,7 +1067,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             }
         } else {
             // Default to featured products if no category or search word is provided
-            $query->where(['options->featured' => true]);
+            $query->where(['featured' => true]);
         }
 
         // Apply filter based on the selected option
@@ -1751,7 +1819,7 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
             }
         } else {
             // Default to featured products if no category or search word is provided
-            $query->where(['options->featured' => true]);
+            $query->where(['featured' => true]);
         }
 
         // Apply filter based on the selected option

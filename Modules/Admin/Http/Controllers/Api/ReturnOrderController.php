@@ -108,29 +108,47 @@ class ReturnOrderController extends ApiAdminController
     public function updateWithStatus($id): JsonResponse
     {
         $order = $this->repository->findOrFail($id);
+
         if ($order->status != 'COMPLETED') {
             $data = $this->validate();
 
             if (request()->get('status') == 'COMPLETED') {
                 $data['completed_by'] = auth()->id();
             }
+
             $order = $this->repository->saveOrder($id, $data);
             $order->syncMedia($data['attachments'] ?? []);
+
+            // Update status with products for stock handling
             $this->repository->status(
-                $id, request()->get('status'), request()->get('products')
+                $id,
+                request()->get('status'),
+                request()->get('products')
             );
 
-        }
-        else {
+        } else {
             if (request()->get('status') != null) {
+                // Handle status change for completed orders
                 $this->repository->status(
-                    $id, request()->get('status'), request()->get('products')
+                    $id,
+                    request()->get('status'),
+                    request()->get('products')
                 );
             }
-
         }
-
         if (request()->get('status') == 'COMPLETED') {
+//            $old_transaction = Transaction::where('order_id', $order->id)->first();
+//            if ($old_transaction){
+//                $old_transaction->update([
+//                    'note' => '',
+//                    'type' => 'deposit',
+//                    'amount' => request()->get('amount'),
+//                    'commission' => request()->get('commission'),
+//                    'shipping' => request()->get('shipping_amount'),
+//                    'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
+//                    'payment_method_id' => request()->get('payment_method')
+//                ]);
+//            }else{
             if (request()->get('amount') > 0){
                 $transaction = $order->transactions()->create([
                     'transaction_id' => Str::uuid(),
@@ -147,6 +165,7 @@ class ReturnOrderController extends ApiAdminController
 
 //        }
         }
+
         return $this->success();
     }
 
@@ -208,10 +227,6 @@ class ReturnOrderController extends ApiAdminController
             'extra_items' => 'nullable|array',
 
             'attachments' => 'nullable|array',
-            'amount' => 'nullable',
-            'commission' => 'nullable',
-            'payment_method' => 'nullable',
-            'shipping_amount' => 'nullable',
         ]);
     }
 

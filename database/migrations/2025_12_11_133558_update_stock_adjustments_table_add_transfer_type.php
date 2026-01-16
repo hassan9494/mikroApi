@@ -13,8 +13,8 @@ class UpdateStockAdjustmentsTableAddTransferType extends Migration
     public function up(): void
     {
         // Method 1: Using DB::statement for MySQL
-//        DB::statement("ALTER TABLE `stock_adjustments`
-//            MODIFY COLUMN `adjustment_type` ENUM('increase', 'decrease', 'transfer') NOT NULL");
+        DB::statement("ALTER TABLE `stock_adjustments`
+            MODIFY COLUMN `adjustment_type` ENUM('increase', 'decrease', 'transfer') NOT NULL");
 
         // Method 2: Using Schema::table (if supported)
         // Schema::table('stock_adjustments', function (Blueprint $table) {

@@ -8,10 +8,10 @@ return new class extends Migration
 {
     public function up()
     {
-//        Schema::table('invoice_products', function (Blueprint $table) {
-//            $table->integer('stock_available_qty')->default(0)->after('quantity');
-//            $table->integer('store_available_qty')->default(0)->after('stock_available_qty');
-//        });
+        Schema::table('invoice_products', function (Blueprint $table) {
+            $table->integer('stock_available_qty')->default(0)->after('quantity');
+            $table->integer('store_available_qty')->default(0)->after('stock_available_qty');
+        });
     }
 
     public function down()

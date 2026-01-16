@@ -113,7 +113,7 @@ class ReportController extends Controller
      */
     public function order()
     {
-
+        ini_set('memory_limit', '1024M');
         $where = [
             [
                 'taxed_at', '>=', request('from', now()->startOfMonth())
@@ -462,106 +462,92 @@ class ReportController extends Controller
      */
     public function productStock(): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
+        // Get request parameters
+        $needCondition = request('needConditionReport');
+        $sourceType = request('sourceType', null);
+        $sourceId = request('source_id', null);
 
-        if (request('source_id')){
-            if (request('needConditionReport') != null && request('needConditionReport') == 'need') {
-                $where = [
-                    [
-                        'min_qty', '>', 0
-                    ],
-                    [
-                        'hasVariants', false
-                    ],
-                    [
-                        'stock', '<', DB::raw('min_qty')
-                    ],
-                    [
-                        'source_id', request('source_id')
-                    ],
+        // Determine the actual condition
+        // If needCondition is an array, get first element
+        $condition = is_array($needCondition) ? ($needCondition[0] ?? null) : $needCondition;
 
-                    [
-                        DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
-                    ]
-                ];
-            }
-            elseif (request('needConditionReport') != null && request('needConditionReport') == 'stock'){
-                $where = [];
-                $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
-                $where[]= ['source_id', '=', request('source_id')];
-                $where[]= ['hasVariants', false];
-            }
-            else {
-                ////test
-                $where = [
-                    [
-                        'min_qty', '>', 0
-                    ],
-                    [
-                        'hasVariants',false
-                    ],
-                    [
-                        'is_retired', 0
-                    ],
-                    [
-                        'source_id', request('source_id')
-                    ],
-                    [
-                        'stock', '<', DB::raw('min_qty')
-                    ],
-                    [
-                        DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
-                    ]
-                ];
-            }
-        }
-        else{
-            if (request('needConditionReport') != null && request('needConditionReport') == 'need') {
-                $where = [
-                    [
-                        'min_qty', '>', 0
-                    ],
-                    [
-                        'hasVariants', false
-                    ],
-                    [
-                        'stock', '<', DB::raw('min_qty')
-                    ],
-                    [
-                        DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
-                    ]
-                ];
-            }
-            elseif (request('needConditionReport') != null && request('needConditionReport') == 'stock'){
-                $where = [];
-                $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
-                $where[]= ['hasVariants', false];
-            }
-            else {
-                ////test
-                $where = [
-                    [
-                        'min_qty', '>', 0
-                    ],
-                    [
-                        'hasVariants', false
-                    ],
-                    [
-                        'is_retired', 0
-                    ],
-                    [
-                        'stock', '<', DB::raw('min_qty')
-                    ],
-                    [
-                        DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'
-                    ]
-                ];
+        // Build query manually (since repository can't handle complex conditions)
+        $query = Product::query();
+
+        // Always apply these conditions
+        $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit')) = false")
+            ->where('hasVariants', false);
+
+        // Handle different condition types
+        if ($condition === 'stock') {
+            // For 'stock', don't add min_qty conditions
+            // Already added common conditions
+        } else {
+            // For 'need', 'nwaqes', or default
+            if ($condition !== 'need') {
+                // For 'nwaqes' or default, add is_retired
+                $query->where('is_retired', 0);
             }
 
+            // Add min_qty conditions based on sourceType
+            $this->addMinQtyConditionsToQuery($query, $sourceType);
         }
 
+        // Add source_id conditions based on sourceType
+        $this->addSourceIdConditionsToQuery($query, $sourceType, $sourceId);
 
-        $data = $this->productRepositoryInterface->get($where)->sortBy('date');
+        // Get and sort data
+        $data = $query->get()->sortBy('date');
+
         return NeedStocksReportResource::collection($data);
+    }
+
+    /**
+     * Add min_qty conditions to query based on sourceType
+     */
+    private function addMinQtyConditionsToQuery($query, $sourceType)
+    {
+        if ($sourceType) {
+            // Specific sourceType
+            $minQtyColumn = $sourceType . '_min_qty';
+            $query->where($minQtyColumn, '>', 0)
+                ->whereRaw("stock < $minQtyColumn");
+        } else {
+            // No sourceType - check all three columns
+            $query->where(function($q) {
+                $q->where(function($subQuery) {
+                    $subQuery->where('air_min_qty', '>', 0)
+                        ->whereRaw('stock < air_min_qty');
+                })->orWhere(function($subQuery) {
+                    $subQuery->where('sea_min_qty', '>', 0)
+                        ->whereRaw('stock < sea_min_qty');
+                })->orWhere(function($subQuery) {
+                    $subQuery->where('local_min_qty', '>', 0)
+                        ->whereRaw('stock < local_min_qty');
+                });
+            });
+        }
+    }
+
+    /**
+     * Add source_id conditions to query based on sourceType
+     */
+    private function addSourceIdConditionsToQuery($query, $sourceType, $sourceId)
+    {
+        if ($sourceId) {
+            if ($sourceType) {
+                // Specific sourceType
+                $sourceIdColumn = $sourceType . '_source_id';
+                $query->where($sourceIdColumn, $sourceId);
+            } else {
+                // No sourceType - check all three columns
+                $query->where(function($q) use ($sourceId) {
+                    $q->where('air_source_id', $sourceId)
+                        ->orWhere('sea_source_id', $sourceId)
+                        ->orWhere('local_source_id', $sourceId);
+                });
+            }
+        }
     }
 
 
@@ -569,59 +555,37 @@ class ReportController extends Controller
     private function buildConditions()
     {
         try {
+            // Get request parameters
             $needCondition = request('needConditionReport');
+            $sourceType = request('sourceType', null);
+            $sourceId = request('source_id', null);
+
+            // Determine the actual condition (handle array or string)
+            $condition = is_array($needCondition) ? ($needCondition[0] ?? null) : $needCondition;
+
             $where = [];
 
-            if (request('source_id')) {
-                if ($needCondition === 'need') {
-                    $where = [
-                        ['min_qty', '>', 0],
-                        ['hasVariants', false],
-                        ['stock', '<', 'min_qty'], // Changed from DB::raw to string
-                        ['source_id', request('source_id')],
-                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false'] // Changed from DB::raw to string
-                    ];
+            // Common conditions for all
+            $where[] = ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false'];
+            $where[] = ['hasVariants', '=', false];
+
+            // Handle different condition types
+            if ($condition === 'stock') {
+                // For 'stock', don't add min_qty conditions
+                // Already added common conditions
+            } else {
+                // For 'need', 'nwaqes', or default
+                if ($condition !== 'need') {
+                    // For 'nwaqes' or default, add is_retired
+                    $where[] = ['is_retired', '=', 0];
                 }
-                elseif ($needCondition === 'stock') {
-                    $where = [
-                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false'],
-                        ['source_id', request('source_id')],
-                        ['hasVariants', false],
-                    ];
-                } else {
-                    $where = [
-                        ['min_qty', '>', 0],
-                        ['is_retired', 0],
-                        ['stock', '<', 'min_qty'],
-                        ['hasVariants', false],
-                        ['source_id', request('source_id')],
-                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false']
-                    ];
-                }
+
+                // Add min_qty conditions based on sourceType
+                $this->addMinQtyConditionsToArray($where, $sourceType);
             }
-            else {
-                if ($needCondition === 'need') {
-                    $where = [
-                        ['min_qty', '>', 0],
-                        ['stock', '<', 'min_qty'],
-                        ['hasVariants', false],
-                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false']
-                    ];
-                } elseif ($needCondition === 'stock') {
-                    $where = [
-                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false'],
-                        ['hasVariants', false],
-                    ];
-                } else {
-                    $where = [
-                        ['min_qty', '>', 0],
-                        ['is_retired', 0],
-                        ['stock', '<', 'min_qty'],
-                        ['hasVariants', false],
-                        ["JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))", '=', 'false']
-                    ];
-                }
-            }
+
+            // Add source_id conditions based on sourceType
+            $this->addSourceIdConditionsToArray($where, $sourceType, $sourceId);
 
             return $where;
 
@@ -631,30 +595,92 @@ class ReportController extends Controller
         }
     }
 
+    /**
+     * Add min_qty conditions to array based on sourceType
+     * Returns serializable array (no closures)
+     */
+    private function addMinQtyConditionsToArray(&$where, $sourceType)
+    {
+        if ($sourceType) {
+            // Specific sourceType - use the corresponding column
+            $minQtyColumn = $sourceType . '_min_qty';
+            $where[] = [$minQtyColumn, '>', 0];
+            $where[] = ['stock', '<', $minQtyColumn]; // This will be handled as raw SQL
+        } else {
+            // No sourceType - check ALL THREE columns
+            // We need to create OR conditions for all three
+            $where[] = ['type' => 'or_min_qty'];
+        }
+    }
+
+    /**
+     * Add source_id conditions to array based on sourceType
+     * Returns serializable array (no closures)
+     */
+    private function addSourceIdConditionsToArray(&$where, $sourceType, $sourceId)
+    {
+        if ($sourceId) {
+            if ($sourceType) {
+                // Specific sourceType - use the corresponding column
+                $sourceIdColumn = $sourceType . '_source_id';
+                $where[] = [$sourceIdColumn, '=', $sourceId];
+            } else {
+                // No sourceType - check ALL THREE columns
+                $where[] = ['type' => 'or_source_id', 'value' => $sourceId];
+            }
+        }
+    }
+
     public function exportImagesZip()
     {
         try {
             $conditions = $this->buildConditions();
             $chunkSize = 100;
 
-            // Build the query with proper handling of raw conditions
+            // Build the query with proper handling of all condition types
             $query = Product::query();
 
             foreach ($conditions as $condition) {
-                if (count($condition) === 3) {
-                    // Handle JSON condition
+                // Check for special condition types first
+                if (isset($condition['type'])) {
+                    if ($condition['type'] === 'or_min_qty') {
+                        // No sourceType - check ALL THREE columns
+                        $query->where(function($q) {
+                            $q->where(function($subQuery) {
+                                $subQuery->where('air_min_qty', '>', 0)
+                                    ->whereRaw('stock < air_min_qty');
+                            })->orWhere(function($subQuery) {
+                                $subQuery->where('sea_min_qty', '>', 0)
+                                    ->whereRaw('stock < sea_min_qty');
+                            })->orWhere(function($subQuery) {
+                                $subQuery->where('local_min_qty', '>', 0)
+                                    ->whereRaw('stock < local_min_qty');
+                            });
+                        });
+                    }
+                    elseif ($condition['type'] === 'or_source_id') {
+                        // No sourceType - check ALL THREE source_id columns
+                        $query->where(function($q) use ($condition) {
+                            $q->where('air_source_id', '=', $condition['value'])
+                                ->orWhere('sea_source_id', '=', $condition['value'])
+                                ->orWhere('local_source_id', '=', $condition['value']);
+                        });
+                    }
+                }
+                elseif (count($condition) === 3) {
+                    // Handle normal conditions
                     if (is_string($condition[0]) && str_contains($condition[0], 'JSON_UNQUOTE')) {
                         $query->whereRaw("{$condition[0]} {$condition[1]} ?", [$condition[2]]);
                     }
-                    // Handle column comparison (stock < min_qty)
+                    // Handle column comparisons like ['stock', '<', 'air_min_qty']
                     elseif (is_string($condition[0]) && is_string($condition[2])) {
                         $query->whereRaw("{$condition[0]} {$condition[1]} {$condition[2]}");
                     }
-                    // Handle normal conditions
                     else {
                         $query->where($condition[0], $condition[1], $condition[2]);
                     }
-                } elseif (count($condition) === 2) {
+                }
+                elseif (count($condition) === 2) {
                     $query->where($condition[0], $condition[1]);
                 }
             }
@@ -721,21 +747,48 @@ class ReportController extends Controller
 
         $query = Product::with(['source', 'media']);
 
+        // Process conditions the same way as exportImagesZip
         foreach ($manifest['conditions'] as $condition) {
-            if (count($condition) === 3) {
-                // Handle raw SQL expressions
+            // Check for special condition types first
+            if (isset($condition['type'])) {
+                if ($condition['type'] === 'or_min_qty') {
+                    // No sourceType - check ALL THREE columns
+                    $query->where(function($q) {
+                        $q->where(function($subQuery) {
+                            $subQuery->where('air_min_qty', '>', 0)
+                                ->whereRaw('stock < air_min_qty');
+                        })->orWhere(function($subQuery) {
+                            $subQuery->where('sea_min_qty', '>', 0)
+                                ->whereRaw('stock < sea_min_qty');
+                        })->orWhere(function($subQuery) {
+                            $subQuery->where('local_min_qty', '>', 0)
+                                ->whereRaw('stock < local_min_qty');
+                        });
+                    });
+                }
+                elseif ($condition['type'] === 'or_source_id') {
+                    // No sourceType - check ALL THREE source_id columns
+                    $query->where(function($q) use ($condition) {
+                        $q->where('air_source_id', '=', $condition['value'])
+                            ->orWhere('sea_source_id', '=', $condition['value'])
+                            ->orWhere('local_source_id', '=', $condition['value']);
+                    });
+                }
+            }
+            elseif (count($condition) === 3) {
+                // Handle normal conditions
                 if (is_string($condition[0]) && str_contains($condition[0], 'JSON_UNQUOTE')) {
                     $query->whereRaw("{$condition[0]} {$condition[1]} ?", [$condition[2]]);
                 }
-                // Handle column comparisons
+                // Handle column comparisons like ['stock', '<', 'air_min_qty']
                 elseif (is_string($condition[0]) && is_string($condition[2])) {
                     $query->whereRaw("{$condition[0]} {$condition[1]} {$condition[2]}");
                 }
-                // Handle normal conditions
                 else {
                     $query->where($condition[0], $condition[1], $condition[2]);
                 }
-            } elseif (count($condition) === 2) {
+            }
+            elseif (count($condition) === 2) {
                 $query->where($condition[0], $condition[1]);
             }
         }
@@ -761,15 +814,27 @@ class ReportController extends Controller
             'Price',
             'Real_Price',
             'Min_Quantity',
+            'Air_Min_Quantity',
+            'Sea_Min_Quantity',
+            'Local_Min_Quantity',
             'Order_Quantity',
+            'Air_Order_Quantity',
+            'Sea_Order_Quantity',
+            'Local_Order_Quantity',
             'Purchases_Quantity',
             'PriceAll',
             'Real_Price_All',
             'Source_Sku',
+            'Air_Source_Sku',
+            'Sea_Source_Sku',
+            'Local_Source_Sku',
             'Stock_Location',
             'Store_Location',
             'Link',
-            'source'
+            'source',
+            'Air_source',
+            'Sea_source',
+            'Local_source'
         ];
 
         $sheet->fromArray($headers, null, 'A1');
@@ -800,15 +865,27 @@ class ReportController extends Controller
                 $price == 0 ? "0" : $price,
                 $realPrice == 0 ? "0" : $realPrice,
                 $product->min_qty == 0 ? "0" : $product->min_qty,
+                $product->air_min_qty == 0 ? "0" : $product->air_min_qty,
+                $product->sea_min_qty == 0 ? "0" : $product->sea_min_qty,
+                $product->local_min_qty == 0 ? "0" : $product->local_min_qty,
                 $product->order_qty == 0 ? "0" : $product->order_qty,
+                $product->air_order_qty == 0 ? "0" : $product->air_order_qty,
+                $product->sea_order_qty == 0 ? "0" : $product->sea_order_qty,
+                $product->local_order_qty == 0 ? "0" : $product->local_order_qty,
                 $product->purchases_qty == 0 ? "0" : $product->purchases_qty,
                 $priceAll == 0 ? "0" : $priceAll,
                 $realPriceAll == 0 ? "0" : $realPriceAll,
                 $product->source_sku,
+                $product->air_source_sku,
+                $product->sea_source_sku,
+                $product->local_source_sku,
                 $product->stock_location,
                 $product->location,
                 "{$website}/product/{$product->sku}",
-                $product->source ? $product->source->name : ''
+                $product->source ? $product->source->name : '',
+                $product->airSource ? $product->airSource->name : '',
+                $product->seaSource ? $product->seaSource->name : '',
+                $product->localSource ? $product->localSource->name : ''
             ], null, "A{$row}");
 
             // Add image as the second column (Column B)

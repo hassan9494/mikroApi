@@ -36,13 +36,13 @@ class InvoiceController extends ApiAdminController
         $canShowComplete = $user->hasPermissionTo('show_completed_invoices','web');
         $model = $this->repository->findOrFail($id);
         if ($model->status == 'COMPLETED'){
-          if (!$canShowComplete){
-              return \response()->json([
-                  'data' => null,
-                  'message' => 'test',
-                  'code' => 401
-              ],403);
-          }
+            if (!$canShowComplete){
+                return \response()->json([
+                    'data' => null,
+                    'message' => 'test',
+                    'code' => 401
+                ],403);
+            }
         }
         return new InvoiceResource($model);
     }
@@ -75,8 +75,8 @@ class InvoiceController extends ApiAdminController
         $data = $this->validate();
 
         $invoice = $this->repository->make($data);
-            // Mark as processing
-            $this->repository->status($invoice->id, InvoiceStatus::DRAFT()->value);
+        // Mark as processing
+        $this->repository->status($invoice->id, InvoiceStatus::DRAFT()->value);
 
 
         $invoice->syncMedia($data['attachments'] ?? []);
@@ -134,7 +134,7 @@ class InvoiceController extends ApiAdminController
      */
     public function validate(): array
     {
-        return request()->validate([
+        $data = request()->validate([
             'note' => 'nullable|max:500',
             'number' => 'nullable|max:500',
             'tax_number' => 'nullable|numeric',
@@ -149,10 +149,30 @@ class InvoiceController extends ApiAdminController
             'products.*.normal' => 'required|numeric',
             'products.*.sale_price' => 'required|numeric',
             'products.*.source_sku' => 'nullable|max:500',
-            'products.*.quantity' => 'required|numeric',
+            'products.*.quantity' => 'required|numeric|min:0',
+            'products.*.allocation' => 'required|in:store,stock,total',
+            'products.*.stock_available_qty' => 'required|numeric|min:0',
+            'products.*.store_available_qty' => 'required|numeric|min:0',
             'source_id' => 'nullable|integer',
             'attachments' => 'nullable|array',
+            'source_type' => 'required|in:air,sea,local',
         ]);
+
+        // Add custom validation to ensure sum equals quantity
+        foreach ($data['products'] ?? [] as $key => $product) {
+            $stockQty = $product['stock_available_qty'] ?? 0;
+            $storeQty = $product['store_available_qty'] ?? 0;
+            $totalQty = $product['quantity'] ?? 0;
+
+            if (($stockQty + $storeQty) != $totalQty) {
+                throw ValidationException::withMessages([
+                    "products.{$key}.stock_available_qty" => "Stock distribution must sum to total quantity",
+                    "products.{$key}.store_available_qty" => "Stock distribution must sum to total quantity"
+                ]);
+            }
+        }
+
+        return $data;
     }
 
 }

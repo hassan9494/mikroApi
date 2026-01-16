@@ -25,7 +25,7 @@ class Invoice extends Model implements HasMedia
 {
     use Media;
 
-    protected $fillable = ['name','tax_number','number','date','status','completed_at','note','source_id','exchange_factor'];
+    protected $fillable = ['name','tax_number','number','date','status','completed_at','note','source_id','exchange_factor','source_type'];
 
 
     /**
@@ -59,7 +59,7 @@ class Invoice extends Model implements HasMedia
             'invoice_products',
             'invoice_id',
             'product_id'
-        )->withTrashed()->withPivot('purchases_price','distributer_price', 'quantity','source_sku','normal','sale_price','product_name','base_purchases_price','exchange_factor');
+        )->withTrashed()->withPivot('purchases_price','distributer_price', 'quantity','allocation','source_sku','normal','sale_price','product_name','base_purchases_price','exchange_factor','stock_available_qty','store_available_qty');
     }
 
     public function source()

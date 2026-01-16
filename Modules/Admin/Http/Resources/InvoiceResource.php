@@ -28,6 +28,7 @@ class InvoiceResource extends JsonResource
             'status' => $this->status,
             'note' => $this->note,
             'source_id' => $this->source_id != null ? $this->source_id : null,
+            'source_type' => $this->source_type != null ? $this->source_type : null,
             'attachments' => MediaResource::collection($this->getMedia()),
         ];
     }
@@ -43,6 +44,9 @@ class InvoiceResource extends JsonResource
                 'sku' => $product->sku,
                 'source_sku' => $product->pivot->source_sku,
                 'quantity' => $product->pivot->quantity,
+                'allocation' => $product->pivot->allocation ,
+                'stock_available_qty' => $product->pivot->stock_available_qty ?? 0,
+                'store_available_qty' => $product->pivot->store_available_qty ?? $product->pivot->quantity,
                 'purchases_price' => $product->pivot->purchases_price,
                 'base_purchases_price' => number_format($product->pivot->base_purchases_price,3),
                 'exchange_factor' => number_format($product->pivot->exchange_factor,3),

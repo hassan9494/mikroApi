@@ -7,6 +7,7 @@ use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
 use Modules\Admin\Http\Controllers\Api\PaymentMethodController;
 use Modules\Admin\Http\Controllers\Api\SettingController;
+use Modules\Admin\Http\Controllers\Api\StockAdjustmentController;
 use Modules\Admin\Http\Controllers\Api\TaskAttachmentController;
 use Modules\Admin\Http\Controllers\Api\TaxExemptController;
 use Modules\Admin\Http\Controllers\Api\LocationController;
@@ -37,6 +38,9 @@ use Modules\Admin\Http\Controllers\Api\UserController;
 use Modules\Admin\Http\Controllers\Api\PromotionController;
 use Modules\Admin\Http\Controllers\Api\SlideController;
 use Modules\Admin\Http\Controllers\Api\TaskController;
+use Modules\Admin\Http\Controllers\Api\TransferOrderController;
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -60,6 +64,19 @@ Route::prefix('admin')
         Route::post('media/order', [MediaController::class, 'order']);
         Route::post('media/invoice', [MediaController::class, 'invoice']);
     });
+
+Route::prefix('admin')
+    ->middleware(['auth:sanctum'])
+    ->namespace('Api')
+    ->group(function () {
+        // Stock Adjustments User Routes
+        Route::post('stock-adjustments', [StockAdjustmentController::class, 'store']);
+        Route::get('stock-adjustments/my-requests', [StockAdjustmentController::class, 'myRequests']);
+        Route::get('stock-adjustments/all-requests', [StockAdjustmentController::class, 'getAllRequests']); // ADD THIS
+        Route::get('stock-adjustments/my-requests/datatable', [StockAdjustmentController::class, 'myRequestsDatatable']);
+        Route::get('stock-adjustments/{id}', [StockAdjustmentController::class, 'show']);
+    });
+
 
 Route::prefix('admin')
     ->middleware(['auth:sanctum' ,'role:admin|super|Manager|Cashier|Product Manager|Admin cash'])
@@ -124,6 +141,15 @@ Route::prefix('admin')
             });
         });
 
+
+        Route::prefix('stock-adjustments')->group(function () {
+            Route::get('/', [StockAdjustmentController::class, 'index']);
+            Route::get('/datatable', [StockAdjustmentController::class, 'datatable']);
+            Route::get('/statistics', [StockAdjustmentController::class, 'statistics']);
+            Route::get('/product/{productId}/history', [StockAdjustmentController::class, 'productHistory']);
+            Route::post('/{id}/approve', [StockAdjustmentController::class, 'approve']);
+            Route::post('/{id}/reject', [StockAdjustmentController::class, 'reject']);
+        });
 
 
 
@@ -209,6 +235,7 @@ Route::prefix('admin')
         Route::resource('product', 'ProductController');
 
 
+
         // Variants Product Routes.
         Route::get('variant-product/datatable', [ProductVariantsController::class, 'datatable']);
         Route::resource('variant-product', 'ProductVariantsController');
@@ -255,6 +282,16 @@ Route::prefix('admin')
         Route::get('report/delivery', [ReportController::class, 'delivery']);
         Route::get('report/purchases-by-product', [ReportController::class, 'purchasesByProduct']);
         Route::get('report/product-purchases', [ReportController::class, 'productPurchases']);
+
+        Route::prefix('transfer-orders')->group(function () {
+            Route::get('/', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'index']);
+            Route::post('/', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'store']);
+            Route::get('/{id}', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'show']);
+            Route::put('/{id}', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'update']);
+            Route::delete('/{id}', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'destroy']);
+            Route::post('/{id}/toggle-status', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'toggleStatus']);
+            Route::get('/statistics/overview', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'statistics']);
+        });
 
 
         // Slide Routes.

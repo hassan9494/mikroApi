@@ -373,6 +373,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         if ($oldStatus != $status) {
             $order->recordStatusChange($oldStatus, $status);
         }
+        if($status == 'CANCELED'){
+            $order->transactions()->delete();
+        }
 
         return $order;
     }

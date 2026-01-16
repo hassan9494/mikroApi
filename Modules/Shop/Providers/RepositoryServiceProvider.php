@@ -91,6 +91,10 @@ class RepositoryServiceProvider extends ServiceProvider
             'Modules\Shop\Repositories\StockAdjustment\StockAdjustmentRepositoryInterface',
             'Modules\Shop\Repositories\StockAdjustment\StockAdjustmentRepository'
         );
+        $this->app->singleton(
+            'Modules\Shop\Repositories\TransferOrder\TransferOrderRepositoryInterface',
+            'Modules\Shop\Repositories\TransferOrder\TransferOrderRepository'
+        );
 
     }
 

@@ -383,14 +383,23 @@ Route::get('/test-custom-search', function() {
 
     return response()->json($response);
 });
-Route::get('/test-category-slugs', function() {
-    $product = \Modules\Shop\Entities\Product::with('categories')->first();
+Route::get('/convertarraytoboolproduct/{from?}/{to?}', function($from = 5000, $to = 6500) {
+    // Ensure parameters are integers
+    $from = (int) $from;
+    $to = (int) $to;
 
-    return [
-        'product_id' => $product->id,
-        'category_slugs' => $product->categories->pluck('slug'),
-        'in_elastic' => $product->toSearchableArray()['category_slugs']
-    ];
+    $products = \Modules\Shop\Entities\Product::where('id', '<=', $to)
+        ->where('id', '>', $from)
+        ->get();
+
+    foreach ($products as $product) {
+        $product->update([
+            'featured' => $product->options->featured,
+            'available' => $product->options->available,
+        ]);
+    }
+
+    return "Updated products from ID {$from} to {$to}";
 });
 
 

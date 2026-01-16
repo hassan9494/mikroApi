@@ -31,7 +31,7 @@ use App\Traits\Media;
 class Product extends Model implements HasMedia
 {
     use HasFactory;
-    use Searchable;
+//    use Searchable;
     use Stock;
     use Finance;
     use Media;
@@ -82,7 +82,24 @@ class Product extends Model implements HasMedia
         'is_show_for_search',
         'search_factor',
         'is_color_sun',
-        'colors_nick_names'
+        'colors_nick_names',
+        'available',
+        'featured',
+
+        'air_source_id',
+        'air_source_sku',
+        'air_min_qty',
+        'air_order_qty',
+
+        'sea_source_id',
+        'sea_source_sku',
+        'sea_min_qty',
+        'sea_order_qty',
+
+        'local_source_id',
+        'local_source_sku',
+        'local_min_qty',
+        'local_order_qty',
     ];
 
     protected $attributes = [
@@ -94,7 +111,12 @@ class Product extends Model implements HasMedia
         'meta' => 'object',
         'shipping' => 'object',
         'datasheets' => 'object',
-        'options' => 'object'
+        'options' => 'object',
+        'stock' => 'integer',
+        'stock_available' => 'integer',
+        'store_available' => 'integer'
+
+
     ];
 
     /**
@@ -309,7 +331,10 @@ class Product extends Model implements HasMedia
                 'sale_price',
                 'product_name',
                 'base_purchases_price',
-                'exchange_factor'
+                'exchange_factor',
+                'stock_available_qty',
+                'store_available_qty'
+
             ]);
     }
 
@@ -383,6 +408,21 @@ class Product extends Model implements HasMedia
         return $this->belongsTo(Source::class,'source_id');
     }
 
+    public function airSource()
+    {
+        return $this->belongsTo(Source::class,'air_source_id');
+    }
+
+    public function seaSource()
+    {
+        return $this->belongsTo(Source::class,'sea_source_id');
+    }
+
+    public function localSource()
+    {
+        return $this->belongsTo(Source::class,'local_source_id');
+    }
+
     public function replacement_item(): HasOne
     {
         return $this->hasOne(Product::class,'replacement_item');
@@ -407,6 +447,93 @@ class Product extends Model implements HasMedia
     {
         return true;
     }
+
+    // In Product.php, update the getStockAttribute method:
+// public function getStockAttribute()
+// {
+//     // Get raw values from database
+//     $stockAvailable = $this->attributes['stock_available'] ?? 0;
+//     $storeAvailable = $this->attributes['store_available'] ?? 0;
+//     $rawStock = $this->attributes['stock'] ?? 0;
+
+//     // SPECIAL CASE: If both available are 0 or null, and raw stock has value
+//     // Put all stock in store_available
+//     if (($stockAvailable == 0 || is_null($stockAvailable)) &&
+//         ($storeAvailable == 0 || is_null($storeAvailable)) &&
+//         $rawStock > 0) {
+//         return $rawStock;
+//     }
+
+//     // Otherwise return the sum of available stock
+//     return ($stockAvailable ?? 0) + ($storeAvailable ?? 0);
+// }
+    public function validateAndAdjustStockDistribution()
+    {
+        // Get raw values from database
+        $currentStock = (int) $this->getAttributes()['stock'] ?? 0;
+        $stockAvailable = (int) $this->stock_available ?? 0;
+        $storeAvailable = (int) $this->store_available ?? 0;
+
+        // Calculate current sum of available
+        $currentAvailableSum = $stockAvailable + $storeAvailable;
+
+        // If sum doesn't match stock, adjust distribution
+        if ($currentAvailableSum != $currentStock) {
+            // Case 1: If both available are 0 and stock > 0, put all in store_available
+            if ($stockAvailable == 0 && $storeAvailable == 0 && $currentStock > 0) {
+                $this->store_available = $currentStock;
+                $this->stock_available = 0;
+            }
+            // Case 2: If sum is less than stock, add difference to store_available
+            elseif ($currentAvailableSum < $currentStock) {
+                $difference = $currentStock - $currentAvailableSum;
+                $this->store_available += $difference;
+            }
+            // Case 3: If sum is more than stock, reduce from store_available first
+            elseif ($currentAvailableSum > $currentStock) {
+                $excess = $currentAvailableSum - $currentStock;
+                if ($this->store_available >= $excess) {
+                    $this->store_available -= $excess;
+                } else {
+                    // If store_available is insufficient, take from both
+                    $remaining = $excess - $this->store_available;
+                    $this->store_available = 0;
+                    $this->stock_available = max(0, $this->stock_available - $remaining);
+                }
+            }
+        }
+    }
+    public function updateDistributionFromStockChange($newStock, $reduce = true)
+    {
+        $oldStock = $this->getAttributes()['stock'] ?? 0;
+        $stockAvailable = $this->stock_available ?? 0;
+        $storeAvailable = $this->store_available ?? 0;
+
+        if ($reduce) {
+            // Reducing stock (order completed)
+            $quantityToReduce = $oldStock - $newStock;
+
+            // Reduce from store_available first
+            if ($storeAvailable >= $quantityToReduce) {
+                $this->store_available = $storeAvailable - $quantityToReduce;
+            } else {
+                // If store_available is insufficient, take from both
+                $remaining = $quantityToReduce - $storeAvailable;
+                $this->store_available = 0;
+                $this->stock_available = max(0, $stockAvailable - $remaining);
+            }
+        } else {
+            // Increasing stock (order cancelled/returned)
+            $quantityToAdd = $newStock - $oldStock;
+
+            // Add to store_available by default
+            $this->store_available += $quantityToAdd;
+        }
+
+        // Update the stock field
+        $this->stock = $newStock;
+    }
+
 
 
 }

@@ -44,44 +44,71 @@ class Datatable
 
     private function where()
     {
-//        dd($this->request);
         $where = [];
         $orWhere = [];
-        foreach ($this->request['conditions'] as $key => $value) {
+        $sourceType = null;
 
+        // First pass: extract sourceType and remove it from conditions
+        $filteredConditions = [];
+        foreach ($this->request['conditions'] as $value) {
+            if (is_string($value) && in_array($value, ['air', 'sea', 'local'])) {
+                $sourceType = $value;
+                continue; // Skip adding sourceType to filtered conditions
+            }
+            $filteredConditions[] = $value;
+        }
+
+        // Second pass: process filtered conditions
+        foreach ($filteredConditions as $key => $value) {
             if (is_array($value)) {
                 if (isset($value['col'])) {
-                    if(str_contains($value['col'], '|')) {
-                        $column = explode('|', $value['col']);
-                        $where[] = [$column[0], $value['op'] ?? '=', $value['val']];
+                    // Check if this is a source_id condition with sourceType
+                    if ($value['col'] === 'source_id' && isset($value['sourceType']) && in_array($value['sourceType'], ['air', 'sea', 'local'])) {
+                        // Use the specific source_id column
+                        $column = $value['sourceType'] . '_source_id';
+                        $where[] = [$column, $value['op'] ?? '=', $value['val']];
+                    } elseif ($value['col'] === 'source_id' && $sourceType) {
+                        // Use the sourceType we extracted earlier
+                        $column = $sourceType . '_source_id';
+                        $where[] = [$column, $value['op'] ?? '=', $value['val']];
                     } else {
-                        // Handle "in" operator
-                        if (isset($value['op']) && strtolower($value['op']) === 'in') {
-                            $where[] = [$value['col'], $value['op'], $value['val']];
+                        // Original logic for other columns
+                        if(str_contains($value['col'], '|')) {
+                            $column = explode('|', $value['col']);
+                            $where[] = [$column[0], $value['op'] ?? '=', $value['val']];
                         } else {
-                            $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
+                            if (isset($value['op']) && strtolower($value['op']) === 'in') {
+                                $where[] = [$value['col'], $value['op'], $value['val']];
+                            } else {
+                                $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
+                            }
                         }
                     }
                 }
             }
             elseif ($value === "need"){
-                $where[0] = ['stock','<',DB::raw('min_qty')];
-                $where[1] = ['min_qty','>',0];
-                $where[2] = [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
-                $where[3] = ['hasVariants',false];
+                // Handle need condition with sourceType
+                $needConditions = $this->buildNeedConditions($sourceType);
+                foreach ($needConditions as $condition) {
+                    $where[] = $condition;
+                }
+                $where[] = [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+                $where[] = ['hasVariants', false];
             }
             elseif ($value === "stock"){
                 $where = [];
-                $where[]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
-                $where[] = ['hasVariants',false];
+                $where[] = [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+                $where[] = ['hasVariants', false];
             }
             elseif ($value === "nwaqes"){
-                $where = [];
-                $where[0] = ['stock','<',DB::raw('min_qty')];
-                $where[1] = ['min_qty','>',0];
-                $where[2]= [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
-                $where[3] = ['is_retired',0];
-                $where[] = ['hasVariants',false];
+                // Handle nwaqes condition with sourceType
+                $needConditions = $this->buildNeedConditions($sourceType);
+                foreach ($needConditions as $condition) {
+                    $where[] = $condition;
+                }
+                $where[] = [DB::raw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit'))"), '=', 'false'];
+                $where[] = ['is_retired', 0];
+                $where[] = ['hasVariants', false];
             }
             elseif ($value === "sales"){
                 $where = [];
@@ -90,13 +117,21 @@ class Datatable
                 $where[] = [$key, '=', $value];
             }
         }
+
         if (isset($this->request['needConditionReport'])){
-            $where[0] = ['stock','<',DB::raw('min_qty')];
-            $where[1] = ['min_qty','>',0];
+            // Check if sourceType is in needConditionReport
+            foreach ($this->request['needConditionReport'] as $item) {
+                if (in_array($item, ['air', 'sea', 'local'])) {
+                    $sourceType = $item;
+                    break;
+                }
+            }
+            $needConditions = $this->buildNeedConditions($sourceType);
+            foreach ($needConditions as $condition) {
+                $where[] = $condition;
+            }
         }
-//        dd($where);
-        $this->query = $this->model->where($where)->orWhere($orWhere);
-//        dd($where);
+
         $this->query = $this->model->where(function($query) use ($where) {
             foreach ($where as $condition) {
                 if (is_callable($condition)) {
@@ -108,6 +143,38 @@ class Datatable
                 }
             }
         })->orWhere($orWhere);
+    }
+
+    /**
+     * Build need conditions based on sourceType
+     * This ONLY checks the specific sourceType columns, NOT the base min_qty
+     */
+    private function buildNeedConditions($sourceType)
+    {
+        $conditions = [];
+
+        if ($sourceType) {
+            // Specific sourceType - use the corresponding column
+            $minQtyColumn = $sourceType . '_min_qty';
+            $conditions[] = ['stock', '<', DB::raw($minQtyColumn)];
+            $conditions[] = [$minQtyColumn, '>', 0];
+        } else {
+            // No sourceType - check ALL THREE columns (air, sea, local)
+            $conditions[] = function($query) {
+                $query->where(function($q) {
+                    $q->where('stock', '<', DB::raw('air_min_qty'))
+                        ->where('air_min_qty', '>', 0);
+                })->orWhere(function($q) {
+                    $q->where('stock', '<', DB::raw('sea_min_qty'))
+                        ->where('sea_min_qty', '>', 0);
+                })->orWhere(function($q) {
+                    $q->where('stock', '<', DB::raw('local_min_qty'))
+                        ->where('local_min_qty', '>', 0);
+                });
+            };
+        }
+
+        return $conditions;
     }
 
     private function order()
