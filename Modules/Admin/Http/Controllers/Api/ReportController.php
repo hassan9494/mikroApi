@@ -462,6 +462,7 @@ class ReportController extends Controller
      */
     public function productStock(): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
+        ini_set('memory_limit', '1024M');
         // Get request parameters
         $needCondition = request('needConditionReport');
         $sourceType = request('sourceType', null);
@@ -475,7 +476,7 @@ class ReportController extends Controller
         $query = Product::query();
 
         // Always apply these conditions
-        $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit')) = false")
+        $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit')) = 'false'")
             ->where('hasVariants', false);
 
         // Handle different condition types
