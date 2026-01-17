@@ -168,6 +168,7 @@ class ReportController extends Controller
 
     public function product()
     {
+        ini_set('memory_limit', '1024M');
         $where = [
             [
                 'completed_at', '>=', request('from', now()->startOfMonth())
