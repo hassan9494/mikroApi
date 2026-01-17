@@ -48,14 +48,20 @@ class Datatable
         $orWhere = [];
         $sourceType = null;
 
-        // First pass: extract sourceType and remove it from conditions
+        // First pass: extract sourceType and handle conditions properly
         $filteredConditions = [];
-        foreach ($this->request['conditions'] as $value) {
+        foreach ($this->request['conditions'] as $key => $value) {
             if (is_string($value) && in_array($value, ['air', 'sea', 'local'])) {
                 $sourceType = $value;
                 continue; // Skip adding sourceType to filtered conditions
             }
-            $filteredConditions[] = $value;
+
+            // Preserve the key if it's a string (associative array condition)
+            if (is_string($key)) {
+                $filteredConditions[] = ['col' => $key, 'val' => $value, 'op' => '='];
+            } else {
+                $filteredConditions[] = $value;
+            }
         }
 
         // Second pass: process filtered conditions
@@ -83,6 +89,11 @@ class Datatable
                                 $where[] = [$value['col'], $value['op'] ?? '=', $value['val']];
                             }
                         }
+                    }
+                } else {
+                    // This shouldn't happen with our new structure, but keep it as fallback
+                    foreach ($value as $column => $columnValue) {
+                        $where[] = [$column, '=', $columnValue];
                     }
                 }
             }
@@ -114,6 +125,7 @@ class Datatable
                 $where = [];
             }
             else {
+                // Handle simple values (shouldn't happen with our new structure)
                 $where[] = [$key, '=', $value];
             }
         }
