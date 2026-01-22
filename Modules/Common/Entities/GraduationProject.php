@@ -16,6 +16,7 @@ class GraduationProject extends Model
         'students',
         'notes',
         'completed',
+        'implementer_name'
     ];
 
 
@@ -36,7 +37,7 @@ class GraduationProject extends Model
      */
     public function payments(): HasMany
     {
-        return $this->hasMany(Receipt::class);
+        return $this->hasMany(ProjectReceipt::class);
     }
 
 }

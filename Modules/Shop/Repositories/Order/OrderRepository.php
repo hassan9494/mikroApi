@@ -144,6 +144,51 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     }
 
     /**
+     * @param array $data
+     * @param User $employee
+     * @return Order
+     */
+    public function makeByEmployee(array $data, User $employee): Order
+    {
+        $city = $this->cities->findOrFail($data['city_id']);
+        $cart = $this->prepareUserProducts($data['products']);
+
+        if ($city->id == 2){
+            $isFreeShipping = true;
+            $shippingCost = 0;
+
+            $data['shipping']['cost'] = $shippingCost;
+            $data['shipping']['free'] = $isFreeShipping;
+            $data['shipping']['city'] = $city->name;
+            $data['shipping']['status'] = 'WAITING';
+        } else {
+            $shippingLimit = Setting::find(2)->value;
+            $isFreeShipping = $cart['subtotal'] >= $shippingLimit;
+            $shippingCost = $city->shipping_cost;
+
+            $data['shipping']['cost'] = $shippingCost;
+            $data['shipping']['free'] = $isFreeShipping;
+            $data['shipping']['city'] = $city->name;
+            $data['shipping']['status'] = 'WAITING';
+        }
+
+        $order = $this->model->create([
+            'user_id' => $employee->id, // Store employee's ID
+            'customer' => $data['customer'],
+            'city_id' => $data['city_id'],
+            'shipping' => $data['shipping'],
+            'notes' => $data['notes'] ?? null,
+            'coupon_id' => $data['coupon_id'] ?? null,
+            'uuid' => Str::uuid(),
+        ]);
+
+        $order->products()->attach($cart['products']);
+
+        return $this->update($order->id, []);
+    }
+
+
+    /**
      * @inheritdoc
      */
     public function autocomplete($q, $limit = 20)

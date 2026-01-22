@@ -38,6 +38,7 @@ class GraduationProjectController extends ApiAdminController
     {
         return request()->validate([
             'name' => 'required|max:255',
+            'implementer_name' => 'required|max:255',
             'cost' => 'required',
             'deadline' => 'nullable|date',
             'description' => 'nullable|max:500',

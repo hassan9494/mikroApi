@@ -167,4 +167,67 @@ class OrderController extends Controller
         return new OrderResource($order);
     }
 
+    /**
+     * @param Request $request
+     * @return OrderResource
+     */
+    public function employeeOrder(Request $request): OrderResource
+    {
+        $user = auth()->user();
+
+        // Check if user is an employee (has roles other than just 'user')
+        $roleNames = $user->roles->pluck('name')->toArray();
+        $hasOnlyUserRole = count($roleNames) === 1 && in_array('user', $roleNames);
+
+        if ($hasOnlyUserRole) {
+            abort(403, 'This endpoint is for employees only');
+        }
+
+        $data = $request->validate([
+            'customer.name' => 'required|max:100',
+            'customer.email' => 'nullable|email|max:255', // Email is optional for employees
+            'customer.phone' => 'required|max:20',
+            'city_id' => 'required|exists:cities,id',
+            'shipping.address' => 'nullable|max:100',
+            'notes' => 'nullable|max:500',
+            'products' => 'required|min:1',
+            'products.*.id' => 'exists:products',
+            'products.*.quantity' => 'numeric|min:1',
+            'coupon_id' => 'nullable|exists:coupons,id',
+        ]);
+
+        // Fill empty email with employee's email or a placeholder
+        if (empty($data['customer']['email'])) {
+            $data['customer']['email'] = $user->email ?? 'employee-order@microelectron.com';
+        }
+
+        foreach ($data['products'] as $product){
+            $prod = Product::find($product['id']);
+            if ($prod->stock < $product['quantity']){
+                throw new BadRequestException($prod->name . ' has insufficient quantity');
+            }
+            if ($prod->options->kit == true){
+                $kits = $prod->kit()->get();
+                foreach ($kits as $kit){
+                    if ($kit->pivot->quantity * $product['quantity'] > $kit->stock){
+                        throw new BadRequestException($kit->name . ' Which is kit has insufficient quantity');
+                    }
+                }
+            }
+        }
+
+        $order = $this->repository->makeByEmployee($data, $user);
+
+        // Only send email if it's provided and valid
+        if (!empty($data['customer']['email']) && filter_var($data['customer']['email'], FILTER_VALIDATE_EMAIL)) {
+            $details = [
+                'subject' => 'Your Microelectron Order has been received',
+            ];
+            Mail::to($data['customer']['email'])->send(new SendOrderDetailsEmail($details,$order));
+        }
+
+        return new OrderResource($order);
+    }
+
+
 }

@@ -43,6 +43,10 @@ class RepositoryServiceProvider extends ServiceProvider
             'Modules\Common\Repositories\Receipt\ReceiptRepository'
         );
         $this->app->singleton(
+            'Modules\Common\Repositories\ProjectReceipt\ProjectReceiptRepositoryInterface',
+            'Modules\Common\Repositories\ProjectReceipt\ProjectReceiptRepository'
+        );
+        $this->app->singleton(
             'Modules\Common\Repositories\Course\CourseRepositoryInterface',
             'Modules\Common\Repositories\Course\CourseRepository'
         );

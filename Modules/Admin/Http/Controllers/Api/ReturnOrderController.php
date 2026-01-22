@@ -153,6 +153,7 @@ class ReturnOrderController extends ApiAdminController
                 $transaction = $order->transactions()->create([
                     'transaction_id' => Str::uuid(),
                     'note' => '',
+                    'return_order_id' => $order->id,
                     'type' => 'refund',
                     'amount' => request()->get('amount'),
                     'commission' => request()->get('commission'),

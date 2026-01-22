@@ -6,6 +6,7 @@ use Modules\Admin\Http\Controllers\Api\BoardController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
 use Modules\Admin\Http\Controllers\Api\PaymentMethodController;
+use Modules\Admin\Http\Controllers\Api\ProjectReceiptController;
 use Modules\Admin\Http\Controllers\Api\SettingController;
 use Modules\Admin\Http\Controllers\Api\StockAdjustmentController;
 use Modules\Admin\Http\Controllers\Api\TaskAttachmentController;
@@ -198,6 +199,10 @@ Route::prefix('admin')
         // Receipt Routes.
         Route::get('receipt/datatable', [ReceiptController::class, 'datatable']);
         Route::resource('receipt', 'ReceiptController');
+
+        // ProjectReceipt Routes.
+        Route::get('project-receipt/datatable', [ProjectReceiptController::class, 'datatable']);
+        Route::resource('project-receipt', 'ProjectReceiptController');
 
         // Course Routes.
         Route::get('course/datatable', [CourseController::class, 'datatable']);

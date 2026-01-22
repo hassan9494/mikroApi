@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Modules\Shop\Http\Controllers\Api;
 
 use App\Traits\ApiResponser;
@@ -40,15 +39,52 @@ class AddressController extends Controller
      */
     public function store()
     {
-        $data = request()->validate([
+        $user = \Auth::user();
+
+        // Get user's role names from the roles collection
+        // $user->roles returns a Collection of role objects, we need to get the role names
+        $roleNames = $user->roles->pluck('name')->toArray(); // This gives us an array of role names
+
+        // Check if user has ONLY the 'user' role and no other roles
+        $hasOnlyUserRole = count($roleNames) === 1 && in_array('user', $roleNames);
+
+        // Different validation rules based on user roles
+        $validationRules = [
             'name' => 'required',
+            'phone' => 'string|max:20',
             'city_id' => 'required',
-            'email' => 'required',
-            'phone' => 'required',
-            'content' => 'required',
             'is_primary' => 'boolean|nullable',
-        ]);
-        $data['user_id'] = \Auth::user()->id;
+        ];
+
+        // If user has ONLY the 'user' role, make all fields required
+        if ($hasOnlyUserRole) {
+            $validationRules['email'] = 'required|email';
+            $validationRules['phone'] = 'required';
+            $validationRules['content'] = 'required';
+        } else {
+            // For users with other roles (admin, manager, etc.), make them optional
+            $validationRules['email'] = 'nullable|email';
+            // $validationRules['phone'] = 'nullable';
+            $validationRules['content'] = 'nullable';
+        }
+
+        $data = request()->validate($validationRules);
+        $data['user_id'] = $user->id;
+
+        // Set defaults for empty fields for non-'user' roles
+        if (!$hasOnlyUserRole) {
+            if (!isset($data['email']) || empty($data['email'])) {
+                $data['email'] = $user->email ?? '';
+            }
+
+            if (!isset($data['phone']) || empty($data['phone'])) {
+                $data['phone'] = '';
+            }
+
+            if (!isset($data['content']) || empty($data['content'])) {
+                $data['content'] = '';
+            }
+        }
 
         \Auth::user()->addresses()
             ->update([
@@ -65,14 +101,49 @@ class AddressController extends Controller
      */
     public function update($id)
     {
-        $data = request()->validate([
+        $user = \Auth::user();
+
+        // Get user's role names from the roles collection
+        $roleNames = $user->roles->pluck('name')->toArray();
+
+        // Check if user has ONLY the 'user' role and no other roles
+        $hasOnlyUserRole = count($roleNames) === 1 && in_array('user', $roleNames);
+
+        // Different validation rules based on user roles
+        $validationRules = [
             'name' => 'required',
+            'phone' => 'string|max:20',
             'city_id' => 'required',
-            'email' => 'required',
-            'phone' => 'required',
-            'content' => 'required',
             'is_primary' => 'boolean|nullable',
-        ]);
+        ];
+
+        // If user has ONLY the 'user' role, make all fields required
+        if ($hasOnlyUserRole) {
+            $validationRules['email'] = 'required|email';
+            $validationRules['phone'] = 'required';
+            $validationRules['content'] = 'required';
+        } else {
+            // For users with other roles (admin, manager, etc.), make them optional
+            $validationRules['email'] = 'nullable|email';
+            // $validationRules['phone'] = 'nullable';
+            $validationRules['content'] = 'nullable';
+        }
+
+        $data = request()->validate($validationRules);
+
+        // Set defaults for empty fields for non-'user' roles
+        if (!$hasOnlyUserRole) {
+            if (!isset($data['email']) || empty($data['email'])) {
+                $data['email'] = '';
+            }
+            if (!isset($data['phone']) || empty($data['phone'])) {
+                $data['phone'] = '';
+            }
+            if (!isset($data['content']) || empty($data['content'])) {
+                $data['content'] = '';
+            }
+        }
+
         $data = $this->repository->update($id, $data);
         return $this->success($data);
     }
@@ -102,6 +173,5 @@ class AddressController extends Controller
     {
         $this->repository->delete($id);
     }
-
 
 }

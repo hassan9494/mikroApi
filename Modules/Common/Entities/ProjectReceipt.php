@@ -3,16 +3,13 @@
 namespace Modules\Common\Entities;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Modules\Shop\Entities\PaymentMethod;
 use Modules\Shop\Entities\Transaction;
 
-class Receipt extends Model
+class ProjectReceipt extends Model
 {
 
-
-    /**
-     * @var string[]
-     */
     protected $fillable = [
         'course_student_id',
         'graduation_project_id',
@@ -52,12 +49,8 @@ class Receipt extends Model
         return $this->belongsTo(Transaction::class,'transaction_id');
     }
 
-    /**
-     * NEW: Define the polymorphic relationship
-     */
     public function transactions()
     {
         return $this->morphMany(Transaction::class, 'transactionable');
     }
-
 }

@@ -92,9 +92,9 @@ class Datatable
                     }
                 } else {
                     // This shouldn't happen with our new structure, but keep it as fallback
-                    foreach ($value as $column => $columnValue) {
-                        $where[] = [$column, '=', $columnValue];
-                    }
+//                    foreach ($value as $column => $columnValue) {
+//                        $where[] = [$column, '=', $columnValue];
+//                    }
                 }
             }
             elseif ($value === "need"){

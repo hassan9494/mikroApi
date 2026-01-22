@@ -148,7 +148,7 @@ class OrderController extends ApiAdminController
     public function show($id)
     {
         $model = $this->repository->findOrFail($id);
-        $model->load('histories.user');
+        $model->load(['histories.user', 'products']);
         $model->load('transactions');
         return new OrderResource($model);
     }
@@ -333,6 +333,9 @@ class OrderController extends ApiAdminController
             if (request()->get('amount') > 0){
                 $transaction = $order->transactions()->create([
                     'transaction_id' => Str::uuid(),
+                    'transactionable_id'=>$order->id,
+                    'order_id'=>$order->id,
+                    'transactionable_type' =>Order::class,
                     'note' => '',
                     'type' => 'deposit',
                     'amount' => request()->get('amount'),

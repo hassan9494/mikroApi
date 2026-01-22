@@ -242,9 +242,14 @@ class Order extends Model implements HasMedia
     }
 
 
+//    public function transactions()
+//    {
+//        return $this->hasMany(Transaction::class);
+//    }
+
     public function transactions()
     {
-        return $this->hasMany(Transaction::class);
+        return $this->morphMany(Transaction::class, 'transactionable');
     }
 
     /**********************************************************************************************/

@@ -155,6 +155,10 @@ Route::namespace('Api')->group(function () {
         'order/guest',
         [OrderController::class, 'guest']
     );
+    Route::post(
+        'order/employee',
+        [OrderController::class, 'employeeOrder'])->middleware(['auth:sanctum']
+    );
     Route::get(
         'city',
         [CityController::class, 'index']
