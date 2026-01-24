@@ -370,18 +370,19 @@ class OrderController extends ApiAdminController
      */
     public function unpaidCompletedOrders(Request $request)
     {
-        // Get orders with status 'COMPLETED'
+        // Get orders with status 'COMPLETED' with transactions
         $query = Order::where('status', 'COMPLETED')
             ->with(['transactions']);
 
         // Calculate transaction total for each order
         $orders = $query->get()->map(function($order) {
-            // Sum all transaction amounts (product payments only)
+            // Sum all transaction amounts
             $transactionTotal = $order->transactions->sum('amount');
 
-            // Get order total and shipping info
+            // Get order total (from database - this is the source of truth)
             $orderTotal = (float) $order->total;
 
+            // Get shipping info
             $shippingCost = 0;
             $shippingFree = false;
             if ($order->shipping && is_object($order->shipping)) {
@@ -389,15 +390,16 @@ class OrderController extends ApiAdminController
                 $shippingFree = (bool) ($order->shipping->free ?? false);
             }
 
-            // Calculate amount customer should pay (frontend logic)
+            // Calculate amount customer should pay
             // If shipping is free: customer pays full order total
             // If shipping is NOT free: customer pays order total minus shipping cost
+            // (Because shipping is tracked separately in transactions)
             $amountToPay = $shippingFree ? $orderTotal : ($orderTotal - $shippingCost);
 
             // Calculate remaining amount
             $remainingAmount = $amountToPay - $transactionTotal;
 
-            // Get customer info from JSON field
+            // Get customer info
             $customerData = $order->customer;
             $customerName = $customerData->name ?? 'N/A';
             $customerPhone = $customerData->phone ?? 'N/A';
@@ -424,7 +426,8 @@ class OrderController extends ApiAdminController
             ];
         })->filter(function($order) {
             // Filter orders where remaining amount > 0
-            return $order['remaining_amount'] > 0;
+            // Use 0.001 to avoid floating point precision issues
+            return $order['remaining_amount'] > 0.001;
         })->values();
 
         // Apply search if any
@@ -437,11 +440,10 @@ class OrderController extends ApiAdminController
             })->values();
         }
 
-        // Apply ordering - FIXED: sort by ID descending as requested
+        // Apply ordering - sort by ID descending as requested
         if ($request->has('order') && $order = json_decode($request->order, true)) {
             $orders = $orders->sortBy($order['column'], SORT_REGULAR, $order['dir'] === 'desc')->values();
         } else {
-            // Default: sort by ID descending (newest orders first)
             $orders = $orders->sortByDesc('id')->values();
         }
 
