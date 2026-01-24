@@ -372,35 +372,60 @@ class OrderController extends ApiAdminController
     {
         // Get orders with status 'COMPLETED'
         $query = Order::where('status', 'COMPLETED')
-            ->with(['transactions' => function($q) {
-                $q->where('type', 'deposit'); // Only count deposits as payments
-            }]);
+            ->with(['transactions']);
 
         // Calculate transaction total for each order
         $orders = $query->get()->map(function($order) {
-            // Calculate total of deposit transactions for this order
+            // Sum all transaction amounts (product payments only)
             $transactionTotal = $order->transactions->sum('amount');
+
+            // Get order total and shipping info
+            $orderTotal = (float) $order->total;
+
+            $shippingCost = 0;
+            $shippingFree = false;
+            if ($order->shipping && is_object($order->shipping)) {
+                $shippingCost = (float) ($order->shipping->cost ?? 0);
+                $shippingFree = (bool) ($order->shipping->free ?? false);
+            }
+
+            // Calculate amount customer should pay (frontend logic)
+            // If shipping is free: customer pays full order total
+            // If shipping is NOT free: customer pays order total minus shipping cost
+            $amountToPay = $shippingFree ? $orderTotal : ($orderTotal - $shippingCost);
+
+            // Calculate remaining amount
+            $remainingAmount = $amountToPay - $transactionTotal;
+
+            // Get customer info from JSON field
+            $customerData = $order->customer;
+            $customerName = $customerData->name ?? 'N/A';
+            $customerPhone = $customerData->phone ?? 'N/A';
 
             return [
                 'id' => $order->id,
                 'number' => $order->number,
                 'tax_number' => $order->tax_number,
                 'taxed_at' => $order->taxed_at,
-                'customer_name' => $order->customer->name ?? 'N/A',
-                'customer_phone' => $order->customer->phone ?? 'N/A',
+                'customer_name' => $customerName,
+                'customer_phone' => $customerPhone,
                 'subtotal' => (float) $order->subtotal,
                 'discount' => (float) $order->discount,
-                'order_total' => (float) $order->total,
+                'shipping_cost' => $shippingCost,
+                'shipping_free' => $shippingFree,
+                'order_total' => $orderTotal,
+                'amount_to_pay' => $amountToPay,
                 'transaction_total' => (float) $transactionTotal,
-                'remaining_amount' => (float) ($order->total - $transactionTotal),
+                'remaining_amount' => (float) $remainingAmount,
                 'profit' => (float) $order->profit,
                 'created_at' => $order->created_at,
-                'has_transactions' => $order->transactions->count() > 0
+                'has_transactions' => $order->transactions->count() > 0,
+                'transaction_count' => $order->transactions->count()
             ];
         })->filter(function($order) {
-            // Filter orders where transaction total is less than order total AND greater than 0
-            return $order['transaction_total'] < $order['order_total'] && $order['remaining_amount'] > 0;
-        })->values(); // Reset array keys
+            // Filter orders where remaining amount > 0
+            return $order['remaining_amount'] > 0;
+        })->values();
 
         // Apply search if any
         if ($request->has('search') && $request->search) {
@@ -412,10 +437,11 @@ class OrderController extends ApiAdminController
             })->values();
         }
 
-        // Apply ordering
+        // Apply ordering - FIXED: sort by ID descending as requested
         if ($request->has('order') && $order = json_decode($request->order, true)) {
             $orders = $orders->sortBy($order['column'], SORT_REGULAR, $order['dir'] === 'desc')->values();
         } else {
+            // Default: sort by ID descending (newest orders first)
             $orders = $orders->sortByDesc('id')->values();
         }
 
