@@ -50,6 +50,7 @@ class Datatable
 
         // First pass: extract sourceType and handle conditions properly
         $filteredConditions = [];
+
         foreach ($this->request['conditions'] as $key => $value) {
             if (is_string($value) && in_array($value, ['air', 'sea', 'local'])) {
                 $sourceType = $value;

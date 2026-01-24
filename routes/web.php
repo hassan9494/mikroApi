@@ -6,6 +6,7 @@ use App\Models\OldCategory;
 use Elastic\Elasticsearch\ClientBuilder;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use Modules\Admin\Http\Controllers\Api\ShortLinksController;
 use Modules\Common\Entities\Receipt;
 use Modules\Shop\Entities\Category;
 use Modules\Shop\Entities\Invoice;
@@ -179,6 +180,7 @@ Route::get('/test-single-index/{id}', function($id) {
         ], 500);
     }
 });
+Route::get('/{short_id}',[ShortLinksController::class,'goToLink']);
 
 
 

@@ -25,6 +25,7 @@ use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 use function Ramsey\Uuid\uuid;
+use Illuminate\Http\Request;
 
 class OrderController extends ApiAdminController
 {
@@ -360,6 +361,74 @@ class OrderController extends ApiAdminController
             }
         }
         return $changes;
+    }
+
+    // In OrderController.php, add this method:
+
+    /**
+     * Get completed orders where transaction total is less than order total
+     */
+    public function unpaidCompletedOrders(Request $request)
+    {
+        // Get orders with status 'COMPLETED'
+        $query = Order::where('status', 'COMPLETED')
+            ->with(['transactions' => function($q) {
+                $q->where('type', 'deposit'); // Only count deposits as payments
+            }]);
+
+        // Calculate transaction total for each order
+        $orders = $query->get()->map(function($order) {
+            // Calculate total of deposit transactions for this order
+            $transactionTotal = $order->transactions->sum('amount');
+
+            return [
+                'id' => $order->id,
+                'number' => $order->number,
+                'tax_number' => $order->tax_number,
+                'taxed_at' => $order->taxed_at,
+                'customer_name' => $order->customer->name ?? 'N/A',
+                'customer_phone' => $order->customer->phone ?? 'N/A',
+                'subtotal' => (float) $order->subtotal,
+                'discount' => (float) $order->discount,
+                'order_total' => (float) $order->total,
+                'transaction_total' => (float) $transactionTotal,
+                'remaining_amount' => (float) ($order->total - $transactionTotal),
+                'profit' => (float) $order->profit,
+                'created_at' => $order->created_at,
+                'has_transactions' => $order->transactions->count() > 0
+            ];
+        })->filter(function($order) {
+            // Filter orders where transaction total is less than order total AND greater than 0
+            return $order['transaction_total'] < $order['order_total'] && $order['remaining_amount'] > 0;
+        })->values(); // Reset array keys
+
+        // Apply search if any
+        if ($request->has('search') && $request->search) {
+            $search = strtolower($request->search);
+            $orders = $orders->filter(function($order) use ($search) {
+                return str_contains(strtolower($order['number']), $search) ||
+                    str_contains(strtolower($order['customer_name']), $search) ||
+                    str_contains(strtolower($order['customer_phone']), $search);
+            })->values();
+        }
+
+        // Apply ordering
+        if ($request->has('order') && $order = json_decode($request->order, true)) {
+            $orders = $orders->sortBy($order['column'], SORT_REGULAR, $order['dir'] === 'desc')->values();
+        } else {
+            $orders = $orders->sortByDesc('id')->values();
+        }
+
+        // Pagination
+        $page = $request->page ?? 1;
+        $limit = $request->limit ?? 10;
+        $total = $orders->count();
+        $paginatedOrders = $orders->slice(($page - 1) * $limit, $limit)->values();
+
+        return response()->json([
+            'items' => $paginatedOrders,
+            'total' => $total
+        ]);
     }
 
 

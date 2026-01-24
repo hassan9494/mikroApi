@@ -79,6 +79,14 @@ class RepositoryServiceProvider extends ServiceProvider
             'Modules\Common\Repositories\Links\LinksRepository'
         );
         $this->app->singleton(
+            'Modules\Common\Repositories\ShortLinks\ShortLinksRepositoryInterface',
+            'Modules\Common\Repositories\ShortLinks\ShortLinksRepository'
+        );
+        $this->app->singleton(
+            'Modules\Common\Repositories\ShortLinkClickSummary\ShortLinkClickSummaryRepositoryInterface',
+            'Modules\Common\Repositories\ShortLinkClickSummary\ShortLinkClickSummaryRepository'
+        );
+        $this->app->singleton(
             'Modules\Common\Repositories\File\FileRepositoryInterface',
             'Modules\Common\Repositories\File\FileRepository'
         );
