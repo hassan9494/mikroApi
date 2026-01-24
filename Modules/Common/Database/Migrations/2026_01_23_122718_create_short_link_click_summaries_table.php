@@ -14,7 +14,6 @@ class CreateShortLinkClickSummariesTable extends Migration
     public function up()
     {
         Schema::create('short_link_click_summaries', function (Blueprint $table) {
-            Schema::create('short_link_click_summaries', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('short_link_id')->constrained()->onDelete('cascade');
                 $table->string('ip_address', 45);
@@ -26,7 +25,6 @@ class CreateShortLinkClickSummariesTable extends Migration
                 $table->unique(['short_link_id', 'ip_address'], 'link_ip_unique');
                 $table->index(['short_link_id']);
                 $table->index(['ip_address']);
-            });
         });
     }
 
