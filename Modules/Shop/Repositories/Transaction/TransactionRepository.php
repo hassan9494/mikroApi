@@ -32,7 +32,7 @@ class TransactionRepository extends EloquentRepository implements TransactionRep
     public function create($data)
     {
         if (isset($data['order_id'])){
-            $data['type'] = 'deposit';
+            $data['type'] = $data['type'] ?? 'deposit';
             $data['transactionable_type'] = Order::class;
             $data['transactionable_id'] = $data['order_id'];
             $data['total_amount'] = $data['amount'] - $data['commission'];

@@ -244,11 +244,11 @@ class OrderController extends ApiAdminController
 //                    }
 //                }
 //            return \response()->json($data);
-                if ($data['shipping']['status'] == null) {
-                    $data['shipping']['status'] = "WAITING";
-                }
-                $order = $this->repository->saveOrder($id, $data);
-                $order->syncMedia($data['attachments'] ?? []);
+            if ($data['shipping']['status'] == null) {
+                $data['shipping']['status'] = "WAITING";
+            }
+            $order = $this->repository->saveOrder($id, $data);
+            $order->syncMedia($data['attachments'] ?? []);
 //            }
 
         }else{
@@ -343,6 +343,21 @@ class OrderController extends ApiAdminController
                     'commission' => request()->get('commission'),
                     'shipping' => request()->get('shipping_amount'),
                     'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
+                    'payment_method_id' => request()->get('payment_method'),
+                    'created_by' => auth()->id()
+                ]);
+            }elseif(request()->get('amount') < 0){
+                $transaction = $order->transactions()->create([
+                    'transaction_id' => Str::uuid(),
+                    'transactionable_id'=>$order->id,
+                    'order_id'=>$order->id,
+                    'transactionable_type' =>Order::class,
+                    'note' => '',
+                    'type' => 'refund',
+                    'amount' => request()->get('amount') * -1,
+                    'commission' => request()->get('commission'),
+                    'shipping' => request()->get('shipping_amount'),
+                    'total_amount' => (request()->get('amount') * -1) - request()->get('shipping_amount') - request()->get('commission'),
                     'payment_method_id' => request()->get('payment_method'),
                     'created_by' => auth()->id()
                 ]);
@@ -739,7 +754,7 @@ class OrderController extends ApiAdminController
         }
 
         foreach ($orders as $key=>$order) {
-                ProcessOrderToFatora::dispatch($order, $userId);  // Consider using a specific queue
+            ProcessOrderToFatora::dispatch($order, $userId);  // Consider using a specific queue
 
 
         }
