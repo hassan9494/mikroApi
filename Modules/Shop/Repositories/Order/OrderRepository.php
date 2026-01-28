@@ -239,54 +239,61 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     public function saveOrder($id, $data, bool $checkStock = true)
     {
         $model = $this->findOrFail($id);
-
-        // Validate coupon before updating order
-        if (isset($data['coupon_id']) && $data['coupon_id']) {
-            $user = $model->user;
-            $this->validateCouponForEdit($data['coupon_id'], $user, $data['products'] ?? []);
+        if ($model->is_migrated){
+            $newData['notes'] = $data['notes'];
+            $model->update($newData);
         }
-
-        if (isset($data['shipping']) && is_array($data['shipping'])) {
-            $currentShipping = (array)$model->shipping;
-
-            // Always preserve the city field from existing data
-            if (isset($currentShipping['city'])) {
-                $data['shipping']['city'] = $currentShipping['city'];
+        else{
+            // Validate coupon before updating order
+            if (isset($data['coupon_id']) && $data['coupon_id']) {
+                $user = $model->user;
+                $this->validateCouponForEdit($data['coupon_id'], $user, $data['products'] ?? []);
             }
 
-            // Ensure cost is always stored as string for consistency
-            if (isset($data['shipping']['cost'])) {
-                $data['shipping']['cost'] = (string)$data['shipping']['cost'];
+            if (isset($data['shipping']) && is_array($data['shipping'])) {
+                $currentShipping = (array)$model->shipping;
+
+                // Always preserve the city field from existing data
+                if (isset($currentShipping['city'])) {
+                    $data['shipping']['city'] = $currentShipping['city'];
+                }
+
+                // Ensure cost is always stored as string for consistency
+                if (isset($data['shipping']['cost'])) {
+                    $data['shipping']['cost'] = (string)$data['shipping']['cost'];
+                }
+            }
+
+            $oldProducts = [];
+            foreach ($model->products as $product) {
+                $oldProducts[$product->id] = [
+                    'quantity' => $product->pivot->quantity,
+                    'price' => $product->pivot->price
+                ];
+            }
+
+            if ($model->isPending) {
+                // If order is in PENDING status, then we can upgrade products and subtotal according to products
+                $cart = $this->prepareCartProducts($data['products'] ?? [], $model);
+                // must be before update, see onSaving inside Order model.
+                $model->products()->sync($cart['products']);
+            }
+
+            if ($model->options->taxed == true) {
+                $data['options']['taxed'] = true;
+            } elseif ($model->tax_number !== null) {
+                $data['options']['taxed'] = true;
+            }
+
+            $model->update($data);
+
+            if ($model->isPending && isset($cart)) {
+                $newProducts = $cart['products'];
+                $model->trackProductQuantityChanges($oldProducts, $newProducts);
             }
         }
 
-        $oldProducts = [];
-        foreach ($model->products as $product) {
-            $oldProducts[$product->id] = [
-                'quantity' => $product->pivot->quantity,
-                'price' => $product->pivot->price
-            ];
-        }
 
-        if ($model->isPending) {
-            // If order is in PENDING status, then we can upgrade products and subtotal according to products
-            $cart = $this->prepareCartProducts($data['products'] ?? [], $model);
-            // must be before update, see onSaving inside Order model.
-            $model->products()->sync($cart['products']);
-        }
-
-        if ($model->options->taxed == true) {
-            $data['options']['taxed'] = true;
-        } elseif ($model->tax_number !== null) {
-            $data['options']['taxed'] = true;
-        }
-
-        $model->update($data);
-
-        if ($model->isPending && isset($cart)) {
-            $newProducts = $cart['products'];
-            $model->trackProductQuantityChanges($oldProducts, $newProducts);
-        }
 
         return $model;
     }
@@ -391,38 +398,45 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     {
         $status = $status ?? OrderStatus::PENDING()->value;
 
+
         $order = $this->findOrFail($id, ['products']);
+        if ($order->is_migrated){
+            $order->update(['status' => $status]);
+        }else{
+            $options = [];
 
-        $options = [];
-
-        if ($status == 'PROCESSING' || $status == 'COMPLETED') {
-            foreach ($order->options as $key => $value) {
-                if ($key == 'price_offer') {
-                    $options[$key] = false;
-                } else {
-                    $options[$key] = $value;
+            if ($status == 'PROCESSING' || $status == 'COMPLETED') {
+                foreach ($order->options as $key => $value) {
+                    if ($key == 'price_offer') {
+                        $options[$key] = false;
+                    } else {
+                        $options[$key] = $value;
+                    }
                 }
             }
-        } else {
-            $options = $order->options;
+            else {
+                $options = $order->options;
+            }
+
+            if ($this->reduceStock($order, $status))
+                $this->updateStock($order->products, true);
+
+            if ($this->increaseStock($order, $status))
+                $this->updateStock($order->products, false);
+
+            $order->update(['status' => $status, 'options' => $options]);
+            $oldStatus = $order->status;
+            if ($oldStatus != $status) {
+                $order->recordStatusChange($oldStatus, $status);
+            }
+            if($status == 'CANCELED'){
+                $order->transactions()->delete();
+            }
+
+
         }
-
-        if ($this->reduceStock($order, $status))
-            $this->updateStock($order->products, true);
-
-        if ($this->increaseStock($order, $status))
-            $this->updateStock($order->products, false);
-
-        $order->update(['status' => $status, 'options' => $options]);
-        $oldStatus = $order->status;
-        if ($oldStatus != $status) {
-            $order->recordStatusChange($oldStatus, $status);
-        }
-        if($status == 'CANCELED'){
-            $order->transactions()->delete();
-        }
-
         return $order;
+
     }
 
     /**
