@@ -6,7 +6,10 @@ use Modules\Admin\Http\Controllers\Api\BoardController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
 use Modules\Admin\Http\Controllers\Api\PaymentMethodController;
+use Modules\Admin\Http\Controllers\Api\ProjectReceiptController;
 use Modules\Admin\Http\Controllers\Api\SettingController;
+use Modules\Admin\Http\Controllers\Api\ShortLinksController;
+use Modules\Admin\Http\Controllers\Api\ShortLinksSummaryController;
 use Modules\Admin\Http\Controllers\Api\StockAdjustmentController;
 use Modules\Admin\Http\Controllers\Api\TaskAttachmentController;
 use Modules\Admin\Http\Controllers\Api\TaxExemptController;
@@ -199,6 +202,10 @@ Route::prefix('admin')
         Route::get('receipt/datatable', [ReceiptController::class, 'datatable']);
         Route::resource('receipt', 'ReceiptController');
 
+        // ProjectReceipt Routes.
+        Route::get('project-receipt/datatable', [ProjectReceiptController::class, 'datatable']);
+        Route::resource('project-receipt', 'ProjectReceiptController');
+
         // Course Routes.
         Route::get('course/datatable', [CourseController::class, 'datatable']);
         Route::get('course/{id}/payments', [CourseController::class, 'payments']);
@@ -247,6 +254,7 @@ Route::prefix('admin')
         Route::post('order-migrate/{id}', [OrderController::class, 'orderToFatoraSystem']);
         Route::post('orders-migrate', [OrderController::class, 'migrateMultipleOrders']);
         Route::post('order/{id}/shipping-status', [OrderController::class, 'shippingStatus']);
+        Route::get('order/unpaid-completed', [OrderController::class, 'unpaidCompletedOrders']);
         Route::resource('order', 'OrderController');
         Route::get('orders/autocomplete', [OrderController::class, 'autocomplete']);
 
@@ -305,6 +313,10 @@ Route::prefix('admin')
         Route::get('deletedTransaction/datatable', [TransactionController::class, 'deletedDatatable']);
         Route::get('transaction/totals', [TransactionController::class, 'totals']);
         Route::get('transaction/filteredTotals', [TransactionController::class, 'filteredTotals']);
+        Route::post('transaction/close-point', [TransactionController::class, 'createClosePoint']);
+        Route::get('transaction/close-points', [TransactionController::class, 'closePoints']);
+        Route::get('transaction/close-point/{id}/report', [TransactionController::class, 'closePointReport']);
+        Route::get('transaction/close-point/{id}/transactions', [TransactionController::class, 'closePointTransactions']);
         Route::resource('transaction', 'TransactionController');
 
         // Tag Routes.
@@ -343,6 +355,13 @@ Route::prefix('admin')
         // File Routes.
         Route::get('file/datatable', [FileController::class, 'datatable']);
         Route::resource('file', 'FileController');
+
+        // Shortlink Routes.
+        Route::get('short-link/datatable', [ShortLinksController::class, 'datatable']);
+        Route::get('short-link/details-datatable', [ShortLinksSummaryController::class, 'datatable']);
+        Route::get('short-link/details/{id}', [ShortLinksSummaryController::class, 'show']);
+        Route::resource('short-link', 'ShortLinksController');
+
         Route::post('order/{id}/record-print', [OrderController::class, 'recordPrint']);
         Route::post('order/{id}/record-export', [OrderController::class, 'recordExport']);
 

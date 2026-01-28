@@ -25,6 +25,7 @@ use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 use function Ramsey\Uuid\uuid;
+use Illuminate\Http\Request;
 
 class OrderController extends ApiAdminController
 {
@@ -148,7 +149,7 @@ class OrderController extends ApiAdminController
     public function show($id)
     {
         $model = $this->repository->findOrFail($id);
-        $model->load('histories.user');
+        $model->load(['histories.user', 'products']);
         $model->load('transactions');
         return new OrderResource($model);
     }
@@ -243,11 +244,11 @@ class OrderController extends ApiAdminController
 //                    }
 //                }
 //            return \response()->json($data);
-                if ($data['shipping']['status'] == null) {
-                    $data['shipping']['status'] = "WAITING";
-                }
-                $order = $this->repository->saveOrder($id, $data);
-                $order->syncMedia($data['attachments'] ?? []);
+            if ($data['shipping']['status'] == null) {
+                $data['shipping']['status'] = "WAITING";
+            }
+            $order = $this->repository->saveOrder($id, $data);
+            $order->syncMedia($data['attachments'] ?? []);
 //            }
 
         }else{
@@ -333,12 +334,30 @@ class OrderController extends ApiAdminController
             if (request()->get('amount') > 0){
                 $transaction = $order->transactions()->create([
                     'transaction_id' => Str::uuid(),
+                    'transactionable_id'=>$order->id,
+                    'order_id'=>$order->id,
+                    'transactionable_type' =>Order::class,
                     'note' => '',
                     'type' => 'deposit',
                     'amount' => request()->get('amount'),
                     'commission' => request()->get('commission'),
                     'shipping' => request()->get('shipping_amount'),
                     'total_amount' => request()->get('amount') - request()->get('shipping_amount') - request()->get('commission'),
+                    'payment_method_id' => request()->get('payment_method'),
+                    'created_by' => auth()->id()
+                ]);
+            }elseif(request()->get('amount') < 0){
+                $transaction = $order->transactions()->create([
+                    'transaction_id' => Str::uuid(),
+                    'transactionable_id'=>$order->id,
+                    'order_id'=>$order->id,
+                    'transactionable_type' =>Order::class,
+                    'note' => '',
+                    'type' => 'refund',
+                    'amount' => request()->get('amount') * -1,
+                    'commission' => request()->get('commission'),
+                    'shipping' => request()->get('shipping_amount'),
+                    'total_amount' => (request()->get('amount') * -1) - request()->get('shipping_amount') - request()->get('commission'),
                     'payment_method_id' => request()->get('payment_method'),
                     'created_by' => auth()->id()
                 ]);
@@ -357,6 +376,99 @@ class OrderController extends ApiAdminController
             }
         }
         return $changes;
+    }
+
+    // In OrderController.php, add this method:
+
+    /**
+     * Get completed orders where transaction total is less than order total
+     */
+    public function unpaidCompletedOrders(Request $request)
+    {
+        // Get orders with status 'COMPLETED' with transactions and products (with pivot)
+        $query = Order::where('status', 'COMPLETED')
+            ->with(['transactions']);
+
+        // Calculate transaction total for each order
+        $orders = $query->get()->map(function($order) {
+            // Sum all transaction amounts
+            $transactionTotal = $order->transactions->sum('amount');
+
+            // Get order total
+            $orderTotal = (float) $order->total;
+
+            // Get shipping info
+            $shippingCost = 0;
+            $shippingFree = false;
+            if ($order->shipping && is_object($order->shipping)) {
+                $shippingCost = (float) ($order->shipping->cost ?? 0);
+                $shippingFree = (bool) ($order->shipping->free ?? false);
+            }
+
+            // Calculate amount due (matching frontend logic)
+            // Frontend does: orderTotal - (shippingFree ? 0 : shippingCost)
+            $amountDue = $shippingFree ? $orderTotal : ($orderTotal - $shippingCost);
+
+            // Calculate remaining amount
+            $remainingAmount = $amountDue - $transactionTotal;
+
+            // Get customer info
+            $customerData = $order->customer;
+            $customerName = $customerData->name ?? 'N/A';
+            $customerPhone = $customerData->phone ?? 'N/A';
+
+            return [
+                'id' => $order->id,
+                'number' => $order->number,
+                'tax_number' => $order->tax_number,
+                'taxed_at' => $order->taxed_at,
+                'customer_name' => $customerName,
+                'customer_phone' => $customerPhone,
+                'subtotal' => (float) $order->subtotal,
+                'discount' => (float) $order->discount,
+                'shipping_cost' => $shippingCost,
+                'shipping_free' => $shippingFree,
+                'order_total' => $orderTotal,
+                'amount_due' => $amountDue,
+                'transaction_total' => (float) $transactionTotal,
+                'remaining_amount' => (float) $remainingAmount,
+                'profit' => (float) $order->profit,
+                'created_at' => $order->created_at,
+                'has_transactions' => $order->transactions->count() > 0,
+                'transaction_count' => $order->transactions->count()
+            ];
+        })->filter(function($order) {
+            // Filter orders where remaining amount > 0
+            return $order['remaining_amount'] > 0.001;
+        })->values();
+
+        // Apply search if any
+        if ($request->has('search') && $request->search) {
+            $search = strtolower($request->search);
+            $orders = $orders->filter(function($order) use ($search) {
+                return str_contains(strtolower($order['number']), $search) ||
+                    str_contains(strtolower($order['customer_name']), $search) ||
+                    str_contains(strtolower($order['customer_phone']), $search);
+            })->values();
+        }
+
+        // Apply ordering - sort by ID descending
+        if ($request->has('order') && $order = json_decode($request->order, true)) {
+            $orders = $orders->sortBy($order['column'], SORT_REGULAR, $order['dir'] === 'desc')->values();
+        } else {
+            $orders = $orders->sortByDesc('id')->values();
+        }
+
+        // Pagination
+        $page = $request->page ?? 1;
+        $limit = $request->limit ?? 10;
+        $total = $orders->count();
+        $paginatedOrders = $orders->slice(($page - 1) * $limit, $limit)->values();
+
+        return response()->json([
+            'items' => $paginatedOrders,
+            'total' => $total
+        ]);
     }
 
 
@@ -642,7 +754,7 @@ class OrderController extends ApiAdminController
         }
 
         foreach ($orders as $key=>$order) {
-                ProcessOrderToFatora::dispatch($order, $userId);  // Consider using a specific queue
+            ProcessOrderToFatora::dispatch($order, $userId);  // Consider using a specific queue
 
 
         }

@@ -28,6 +28,8 @@ interface OrderRepositoryInterface extends BaseRepository
      */
     public function makeByUser(array $data, Address $address,User $user): Order;
 
+    public function makeByEmployee(array $data, User $employee): Order;
+
     /**
      * @param array $data
      * @return Order

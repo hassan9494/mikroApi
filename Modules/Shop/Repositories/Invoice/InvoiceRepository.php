@@ -230,7 +230,7 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                         }
 
                     }
-
+                    $product->is_retired = 0;
                     $product->save();
                 }
             }

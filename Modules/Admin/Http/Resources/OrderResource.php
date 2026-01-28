@@ -98,6 +98,7 @@ class OrderResource extends JsonResource
                     $parentProduct = Product::with('product_variants')->find($parentProductId);
                     $groupedProducts[$parentProductId] = [
                         'id' => $parentProductId,
+                        'product_id' => $parentProductId,
                         'name' => $parentProduct->name ?? 'Parent Product',
                         'sku' => $parentProduct->sku ?? '',
                         'product_name' => $parentProduct->name ?? 'Parent Product',
@@ -132,6 +133,7 @@ class OrderResource extends JsonResource
                 $groupedProducts[$parentProductId]['colors'][] = [
                     'id' => $variant->color_id,
                     'variant_id' => $pivot->color_id,
+                    'product_id' => $product->id,
                     'name' => $variant->name ?? $pivot->product_name,
                     'quantity' => $pivot->quantity,
                     'number' => $pivot->number,
@@ -150,8 +152,10 @@ class OrderResource extends JsonResource
                 // Regular product without colors
                 $items[] = [
                     'id' => $product->id,
+                    'product_id' => $product->id,
                     'name' => $pivot->product_name,
                     'sku' => $product->sku,
+                    'product_sku' => $product->sku,
                     'quantity' => $pivot->quantity,
                     'number' => $pivot->number,
                     'product_name' => $pivot->product_name,
@@ -161,12 +165,17 @@ class OrderResource extends JsonResource
                     'normal_price' => $product->calcPrice(),
                     'min_price' => $product->calcMinPrice(),
                     'image' => $product->getFirstMediaUrl(),
+                    'product_image' => $product->getFirstMediaUrl(),
                     'location' => $product->location,
+                    'product_location' => $product->location,
                     'brand_id' => $product->brand_id,
                     'stock' => $product->stock,
                     'stock_available' => $product->stock_available,
                     'store_available' => $product->store_available,
+                    'current_stock_available' => $product->stock_available,
+                    'current_store_available' => $product->store_available,
                     'stock_location' => $product->stock_location,
+                    'product_stock_location' => $product->stock_location,
                     'has_colors' => false,
                     'colors' => [],
                     'all_colors' => [] // Empty for products without colors

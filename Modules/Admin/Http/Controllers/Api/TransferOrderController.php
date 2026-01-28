@@ -70,8 +70,6 @@ class TransferOrderController extends Controller
 
     public function store(Request $request)
     {
-
-
         $validated = $request->validate([
             'notes' => 'nullable|string|max:1000',
             'products' => 'required|array|min:1',
@@ -81,15 +79,26 @@ class TransferOrderController extends Controller
             'products.*.quantity' => 'required|integer|min:1|max:9999'
         ]);
 
+        // Check if this is from an order
+        $fromOrder = $request->input('from_order', null);
+        $orderId = $request->input('order_id', null);
+
         DB::beginTransaction();
 
         try {
             // Create transfer order
-            $transferOrder = TransferOrder::create([
+            $transferOrderData = [
                 'notes' => $validated['notes'] ?? null,
                 'created_by' => auth()->id(),
                 'status' => 'PENDING'
-            ]);
+            ];
+
+            // Add order reference if provided
+            if ($orderId && $fromOrder) {
+                $transferOrderData['notes'] = ($transferOrderData['notes'] ?? '') . " (From Order #{$orderId})";
+            }
+
+            $transferOrder = TransferOrder::create($transferOrderData);
 
             // Add products with CURRENT stock values and CALCULATED after values
             foreach ($validated['products'] as $productData) {
@@ -141,10 +150,15 @@ class TransferOrderController extends Controller
             }
 
             // Record history
+            $historyNotes = 'Transfer order created';
+            if ($orderId && $fromOrder) {
+                $historyNotes .= " from Order #{$orderId}";
+            }
+
             $transferOrder->histories()->create([
                 'user_id' => auth()->id(),
                 'action' => 'created',
-                'notes' => 'Transfer order created'
+                'notes' => $historyNotes
             ]);
 
             DB::commit();
@@ -160,7 +174,6 @@ class TransferOrderController extends Controller
             return $this->error('Failed to create transfer order: ' . $e->getMessage(), 500);
         }
     }
-
     public function show($id)
     {
         $transferOrder = TransferOrder::with([

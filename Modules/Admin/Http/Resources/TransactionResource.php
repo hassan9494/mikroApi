@@ -28,6 +28,9 @@ class TransactionResource extends JsonResource
             'created_at' => $this->created_at,
             'paymentMethod' => $this->paymentMethod?->name,
             'receipt' => $this->receipt,
+            'projectReceipt' => $this->projectReceipt,
+            'transactionable' => $this->transactionable,
+            'transactionableTypeName' => $this->transactionableTypeName,
             'order' => $this->order,
             'return_order' => $this->return_order,
             'created_by' => $this->created_by,
@@ -36,6 +39,7 @@ class TransactionResource extends JsonResource
             'updated_by' => $this->updated_by,
             'deleted_user' => $this->deletedUser?->name,
             'deleted_by' => $this->deleted_by,
+
         ];
     }
 

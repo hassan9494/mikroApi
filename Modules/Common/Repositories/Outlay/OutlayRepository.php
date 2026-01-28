@@ -21,4 +21,21 @@ class OutlayRepository extends EloquentRepository implements OutlayRepositoryInt
         parent::__construct($model);
     }
 
+    public function delete($id)
+    {
+        $outlay = $this->findOrFail($id);
+
+        // Update deleted_by field before deleting
+        $outlay->transactions()->update([
+            'deleted_by' => auth()->id(),
+            'deleted_at' => now() // If using soft deletes
+        ]);
+
+        // Then delete
+        $outlay->transactions()->delete();
+        $outlay->delete();
+
+        return true;
+    }
+
 }

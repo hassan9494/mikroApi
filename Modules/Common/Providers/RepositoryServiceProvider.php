@@ -43,6 +43,10 @@ class RepositoryServiceProvider extends ServiceProvider
             'Modules\Common\Repositories\Receipt\ReceiptRepository'
         );
         $this->app->singleton(
+            'Modules\Common\Repositories\ProjectReceipt\ProjectReceiptRepositoryInterface',
+            'Modules\Common\Repositories\ProjectReceipt\ProjectReceiptRepository'
+        );
+        $this->app->singleton(
             'Modules\Common\Repositories\Course\CourseRepositoryInterface',
             'Modules\Common\Repositories\Course\CourseRepository'
         );
@@ -73,6 +77,14 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->singleton(
             'Modules\Common\Repositories\Links\LinksRepositoryInterface',
             'Modules\Common\Repositories\Links\LinksRepository'
+        );
+        $this->app->singleton(
+            'Modules\Common\Repositories\ShortLinks\ShortLinksRepositoryInterface',
+            'Modules\Common\Repositories\ShortLinks\ShortLinksRepository'
+        );
+        $this->app->singleton(
+            'Modules\Common\Repositories\ShortLinkClickSummary\ShortLinkClickSummaryRepositoryInterface',
+            'Modules\Common\Repositories\ShortLinkClickSummary\ShortLinkClickSummaryRepository'
         );
         $this->app->singleton(
             'Modules\Common\Repositories\File\FileRepositoryInterface',

@@ -242,9 +242,14 @@ class Order extends Model implements HasMedia
     }
 
 
+//    public function transactions()
+//    {
+//        return $this->hasMany(Transaction::class);
+//    }
+
     public function transactions()
     {
-        return $this->hasMany(Transaction::class);
+        return $this->morphMany(Transaction::class, 'transactionable');
     }
 
     /**********************************************************************************************/
@@ -711,6 +716,30 @@ class Order extends Model implements HasMedia
         return $data1 === $data2;
     }
 
+    // In your Order.php model, add this method:
+    public function calculateRemainingAmount()
+    {
+        // Start with subtotal
+        $amountDue = (float) $this->subtotal;
+
+        // Subtract product-level discounts from pivot
+        foreach ($this->products as $product) {
+            $amountDue -= (float) $product->pivot->discount;
+        }
+
+        // Add shipping if not free
+        if ($this->shipping && is_object($this->shipping) && !($this->shipping->free ?? false)) {
+            $amountDue += (float) ($this->shipping->cost ?? 0);
+        }
+
+        // Subtract order-level discount
+        $amountDue -= (float) $this->discount;
+
+        // Calculate total paid from transactions
+        $totalPaid = $this->transactions()->where('type', 'deposit')->sum('amount');
+
+        return max(0, $amountDue) - $totalPaid;
+    }
 
 
 }

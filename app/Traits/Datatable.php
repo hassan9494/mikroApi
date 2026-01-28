@@ -50,6 +50,7 @@ class Datatable
 
         // First pass: extract sourceType and handle conditions properly
         $filteredConditions = [];
+
         foreach ($this->request['conditions'] as $key => $value) {
             if (is_string($value) && in_array($value, ['air', 'sea', 'local'])) {
                 $sourceType = $value;
@@ -92,9 +93,9 @@ class Datatable
                     }
                 } else {
                     // This shouldn't happen with our new structure, but keep it as fallback
-                    foreach ($value as $column => $columnValue) {
-                        $where[] = [$column, '=', $columnValue];
-                    }
+//                    foreach ($value as $column => $columnValue) {
+//                        $where[] = [$column, '=', $columnValue];
+//                    }
                 }
             }
             elseif ($value === "need"){
