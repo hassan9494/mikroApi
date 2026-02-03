@@ -234,6 +234,7 @@ Route::prefix('admin')
         Route::get('kitProduct/datatable', [ProductController::class, 'kitDatatable']);
         Route::get('restore_product/{id}', [ProductController::class, 'restore']);
         Route::get('product/sales', [OrderController::class, 'sales']);
+        Route::get('all-product/sales', [OrderController::class, 'allSales']);
         Route::get('product/autocomplete', [ProductController::class, 'autocomplete']);
         Route::post('product/stock', [ProductController::class, 'stock']);
         Route::post('product/sku', [ProductController::class, 'sku']);
@@ -274,6 +275,7 @@ Route::prefix('admin')
         Route::get('stats/sales', [StatsController::class, 'sales']);
         Route::get('report/product-sales', [ReportController::class, 'productSales']);
         Route::get('report/product-sale', [ReportController::class, 'productSale']);
+        Route::get('report/all-product-sale', [ReportController::class, 'allProductSale']);
         Route::get('report/product-stock', [ReportController::class, 'productStock']);
 
         Route::get('report/product-need', [ReportController::class, 'productNeed']);
@@ -281,6 +283,8 @@ Route::prefix('admin')
         Route::get('report/return_order', [ReportController::class, 'return_order']);
         Route::get('report/product', [ReportController::class, 'product']);
         Route::get('report/product-orders', [ReportController::class, 'products_order']);
+        Route::get('report/product-sales-orders', [ReportController::class, 'products_sales_order']);
+        Route::get('report/all-product-sales-orders', [ReportController::class, 'all_products_sales_order']);
         Route::get('report/zemam', [ReportController::class, 'zemam']);
         Route::get('report/transaction', [ReportController::class, 'transaction']);
         Route::get('report/outlays', [ReportController::class, 'outlays']);

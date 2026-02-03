@@ -241,6 +241,21 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         $model = $this->findOrFail($id);
         if ($model->is_migrated){
             $newData['notes'] = $data['notes'];
+            if (isset($data['shipping']) && is_array($data['shipping'])) {
+                $currentShipping = (array)$model->shipping;
+
+                // Always preserve the city field from existing data
+                if (isset($currentShipping['city'])) {
+                    $data['shipping']['city'] = $currentShipping['city'];
+                }
+
+                // Ensure cost is always stored as string for consistency
+                if (isset($data['shipping']['cost'])) {
+                    $data['shipping']['cost'] = (string)$data['shipping']['cost'];
+                }
+            }
+            $newData['shipping'] = $data['shipping'];
+            $newData['city_id'] = $data['city_id'];
             $model->update($newData);
         }
         else{
@@ -400,6 +415,14 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
 
         $order = $this->findOrFail($id, ['products']);
+
+        $user = auth()->user();
+
+        $order = $this->findOrFail($id, ['products']);
+
+        if (!$user->hasRole(['super']) && $status == 'CANCELED' && count($order->transactions) > 0){
+            throw new BadRequestException( 'Please contact the admin to delete the payment first');
+        }
         if ($order->is_migrated){
             $order->update(['status' => $status]);
         }else{

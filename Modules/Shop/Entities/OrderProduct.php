@@ -60,6 +60,20 @@ class OrderProduct extends Pivot
         return $record?->sold ?? 0;
     }
 
+    public static function allSalesWithPending($product, $from, $to)
+    {
+        $record = OrderProduct::where('product_id', $product)
+            ->whereHas('order', function ($q) use ($from, $to) {
+                if ($from) $q->whereDate('updated_at', '>=', $from);
+                if ($to) $q->whereDate('updated_at', '<=', $to);
+            })
+            ->selectRaw("SUM(quantity) as sold")
+            ->groupBy('product_id')
+            ->get()
+            ->first();
+        return $record?->sold ?? 0;
+    }
+
 
     public static function taxed_sales($product, $from, $to)
     {

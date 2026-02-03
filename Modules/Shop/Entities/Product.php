@@ -373,6 +373,16 @@ class Product extends Model implements HasMedia
      * @param $to
      * @return mixed
      */
+    public function allSalesWithPending($from, $to): mixed
+    {
+        return OrderProduct::allSalesWithPending($this->id, $from, $to);
+    }
+
+    /**
+     * @param $from
+     * @param $to
+     * @return mixed
+     */
     public function untaxed_sales($from, $to): mixed
     {
         return OrderProduct::untaxed_sales($this->id, $from, $to);
@@ -534,6 +544,176 @@ class Product extends Model implements HasMedia
         $this->stock = $newStock;
     }
 
+// In Product model
+    public function comprehensiveSales($from, $to)
+    {
+        $totalSales = 0;
 
+        // 1. Direct sales of this product (from order_products table)
+        $totalSales += $this->sales($from, $to);
+
+        // 2. If this product has a kit and IS a kit (options->kit = true),
+        // then its sales should include sales of its kit products
+        if ($this->kit->isNotEmpty() && $this->isKit()) {
+            foreach ($this->kit as $kitProduct) {
+                // When this kit is sold, it includes kit products
+                $kitSales = $this->sales($from, $to);
+                $pivotQuantity = $kitProduct->pivot->quantity;
+
+                // Add kit product sales (kit sales * quantity in kit)
+                $totalSales += ($kitSales * $pivotQuantity);
+            }
+        }
+
+        // 3. If this product is in other products' kits,
+        // we need to check if those parent products ARE kits
+        if ($this->inKits->isNotEmpty()) {
+            foreach ($this->inKits as $parentKit) {
+                // Check if the parent product is actually a kit
+                if ($parentKit->isKit()) {
+                    $parentKitSales = $parentKit->sales($from, $to);
+                    $pivotQuantity = $parentKit->inKits()
+                            ->where('product_id', $this->id)
+                            ->first()
+                            ->pivot
+                            ->quantity ?? 1;
+
+                    $totalSales += ($parentKitSales * $pivotQuantity);
+                }
+            }
+        }
+
+        return $totalSales;
+    }
+
+// Helper method to check if product is a kit
+    public function isKit()
+    {
+        // Check if options->kit is true
+        return isset($this->options->kit) && $this->options->kit === true;
+    }
+
+    // In Product model, add this relationship
+    public function inKits()
+    {
+        return $this->belongsToMany(
+            Product::class,
+            'product_kit',
+            'product_id',  // This product is IN kits
+            'kit_id'       // The kit that contains this product
+        )->withPivot('quantity');
+    }
+
+    // In Product model
+    public function totalSalesWithKit($from, $to)
+    {
+        $totalSales = 0;
+
+        // 1. Direct sales (this product sold directly)
+        $directSales = $this->sales($from, $to);
+        $totalSales += $directSales;
+
+        // 2. Sales from being in kits (when parent kits are sold)
+        if ($this->inKits->isNotEmpty()) {
+            foreach ($this->inKits as $parentKit) {
+                // Check if parent is actually a kit product
+                if ($this->isProductAKit($parentKit)) {
+                    $parentKitSales = $parentKit->sales($from, $to);
+                    $pivotQuantity = $parentKit->pivot->quantity;
+
+                    // Add: parent kit sales * quantity of this product in the kit
+                    $totalSales += ($parentKitSales * $pivotQuantity);
+                }
+            }
+        }
+
+        return $totalSales;
+    }
+
+// Method to check if a product is a kit
+    private function isProductAKit($product)
+    {
+        // Check if options->kit is true or if product has kit products
+        return (isset($product->options->kit) && $product->options->kit === true)
+            || $product?->kit?->isNotEmpty();
+    }
+
+// For all_sales (which might include all order statuses)
+    public function totalAllSalesWithKit($from, $to)
+    {
+        $totalAllSales = 0;
+
+        // 1. Direct all_sales
+        $directAllSales = $this->allSales($from, $to);
+        $totalAllSales += $directAllSales;
+
+        // 2. All_sales from being in kits
+        if ($this->inKits->isNotEmpty()) {
+            foreach ($this->inKits as $parentKit) {
+                if ($this->isProductAKit($parentKit)) {
+                    $parentKitAllSales = $parentKit->allSales($from, $to);
+                    $pivotQuantity = $parentKit->pivot->quantity;
+
+                    $totalAllSales += ($parentKitAllSales * $pivotQuantity);
+                }
+            }
+        }
+
+        return $totalAllSales;
+    }
+
+    public function totalAllSalesWithKitWithPending($from, $to)
+    {
+        $totalAllSales = 0;
+
+        // 1. Direct all_sales
+        $directAllSales = $this->allSalesWithPending($from, $to);
+        $totalAllSales += $directAllSales;
+
+        // 2. All_sales from being in kits
+        if ($this->inKits->isNotEmpty()) {
+            foreach ($this->inKits as $parentKit) {
+                if ($this->isProductAKit($parentKit)) {
+                    $parentKitAllSales = $parentKit->allSalesWithPending($from, $to);
+                    $pivotQuantity = $parentKit->pivot->quantity;
+
+                    $totalAllSales += ($parentKitAllSales * $pivotQuantity);
+                }
+            }
+        }
+
+        return $totalAllSales;
+    }
+
+    // In Product model
+    public function getTotalQuantitySoldInOrder($orderId)
+    {
+        $order = Order::with(['products' => function($query) {
+            $query->with('kit');
+        }])->find($orderId);
+
+        if (!$order) return 0;
+
+        $totalQuantity = 0;
+
+        // Direct sale
+        $directProduct = $order->products->where('id', $this->id)->first();
+        if ($directProduct) {
+            $totalQuantity += $directProduct->pivot->quantity;
+        }
+
+        // Kit sales
+        foreach ($order->products as $orderProduct) {
+            if ($orderProduct->kit->isNotEmpty() && $orderProduct->kit->contains('id', $this->id)) {
+                $kitItem = $orderProduct->kit->where('id', $this->id)->first();
+                $kitOrderQuantity = $orderProduct->pivot->quantity;
+                $productInKitQuantity = $kitItem->pivot->quantity ?? 1;
+
+                $totalQuantity += ($kitOrderQuantity * $productInKitQuantity);
+            }
+        }
+
+        return $totalQuantity;
+    }
 
 }

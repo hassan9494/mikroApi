@@ -9,11 +9,13 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Modules\Admin\Http\Resources\AllProductSalesReportResource;
 use Modules\Admin\Http\Resources\CustomsStatementResource;
 use Modules\Admin\Http\Resources\DeptResource;
 use Modules\Admin\Http\Resources\NeedStocksReportResource;
 use Modules\Admin\Http\Resources\OrderResource;
 use Modules\Admin\Http\Resources\OutlayResource;
+use Modules\Admin\Http\Resources\ProductOrderExportResource;
 use Modules\Admin\Http\Resources\ProductSalesReportResource;
 use Modules\Admin\Http\Resources\ProductStocksReportResource;
 use Modules\Admin\Http\Resources\ReturnOrderResource;
@@ -21,6 +23,7 @@ use Modules\Admin\Http\Resources\TransactionResource;
 use Modules\Common\Repositories\CustomsStatement\CustomsStatementRepositoryInterface;
 use Modules\Common\Repositories\Dept\DeptRepositoryInterface;
 use Modules\Common\Repositories\Outlay\OutlayRepositoryInterface;
+use Modules\Shop\Entities\Order;
 use Modules\Shop\Entities\Product;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Repositories\ReturnOrder\ReturnOrderRepositoryInterface;
@@ -209,6 +212,239 @@ class ReportController extends Controller
             ->where('taxed_at','>=',request('from', now()->startOfMonth()))
             ->where('taxed_at','<=',request('to', now()->startOfMonth()));
         return OrderResource::collection($orders);
+    }
+
+
+    public function products_sales_order_old()
+    {
+        $from = request('from', now()->startOfMonth());
+        $to = request('to', now()->endOfMonth());
+        $productId = request('id');
+
+        if (!$productId) {
+            return response()->json(['error' => 'Product ID is required'], 400);
+        }
+
+        // Get the product
+        $product = Product::find($productId);
+
+        if (!$product) {
+            return response()->json(['error' => 'Product not found'], 404);
+        }
+
+        // Get all KIT products that contain this product
+        $kitProductIds = DB::table('product_kit')
+            ->where('product_id', $productId)
+            ->pluck('kit_id')
+            ->toArray();
+
+        // Combine target product ID with kit product IDs
+        $allProductIds = array_merge([$productId], $kitProductIds);
+
+        // Build query
+        $orders = Order::query()
+            ->whereIn('status', ['COMPLETED','PROCESSING'])
+            ->whereDate('taxed_at', '>=', $from)
+            ->whereDate('taxed_at', '<=', $to)
+            ->where(function($query) use ($allProductIds) {
+                $query->whereHas('products', function($q) use ($allProductIds) {
+                    $q->whereIn('products.id', $allProductIds);
+                });
+            })
+            ->with(['products' => function($query) use ($allProductIds) {
+                $query->whereIn('products.id', $allProductIds)
+                    ->withPivot('quantity', 'price', 'real_price', 'discount', 'product_name');
+            }])
+            ->orderBy('taxed_at', 'desc')
+            ->get();
+
+        return ProductOrderExportResource::collection($orders, $productId, $kitProductIds);
+    }
+
+
+    public function products_sales_order()
+    {
+        $from = request('from', now()->startOfMonth());
+        $to = request('to', now()->endOfMonth());
+        $productId = request('id');
+
+        if (!$productId) {
+            return response()->json(['error' => 'Product ID is required'], 400);
+        }
+
+        // Get kit product IDs
+        $kitProductIds = DB::table('product_kit')
+            ->where('product_id', $productId)
+            ->pluck('kit_id')
+            ->toArray();
+
+        $allProductIds = array_merge([$productId], $kitProductIds);
+
+        // Get orders
+        $orders = Order::whereIn('status', ['COMPLETED','PROCESSING'])
+            ->whereDate('taxed_at', '>=', $from)
+            ->whereDate('taxed_at', '<=', $to)
+            ->whereHas('products', function($q) use ($allProductIds) {
+                $q->whereIn('products.id', $allProductIds);
+            })
+            ->with(['products' => function($query) use ($allProductIds) {
+                $query->whereIn('products.id', $allProductIds)
+                    ->withPivot('quantity');
+            }])
+            ->orderBy('taxed_at', 'desc')
+            ->get();
+
+        // Get kit quantities from product_kit table
+        $kitQuantities = DB::table('product_kit')
+            ->where('product_id', $productId)
+            ->get()
+            ->keyBy('kit_id');
+
+        // Process each order
+        $formattedOrders = $orders->map(function($order) use ($productId, $kitQuantities) {
+            $directQuantity = 0;
+            $kitQuantity = 0;
+
+            foreach ($order->products as $product) {
+                if ($product->id == $productId) {
+                    $directQuantity = $product->pivot->quantity;
+                } else {
+                    // Check if this product is a kit containing our target product
+                    if ($kitQuantities->has($product->id)) {
+                        $kitInfo = $kitQuantities->get($product->id);
+                        $kitQuantity += ($product->pivot->quantity * $kitInfo->quantity);
+                    }
+                }
+            }
+
+            // Parse customer data
+            $customer = $order->customer;
+            if (is_string($customer)) {
+                $customer = json_decode($customer, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $customer = ['name' => '', 'phone' => ''];
+                }
+            }
+
+            return [
+                'id' => $order->id,
+                'number' => $order->number,
+                'status' => $order->status,
+                'created_at' => $order->created_at->format('Y-m-d H:i:s'),
+                'completed_at' => $order->completed_at,
+                'taxed_at' => $order->taxed_at,
+                'customer' => $customer,
+                'customer_name' => $customer->name,
+                'customer_phone' => $customer->phone,
+                'subtotal' => (float) $order->subtotal,
+                'discount' => (float) $order->discount,
+                'total' => (float) $order->total,
+                'tax_number' => $order->tax_number,
+                'direct_quantity' => $directQuantity,
+                'kit_quantity' => $kitQuantity,
+                'total_product_quantity' => $directQuantity + $kitQuantity,
+                'is_kit_sale' => $kitQuantity > 0,
+                'identity_number_type' => $order->identity_number_type,
+                'customer_identity_number' => $order->customer_identity_number,
+            ];
+        });
+
+        return response()->json([
+            'data' => $formattedOrders
+        ]);
+    }
+
+
+    public function all_products_sales_order()
+    {
+        $from = request('from', now()->startOfMonth());
+        $to = request('to', now()->endOfMonth());
+        $productId = request('id');
+
+        if (!$productId) {
+            return response()->json(['error' => 'Product ID is required'], 400);
+        }
+
+        // Get kit product IDs
+        $kitProductIds = DB::table('product_kit')
+            ->where('product_id', $productId)
+            ->pluck('kit_id')
+            ->toArray();
+
+        $allProductIds = array_merge([$productId], $kitProductIds);
+
+        // Get orders
+        $orders = Order::whereIn('status', ['COMPLETED','PROCESSING','CANCELED','PENDING'])
+            ->whereDate('created_at', '>=', $from)
+            ->whereDate('created_at', '<=', $to)
+            ->whereHas('products', function($q) use ($allProductIds) {
+                $q->whereIn('products.id', $allProductIds);
+            })
+            ->with(['products' => function($query) use ($allProductIds) {
+                $query->whereIn('products.id', $allProductIds)
+                    ->withPivot('quantity');
+            }])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Get kit quantities from product_kit table
+        $kitQuantities = DB::table('product_kit')
+            ->where('product_id', $productId)
+            ->get()
+            ->keyBy('kit_id');
+
+        // Process each order
+        $formattedOrders = $orders->map(function($order) use ($productId, $kitQuantities) {
+            $directQuantity = 0;
+            $kitQuantity = 0;
+
+            foreach ($order->products as $product) {
+                if ($product->id == $productId) {
+                    $directQuantity = $product->pivot->quantity;
+                } else {
+                    // Check if this product is a kit containing our target product
+                    if ($kitQuantities->has($product->id)) {
+                        $kitInfo = $kitQuantities->get($product->id);
+                        $kitQuantity += ($product->pivot->quantity * $kitInfo->quantity);
+                    }
+                }
+            }
+
+            // Parse customer data
+            $customer = $order->customer;
+            if (is_string($customer)) {
+                $customer = json_decode($customer, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $customer = ['name' => '', 'phone' => ''];
+                }
+            }
+
+            return [
+                'id' => $order->id,
+                'number' => $order->number,
+                'status' => $order->status,
+                'created_at' => $order->created_at->format('Y-m-d H:i:s'),
+                'completed_at' => $order->completed_at,
+                'taxed_at' => $order->taxed_at,
+                'customer' => $customer,
+                'customer_name' => $customer->name,
+                'customer_phone' => $customer->phone,
+                'subtotal' => (float) $order->subtotal,
+                'discount' => (float) $order->discount,
+                'total' => (float) $order->total,
+                'tax_number' => $order->tax_number,
+                'direct_quantity' => $directQuantity,
+                'kit_quantity' => $kitQuantity,
+                'total_product_quantity' => $directQuantity + $kitQuantity,
+                'is_kit_sale' => $kitQuantity > 0,
+                'identity_number_type' => $order->identity_number_type,
+                'customer_identity_number' => $order->customer_identity_number,
+            ];
+        });
+
+        return response()->json([
+            'data' => $formattedOrders
+        ]);
     }
 
 
@@ -455,7 +691,6 @@ class ReportController extends Controller
             ->additionalData(['from' => $from != 'undefined' ? $from : null, 'to' => $to != 'undefined' ? $to : null])
             ->json();
     }
-
 
 
     /**
@@ -994,15 +1229,42 @@ class ReportController extends Controller
     {
         $from = request('from');
         $to = request('to');
+
         $whereHas['proccessingAndCompletedOrders'] = function ($q) use ($from, $to) {
             if ($from) $q->whereDate('inspection_date', '>=', $from);
             if ($to) $q->whereDate('inspection_date', '<=', $to);
         };
+
         $data = $this->productRepositoryInterface->model();
+
         return Datatable::make($data)
             ->whereHas($whereHas)
+            ->with(['kit', 'inKits']) // Eager load both relationships
             ->search('id', 'name', 'sku', 'stock', 'min_qty')
             ->resource(ProductSalesReportResource::class)
+            ->json();
+    }
+
+    /**
+     * @return JsonResponse
+     */
+    public function allProductSale(): JsonResponse
+    {
+        $from = request('from');
+        $to = request('to');
+
+        $whereHas['orders'] = function ($q) use ($from, $to) {
+            if ($from) $q->whereDate('updated_date', '>=', $from);
+            if ($to) $q->whereDate('updated_date', '<=', $to);
+        };
+
+        $data = $this->productRepositoryInterface->model();
+
+        return Datatable::make($data)
+            ->whereHas($whereHas)
+            ->with(['kit', 'inKits']) // Eager load both relationships
+            ->search('id', 'name', 'sku', 'stock', 'min_qty')
+            ->resource(AllProductSalesReportResource::class)
             ->json();
     }
 
