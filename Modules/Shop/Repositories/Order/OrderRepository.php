@@ -241,6 +241,21 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         $model = $this->findOrFail($id);
         if ($model->is_migrated){
             $newData['notes'] = $data['notes'];
+            if (isset($data['shipping']) && is_array($data['shipping'])) {
+                $currentShipping = (array)$model->shipping;
+
+                // Always preserve the city field from existing data
+                if (isset($currentShipping['city'])) {
+                    $data['shipping']['city'] = $currentShipping['city'];
+                }
+
+                // Ensure cost is always stored as string for consistency
+                if (isset($data['shipping']['cost'])) {
+                    $data['shipping']['cost'] = (string)$data['shipping']['cost'];
+                }
+            }
+            $newData['shipping'] = $data['shipping'];
+            $newData['city_id'] = $data['city_id'];
             $model->update($newData);
         }
         else{
