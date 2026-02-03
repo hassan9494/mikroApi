@@ -9,6 +9,7 @@ use DOMDocument;
 use http\Env\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -160,18 +161,399 @@ class OrderController extends ApiAdminController
      */
     public function sales(): JsonResponse
     {
-        $from = request('from');
-        $to = request('to');
-        $id = json_decode(request('conditions'))[0]->id;
-        $whereHas['Products'] =  function ($q) use ($id) {
-            if ($id) $q->where('products.id',  $id);
-        };
-        return Datatable::make($this->repository->model())
-            ->with(['products'])
-            ->whereHas($whereHas)
-            ->search('id', 'name', 'sku')
-            ->resource(OrderResource::class)
-            ->json();
+        // Parse conditions
+        $conditions = json_decode(request('conditions', '[]'), true);
+
+        // Find product ID from conditions
+        $targetProductId = null;
+        $filteredConditions = [];
+
+        foreach ($conditions as $condition) {
+            if (isset($condition['product']) && $condition['product'] === 'products.id') {
+                $targetProductId = $condition['id'] ?? null;
+                continue;
+            }
+            $filteredConditions[] = $condition;
+        }
+
+        if (!$targetProductId) {
+            return response()->json(['error' => 'Product ID not found in conditions'], 400);
+        }
+
+        // Get KIT products that contain this product
+        $kitProductIds = DB::table('product_kit')
+            ->where('product_id', $targetProductId)
+            ->pluck('kit_id')
+            ->toArray();
+
+        // Build query using Laravel Query Builder
+        $query = Order::query();
+
+        // Apply product condition: either direct product or kit containing product
+        $query->where(function($q) use ($targetProductId, $kitProductIds) {
+            // Direct product
+            $q->whereHas('products', function($q2) use ($targetProductId) {
+                $q2->where('products.id', $targetProductId);
+            });
+
+            // OR Kit product
+            if (!empty($kitProductIds)) {
+                $q->orWhereHas('products', function($q2) use ($kitProductIds) {
+                    $q2->whereIn('products.id', $kitProductIds);
+                });
+            }
+        });
+
+        // Apply other conditions
+        foreach ($filteredConditions as $condition) {
+            if (!isset($condition['col'])) {
+                continue;
+            }
+
+            $column = $condition['col'];
+            $operator = $condition['op'] ?? '=';
+            $value = $condition['val'] ?? null;
+
+            if ($value === null) {
+                continue;
+            }
+
+            // Handle JSON columns
+            if (strpos($column, '->') !== false) {
+                [$jsonColumn, $jsonKey] = explode('->', $column);
+
+                switch ($operator) {
+                    case '=':
+                        $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`$jsonColumn`, '$.\"$jsonKey\"')) = ?", [$value]);
+                        break;
+                    case 'in':
+                        if (is_array($value)) {
+                            $placeholders = implode(',', array_fill(0, count($value), '?'));
+                            $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`$jsonColumn`, '$.\"$jsonKey\"')) IN ($placeholders)", $value);
+                        }
+                        break;
+                    case '>=':
+                        $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`$jsonColumn`, '$.\"$jsonKey\"')) >= ?", [$value]);
+                        break;
+                    case '<=':
+                        $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`$jsonColumn`, '$.\"$jsonKey\"')) <= ?", [$value]);
+                        break;
+                }
+            }
+            // Handle regular columns
+            else {
+                switch ($operator) {
+                    case '=':
+                        $query->where($column, $value);
+                        break;
+                    case 'in':
+                        if (is_array($value)) {
+                            $query->whereIn($column, $value);
+                        } else {
+                            $query->where($column, $value);
+                        }
+                        break;
+                    case '>=':
+                        if (in_array($column, ['taxed_at', 'created_at', 'completed_at'])) {
+                            $query->whereDate($column, '>=', $value);
+                        } else {
+                            $query->where($column, '>=', $value);
+                        }
+                        break;
+                    case '<=':
+                        if (in_array($column, ['taxed_at', 'created_at', 'completed_at'])) {
+                            $query->whereDate($column, '<=', $value);
+                        } else {
+                            $query->where($column, '<=', $value);
+                        }
+                        break;
+                }
+            }
+        }
+
+        // Handle search
+        $search = request('search', '');
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('number', 'like', '%' . $search . '%')
+                    ->orWhere('customer->name', 'like', '%' . $search . '%')
+                    ->orWhere('customer->phone', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Handle ordering
+        $order = json_decode(request('order', '{}'), true);
+        if (!empty($order) && isset($order['column'], $order['dir'])) {
+            $orderColumn = $order['column'];
+            $orderDir = $order['dir'];
+
+            // Handle JSON column ordering
+            if (strpos($orderColumn, '.') !== false) {
+                [$relation, $field] = explode('.', $orderColumn);
+                if ($relation === 'customer') {
+                    $query->orderByRaw("JSON_UNQUOTE(JSON_EXTRACT(customer, '$.\"$field\"')) $orderDir");
+                }
+            } else {
+                $query->orderBy($orderColumn, $orderDir);
+            }
+        } else {
+            $query->orderBy('taxed_at', 'desc');
+        }
+
+        // Get paginated results
+        $page = request('page', 0);
+        $limit = request('limit', 10);
+        $orders = $query->paginate($limit, ['*'], 'page', $page + 1);
+
+        // Now calculate quantities for each order
+        $orderIds = $orders->pluck('id')->toArray();
+
+        // Get direct quantities
+        $directQuantities = DB::table('order_products')
+            ->whereIn('order_id', $orderIds)
+            ->where('product_id', $targetProductId)
+            ->select('order_id', 'quantity')
+            ->get()
+            ->keyBy('order_id');
+
+        // Get kit quantities
+        $kitQuantities = DB::table('order_products as op')
+            ->join('product_kit as pk', 'op.product_id', '=', 'pk.kit_id')
+            ->whereIn('op.order_id', $orderIds)
+            ->where('pk.product_id', $targetProductId)
+            ->select('op.order_id', DB::raw('SUM(op.quantity * pk.quantity) as total_kit_quantity'))
+            ->groupBy('op.order_id')
+            ->get()
+            ->keyBy('order_id');
+
+        // Format response
+        $formattedOrders = $orders->map(function($order) use ($directQuantities, $kitQuantities) {
+            $directQty = $directQuantities->get($order->id)->quantity ?? 0;
+            $kitQty = $kitQuantities->get($order->id)->total_kit_quantity ?? 0;
+
+            return [
+                'id' => $order->id,
+                'number' => $order->number,
+                'status' => $order->status,
+                'created_at' => $order->created_at->format('Y-m-d H:i:s'),
+                'completed_at' => $order->completed_at,
+                'taxed_at' => $order->taxed_at,
+                'customer' => $order->customer,
+                'total' => $order->total,
+                'product_quantity' => $directQty,
+                'kit_quantity' => $kitQty,
+                'total_quantity' => $directQty + $kitQty,
+                'is_kit_order' => $kitQty > 0,
+                'order_url' => url('/order/edit/' . $order->id),
+            ];
+        });
+
+        return response()->json([
+            'data' => [
+                'items' => $formattedOrders,
+                'total' => $orders->total()
+            ]
+        ]);
+    }
+
+    /**
+     * @return JsonResponse
+     */
+    public function allSales(): JsonResponse
+    {
+        // Parse conditions
+        $conditions = json_decode(request('conditions', '[]'), true);
+
+        // Find product ID from conditions
+        $targetProductId = null;
+        $filteredConditions = [];
+
+        foreach ($conditions as $condition) {
+            if (isset($condition['product']) && $condition['product'] === 'products.id') {
+                $targetProductId = $condition['id'] ?? null;
+                continue;
+            }
+            $filteredConditions[] = $condition;
+        }
+
+        if (!$targetProductId) {
+            return response()->json(['error' => 'Product ID not found in conditions'], 400);
+        }
+
+        // Get KIT products that contain this product
+        $kitProductIds = DB::table('product_kit')
+            ->where('product_id', $targetProductId)
+            ->pluck('kit_id')
+            ->toArray();
+
+        // Build query using Laravel Query Builder
+        $query = Order::query();
+
+        // Apply product condition: either direct product or kit containing product
+        $query->where(function($q) use ($targetProductId, $kitProductIds) {
+            // Direct product
+            $q->whereHas('products', function($q2) use ($targetProductId) {
+                $q2->where('products.id', $targetProductId);
+            });
+
+            // OR Kit product
+            if (!empty($kitProductIds)) {
+                $q->orWhereHas('products', function($q2) use ($kitProductIds) {
+                    $q2->whereIn('products.id', $kitProductIds);
+                });
+            }
+        });
+
+        // Apply other conditions
+        foreach ($filteredConditions as $condition) {
+            if (!isset($condition['col'])) {
+                continue;
+            }
+
+            $column = $condition['col'];
+            $operator = $condition['op'] ?? '=';
+            $value = $condition['val'] ?? null;
+
+            if ($value === null) {
+                continue;
+            }
+
+            // Handle JSON columns
+            if (strpos($column, '->') !== false) {
+                [$jsonColumn, $jsonKey] = explode('->', $column);
+
+                switch ($operator) {
+                    case '=':
+                        $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`$jsonColumn`, '$.\"$jsonKey\"')) = ?", [$value]);
+                        break;
+                    case 'in':
+                        if (is_array($value)) {
+                            $placeholders = implode(',', array_fill(0, count($value), '?'));
+                            $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`$jsonColumn`, '$.\"$jsonKey\"')) IN ($placeholders)", $value);
+                        }
+                        break;
+                    case '>=':
+                        $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`$jsonColumn`, '$.\"$jsonKey\"')) >= ?", [$value]);
+                        break;
+                    case '<=':
+                        $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`$jsonColumn`, '$.\"$jsonKey\"')) <= ?", [$value]);
+                        break;
+                }
+            }
+            // Handle regular columns
+            else {
+                switch ($operator) {
+                    case '=':
+                        $query->where($column, $value);
+                        break;
+                    case 'in':
+                        if (is_array($value)) {
+                            $query->whereIn($column, $value);
+                        } else {
+                            $query->where($column, $value);
+                        }
+                        break;
+                    case '>=':
+                        if (in_array($column, ['taxed_at', 'created_at', 'completed_at'])) {
+                            $query->whereDate($column, '>=', $value);
+                        } else {
+                            $query->where($column, '>=', $value);
+                        }
+                        break;
+                    case '<=':
+                        if (in_array($column, ['taxed_at', 'created_at', 'completed_at'])) {
+                            $query->whereDate($column, '<=', $value);
+                        } else {
+                            $query->where($column, '<=', $value);
+                        }
+                        break;
+                }
+            }
+        }
+
+        // Handle search
+        $search = request('search', '');
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('number', 'like', '%' . $search . '%')
+                    ->orWhere('customer->name', 'like', '%' . $search . '%')
+                    ->orWhere('customer->phone', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Handle ordering
+        $order = json_decode(request('order', '{}'), true);
+        if (!empty($order) && isset($order['column'], $order['dir'])) {
+            $orderColumn = $order['column'];
+            $orderDir = $order['dir'];
+
+            // Handle JSON column ordering
+            if (strpos($orderColumn, '.') !== false) {
+                [$relation, $field] = explode('.', $orderColumn);
+                if ($relation === 'customer') {
+                    $query->orderByRaw("JSON_UNQUOTE(JSON_EXTRACT(customer, '$.\"$field\"')) $orderDir");
+                }
+            } else {
+                $query->orderBy($orderColumn, $orderDir);
+            }
+        } else {
+            $query->orderBy('taxed_at', 'desc');
+        }
+
+        // Get paginated results
+        $page = request('page', 0);
+        $limit = request('limit', 10);
+        $orders = $query->paginate($limit, ['*'], 'page', $page + 1);
+
+        // Now calculate quantities for each order
+        $orderIds = $orders->pluck('id')->toArray();
+
+        // Get direct quantities
+        $directQuantities = DB::table('order_products')
+            ->whereIn('order_id', $orderIds)
+            ->where('product_id', $targetProductId)
+            ->select('order_id', 'quantity')
+            ->get()
+            ->keyBy('order_id');
+
+        // Get kit quantities
+        $kitQuantities = DB::table('order_products as op')
+            ->join('product_kit as pk', 'op.product_id', '=', 'pk.kit_id')
+            ->whereIn('op.order_id', $orderIds)
+            ->where('pk.product_id', $targetProductId)
+            ->select('op.order_id', DB::raw('SUM(op.quantity * pk.quantity) as total_kit_quantity'))
+            ->groupBy('op.order_id')
+            ->get()
+            ->keyBy('order_id');
+
+        // Format response
+        $formattedOrders = $orders->map(function($order) use ($directQuantities, $kitQuantities) {
+            $directQty = $directQuantities->get($order->id)->quantity ?? 0;
+            $kitQty = $kitQuantities->get($order->id)->total_kit_quantity ?? 0;
+
+            return [
+                'id' => $order->id,
+                'number' => $order->number,
+                'status' => $order->status,
+                'created_at' => $order->created_at->format('Y-m-d H:i:s'),
+                'completed_at' => $order->completed_at,
+                'taxed_at' => $order->taxed_at,
+                'customer' => $order->customer,
+                'total' => $order->total,
+                'product_quantity' => $directQty,
+                'kit_quantity' => $kitQty,
+                'total_quantity' => $directQty + $kitQty,
+                'is_kit_order' => $kitQty > 0,
+                'order_url' => url('/order/edit/' . $order->id),
+            ];
+        });
+
+        return response()->json([
+            'data' => [
+                'items' => $formattedOrders,
+                'total' => $orders->total()
+            ]
+        ]);
     }
 
     /**

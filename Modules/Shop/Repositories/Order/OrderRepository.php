@@ -400,6 +400,14 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
 
         $order = $this->findOrFail($id, ['products']);
+
+        $user = auth()->user();
+
+        $order = $this->findOrFail($id, ['products']);
+
+        if (!$user->hasRole(['super']) && $status == 'CANCELED' && count($order->transactions) > 0){
+            throw new BadRequestException( 'Please contact the admin to delete the payment first');
+        }
         if ($order->is_migrated){
             $order->update(['status' => $status]);
         }else{

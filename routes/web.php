@@ -154,6 +154,12 @@ Route::get('/receipt-payment-method', function() {
     return $receipts;
 });
 
+Route::get('/check_product', function() {
+    $receipts = Product::find(280);
+        dd(count($receipts->inKits));
+    return $receipts->isKit();
+});
+
 // routes/web.php
 Route::get('/test-single-index/{id}', function($id) {
     try {
