@@ -275,8 +275,9 @@ class OrderController extends ApiAdminController
         $search = request('search', '');
         if ($search) {
             $query->where(function($q) use ($search) {
-                $q->where('number', 'like', '%' . $search . '%')
+                $q->where('tax_number', 'like', '%' . $search . '%')
                     ->orWhere('customer->name', 'like', '%' . $search . '%')
+                    ->orWhere('id', 'like', '%' . $search . '%')
                     ->orWhere('customer->phone', 'like', '%' . $search . '%');
             });
         }
@@ -475,7 +476,8 @@ class OrderController extends ApiAdminController
         $search = request('search', '');
         if ($search) {
             $query->where(function($q) use ($search) {
-                $q->where('number', 'like', '%' . $search . '%')
+                $q->where('id', 'like', '%' . $search . '%')
+                    ->orWhere('tax_number', 'like', '%' . $search . '%')
                     ->orWhere('customer->name', 'like', '%' . $search . '%')
                     ->orWhere('customer->phone', 'like', '%' . $search . '%');
             });
@@ -533,6 +535,7 @@ class OrderController extends ApiAdminController
 
             return [
                 'id' => $order->id,
+                'tax_number' => $order->tax_number,
                 'number' => $order->number,
                 'status' => $order->status,
                 'created_at' => $order->created_at->format('Y-m-d H:i:s'),
