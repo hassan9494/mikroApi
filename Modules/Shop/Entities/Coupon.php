@@ -116,6 +116,65 @@ class Coupon extends Model
         )->withPivot('order_id','used_at');
     }
 
+    /**
+     * Get total discount given by this coupon
+     */
+    public function getTotalDiscountAttribute()
+    {
+        return $this->orders()->sum('discount');
+    }
+
+    /**
+     * Get total orders value using this coupon
+     */
+    public function getTotalOrdersValueAttribute()
+    {
+        return $this->orders()->sum('subtotal');
+    }
+
+    /**
+     * Get average discount per order
+     */
+    public function getAverageDiscountAttribute()
+    {
+        $count = $this->orders()->count();
+        return $count > 0 ? $this->total_discount / $count : 0;
+    }
+
+    /**
+     * Get redemption rate percentage
+     */
+    public function getRedemptionRateAttribute()
+    {
+        if ($this->count <= 0) return 0;
+        return ($this->use_count / $this->count) * 100;
+    }
+
+    /**
+     * Get days remaining until expiration
+     */
+    public function getDaysRemainingAttribute()
+    {
+        if (!$this->end_at) return null;
+        return now()->diffInDays($this->end_at, false);
+    }
+
+    /**
+     * Check if coupon is expired
+     */
+    public function getIsExpiredAttribute()
+    {
+        return $this->end_at && $this->end_at->isPast();
+    }
+
+    /**
+     * Check if coupon is upcoming (not started yet)
+     */
+    public function getIsUpcomingAttribute()
+    {
+        return $this->start_at && $this->start_at->isFuture();
+    }
+
 
 }
 

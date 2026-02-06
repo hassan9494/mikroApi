@@ -5,6 +5,7 @@ use Modules\Admin\Http\Controllers\Api\AuthController;
 use Modules\Admin\Http\Controllers\Api\BoardController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
+use Modules\Admin\Http\Controllers\Api\CouponReportController;
 use Modules\Admin\Http\Controllers\Api\PaymentMethodController;
 use Modules\Admin\Http\Controllers\Api\ProjectReceiptController;
 use Modules\Admin\Http\Controllers\Api\SettingController;
@@ -294,6 +295,14 @@ Route::prefix('admin')
         Route::get('report/delivery', [ReportController::class, 'delivery']);
         Route::get('report/purchases-by-product', [ReportController::class, 'purchasesByProduct']);
         Route::get('report/product-purchases', [ReportController::class, 'productPurchases']);
+
+        Route::prefix( 'report')->group(function () {
+            Route::get('coupon', [CouponReportController::class, 'index']);
+            Route::get('coupon/{id}', [CouponReportController::class, 'show']);
+            Route::get('coupon/{id}/statistics', [CouponReportController::class, 'usageStatistics']);
+            Route::get('coupon/{id}/export', [CouponReportController::class, 'export']);
+            Route::get('coupon/export/all', [CouponReportController::class, 'export']);
+        });
 
         Route::prefix('transfer-orders')->group(function () {
             Route::get('/', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'index']);
