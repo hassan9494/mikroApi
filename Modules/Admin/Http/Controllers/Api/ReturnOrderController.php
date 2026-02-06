@@ -36,12 +36,152 @@ class ReturnOrderController extends ApiAdminController
 //    /**
 //     * @return JsonResponse
 //     */
-    public function datatable(): JsonResponse
+    public function datatable1(): JsonResponse
     {
         return Datatable::make($this->repository->model())
-            ->search('id', 'customer->name', 'customer->phone')
+            ->search('id','number', 'order_id')
             ->resource(ReturnOrderResource::class)
             ->json();
+    }
+
+    public function datatable(): JsonResponse
+    {
+        $conditions = json_decode(request('conditions'), true) ?? [];
+        $search = request('search');
+        $order = json_decode(request('order'), true);
+        $page = request('page', 0);
+        $limit = request('limit', 10);
+
+        //  $query = Order::query()->with('histories.user');
+        $query = ReturnOrder::query();
+
+        // Apply search conditions
+        if (!empty($search)) {
+//            dd($search);
+            $query->where(function ($q) use ($search) {
+                $q->where('id', '=', $search)
+                    ->orWhere('number','LIKE',"%$search%")
+                    ->orWhereHas('order',function ($q) use ($search){
+                        $q->whereRaw('CAST(id AS CHAR) LIKE ?', ["%$search%"])
+                            ->orWhereRaw('CAST(id AS CHAR) LIKE ?', ["%$search%"])
+                            ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.name"))) LIKE ?', ['%' . strtolower($search) . '%'])
+                            ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.email"))) LIKE ?', ['%' . strtolower($search) . '%'])
+                            ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.phone"))) LIKE ?', ['%' . strtolower($search) . '%'])
+                            ->orWhere('tax_number', 'LIKE', "%$search%")
+                            ->orWhereRaw('LOWER(status) LIKE ?', ['%' . strtolower($search) . '%'])
+                            ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(shipping, "$.status"))) LIKE ?', ['%' . strtolower($search) . '%'])
+                            ->orWhere('total', 'LIKE', "%$search%");
+                    });
+
+            });
+        }
+
+        // Handle different condition formats
+        if (!empty($conditions)) {
+
+            // If conditions is an associative array (object format)
+            if (isset($conditions['status'])) {
+
+                foreach ($conditions as $key => $value) {
+                    if (str_contains($key, '->')) {
+                        $query->where("$key", $value);
+                    } else {
+                        $query->where($key, $value);
+                    }
+                }
+            } // If conditions is an array of condition objects
+            else if (is_array($conditions) && isset($conditions[0]['col'])) {
+
+                foreach ($conditions as $condition) {
+
+                    if (isset($condition['col']) && isset($condition['op']) && isset($condition['val'])) {
+                        $column = $condition['col'];
+                        $operator = $condition['op'];
+                        $value = $condition['val'];
+
+                        // Handle IN operator
+                        if ($operator === 'IN') {
+                            if (str_contains($column, '->')) {
+                                $query->whereIn("$column", $value);
+                            } else {
+                                $query->whereIn($column, $value);
+                            }
+                        } else {
+                            if (str_contains($column, '->')) {
+                                $query->where("$column", $operator, $value);
+                            } else {
+                                $query->where($column, $operator, $value);
+                            }
+                        }
+                    }
+                    elseif (isset($condition['col']) && isset($condition['val'])) {
+                        if ($condition['col'] == 'taxType'){
+                            switch ($condition['val']){
+                                case 'taxable' :
+                                    $query->whereHas('order',function ($q){
+                                        $q->where('options->taxed',true)
+                                            ->where('options->tax_exempt',false)
+                                            ->where('options->tax_zero',false);
+                                    });
+                                    break;
+                                case 'exempt' :
+                                    $query->whereHas('order',function ($q){
+                                        $q->where('options->taxed',true)
+                                            ->where('options->tax_exempt',true)
+                                            ->where('options->tax_zero',false);
+                                    });
+                                    break;
+                                case 'zero_rate' :
+                                    $query->whereHas('order',function ($q){
+                                        $q->where('options->taxed',true)
+                                            ->where('options->tax_exempt',true)
+                                            ->where('options->tax_zero',true);
+                                    });
+                                    break;
+                            }
+                        }else{
+                            $column = $condition['col'];
+                            $value = $condition['val'];
+
+                            if (str_contains($column, '->')) {
+                                $query->where("$column", $value);
+                            } else {
+                                $query->where($column, $value);
+                            }
+                        }
+
+                    }
+                }
+            } else {
+                foreach ($conditions as $key => $value) {
+                    if ($key == 'not_admin' && $value == 1) {
+                        $query->where(function ($q) {
+                            $q->where('status', '!=', 'completed')
+                                ->orWhere('options->taxed', true);
+                        });
+                    } else {
+                        $query->where($key, $value);
+                    }
+
+                }
+            }
+        }
+
+        // Apply ordering
+        if (!empty($order) && isset($order['column']) && isset($order['dir'])) {
+            $query->orderBy($order['column'], $order['dir']);
+        }
+
+        // Get paginated results
+        $total = $query->count();
+        $items = $query->skip($page * $limit)->take($limit)->get();
+
+        return response()->json([
+            'data' => [
+                'items' => ReturnOrderResource::collection($items),
+                'total' => $total
+            ]
+        ]);
     }
 
     /**

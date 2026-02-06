@@ -25,6 +25,7 @@ use Modules\Common\Repositories\Dept\DeptRepositoryInterface;
 use Modules\Common\Repositories\Outlay\OutlayRepositoryInterface;
 use Modules\Shop\Entities\Order;
 use Modules\Shop\Entities\Product;
+use Modules\Shop\Entities\ReturnOrder;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Repositories\ReturnOrder\ReturnOrderRepositoryInterface;
 use Modules\Shop\Repositories\Product\ProductRepository;
@@ -138,7 +139,23 @@ class ReportController extends Controller
         if ($status = request('status')) {
             $where[] = ['status', $status];
         }
-//        dd($orWhere);
+        $taxType = request('taxType');
+        switch ($taxType){
+            case 'exempt':
+                $where[] = ['options->tax_exempt', true];
+                $where[] = ['options->tax_zero', false];
+                break;
+            case 'zero_rate' :
+                $where[] = ['options->tax_exempt', true];
+                $where[] = ['options->tax_zero', true];
+                break;
+            case 'taxable' :
+                $where[] = ['options->tax_exempt', false];
+                $where[] = ['options->tax_zero', false];
+                break;
+            default:
+                break;
+        }
         $data = $this->orderRepository->get($where, ['products'])->sortBy('tax_number');
         return OrderResource::collection($data);
     }
@@ -148,7 +165,7 @@ class ReportController extends Controller
      */
     public function return_order()
     {
-
+        $query = ReturnOrder::query();
         $where = [
             [
                 'created_at', '>=', request('from', now()->startOfMonth())
@@ -160,11 +177,52 @@ class ReportController extends Controller
                 'status', 'COMPLETED'
             ]
         ];
-        $status = request('status');
-        if ($status == 0 || $status == 1 || $status == "0" || $status == "1" ) {
-            $where[] = ['is_migrated', $status];
+        if (request('from')){
+            $query->where('created_at','>=',request('from', now()->startOfMonth()));
         }
-        $data = $this->returnOrderRepository->get($where, ['products','order'])->sortBy('id');
+        if (request('newTo')){
+            $query->where('created_at','<=',request('newTo', now()->endOfMonth()));
+        }
+        $status = request('status');
+        $taxType = request('taxType');
+        if ($status){
+            if ($status == 0 || $status == 1 || $status == "0" || $status == "1" ) {
+                $query->where('is_migrated',$status);
+                $where[] = ['is_migrated', $status];
+            }
+        }
+        $whereHas = [];
+        if ($taxType){
+            switch ($taxType){
+                case  'taxable':
+                    $query->whereHas('order',function ($q) use ($taxType) {
+                        $q->where('options->taxed',true)
+                            ->where('options->tax_exempt',false)
+                            ->where('options->tax_zero',false);
+                    });
+                    break;
+                case  'exempt':
+                    $query->whereHas('order',function ($q) use ($taxType) {
+                        $q->where('options->taxed',true)
+                            ->where('options->tax_exempt',true)
+                            ->where('options->tax_zero',false);
+                    });
+                    break;
+                case  'zero_rate':
+                    $query->whereHas('order',function ($q) use ($taxType) {
+                        $q->where('options->taxed',true)
+                            ->where('options->tax_exempt',true)
+                            ->where('options->tax_zero',true);
+                    });
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        $data = $query->where('status','COMPLETED')->get();
+//        $data = $this->returnOrderRepository->get($where, ['products','order'])->sortBy('id');
+
         return ReturnOrderResource::collection($data);
     }
 
