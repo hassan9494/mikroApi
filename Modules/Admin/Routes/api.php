@@ -3,6 +3,7 @@
 use Modules\Admin\Http\Controllers\Api\ArticleController;
 use Modules\Admin\Http\Controllers\Api\AuthController;
 use Modules\Admin\Http\Controllers\Api\BoardController;
+use Modules\Admin\Http\Controllers\Api\BulkOrderCompletionController;
 use Modules\Admin\Http\Controllers\Api\CategoryController;
 use Modules\Admin\Http\Controllers\Api\BrandController;
 use Modules\Admin\Http\Controllers\Api\CouponReportController;
@@ -251,6 +252,7 @@ Route::prefix('admin')
 
         // Order Routes.
         Route::get('order/datatable', [OrderController::class, 'datatable']);
+        Route::get('bulk-order-completion/datatable', [BulkOrderCompletionController::class, 'datatable']);
         Route::post('order/{id}/status', [OrderController::class, 'status']);
         Route::post('order-with-status/{id}', [OrderController::class, 'updateWithStatus']);
         Route::post('order-migrate/{id}', [OrderController::class, 'orderToFatoraSystem']);
@@ -312,6 +314,14 @@ Route::prefix('admin')
             Route::delete('/{id}', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'destroy']);
             Route::post('/{id}/toggle-status', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'toggleStatus']);
             Route::get('/statistics/overview', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'statistics']);
+        });
+
+        Route::prefix('bulk-order-completion')->group( function () {
+            Route::get('/', [BulkOrderCompletionController::class, 'index']);
+            Route::get('/payment-methods', [BulkOrderCompletionController::class, 'paymentMethods']);
+            Route::post('/preview', [BulkOrderCompletionController::class, 'preview']);
+            Route::post('/complete', [BulkOrderCompletionController::class, 'complete']);
+            Route::get('/{id}', [BulkOrderCompletionController::class, 'show']);
         });
 
 
