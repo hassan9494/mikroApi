@@ -58,7 +58,7 @@ class OrderController extends ApiAdminController
         // Apply search conditions
         if (!empty($search)) {
 //            dd($search);
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('id', '=', $search)
                     ->orWhereRaw('CAST(id AS CHAR) LIKE ?', ["%$search%"])
                     ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.name"))) LIKE ?', ['%' . strtolower($search) . '%'])
@@ -73,6 +73,7 @@ class OrderController extends ApiAdminController
 
         // Handle different condition formats
         if (!empty($conditions)) {
+
             // If conditions is an associative array (object format)
             if (isset($conditions['status']) || isset($conditions['options->taxed'])) {
 
@@ -83,11 +84,11 @@ class OrderController extends ApiAdminController
                         $query->where($key, $value);
                     }
                 }
-            }
-            // If conditions is an array of condition objects
+            } // If conditions is an array of condition objects
             else if (is_array($conditions) && isset($conditions[0]['col'])) {
 
                 foreach ($conditions as $condition) {
+
                     if (isset($condition['col']) && isset($condition['op']) && isset($condition['val'])) {
                         $column = $condition['col'];
                         $operator = $condition['op'];
@@ -107,17 +108,25 @@ class OrderController extends ApiAdminController
                                 $query->where($column, $operator, $value);
                             }
                         }
+                    } elseif (isset($condition['col']) && isset($condition['val'])) {
+                        $column = $condition['col'];
+                        $value = $condition['val'];
+
+                        if (str_contains($column, '->')) {
+                            $query->where("$column", $value);
+                        } else {
+                            $query->where($column, $value);
+                        }
                     }
                 }
-            }
-            else{
+            } else {
                 foreach ($conditions as $key => $value) {
-                    if ($key == 'not_admin' && $value == 1){
+                    if ($key == 'not_admin' && $value == 1) {
                         $query->where(function ($q) {
                             $q->where('status', '!=', 'completed')
                                 ->orWhere('options->taxed', true);
                         });
-                    }else{
+                    } else {
                         $query->where($key, $value);
                     }
 
@@ -190,15 +199,15 @@ class OrderController extends ApiAdminController
         $query = Order::query();
 
         // Apply product condition: either direct product or kit containing product
-        $query->where(function($q) use ($targetProductId, $kitProductIds) {
+        $query->where(function ($q) use ($targetProductId, $kitProductIds) {
             // Direct product
-            $q->whereHas('products', function($q2) use ($targetProductId) {
+            $q->whereHas('products', function ($q2) use ($targetProductId) {
                 $q2->where('products.id', $targetProductId);
             });
 
             // OR Kit product
             if (!empty($kitProductIds)) {
-                $q->orWhereHas('products', function($q2) use ($kitProductIds) {
+                $q->orWhereHas('products', function ($q2) use ($kitProductIds) {
                     $q2->whereIn('products.id', $kitProductIds);
                 });
             }
@@ -239,8 +248,7 @@ class OrderController extends ApiAdminController
                         $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`$jsonColumn`, '$.\"$jsonKey\"')) <= ?", [$value]);
                         break;
                 }
-            }
-            // Handle regular columns
+            } // Handle regular columns
             else {
                 switch ($operator) {
                     case '=':
@@ -274,7 +282,7 @@ class OrderController extends ApiAdminController
         // Handle search
         $search = request('search', '');
         if ($search) {
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('tax_number', 'like', '%' . $search . '%')
                     ->orWhere('customer->name', 'like', '%' . $search . '%')
                     ->orWhere('id', 'like', '%' . $search . '%')
@@ -328,7 +336,7 @@ class OrderController extends ApiAdminController
             ->keyBy('order_id');
 
         // Format response
-        $formattedOrders = $orders->map(function($order) use ($directQuantities, $kitQuantities) {
+        $formattedOrders = $orders->map(function ($order) use ($directQuantities, $kitQuantities) {
             $directQty = $directQuantities->get($order->id)->quantity ?? 0;
             $kitQty = $kitQuantities->get($order->id)->total_kit_quantity ?? 0;
 
@@ -391,15 +399,15 @@ class OrderController extends ApiAdminController
         $query = Order::query();
 
         // Apply product condition: either direct product or kit containing product
-        $query->where(function($q) use ($targetProductId, $kitProductIds) {
+        $query->where(function ($q) use ($targetProductId, $kitProductIds) {
             // Direct product
-            $q->whereHas('products', function($q2) use ($targetProductId) {
+            $q->whereHas('products', function ($q2) use ($targetProductId) {
                 $q2->where('products.id', $targetProductId);
             });
 
             // OR Kit product
             if (!empty($kitProductIds)) {
-                $q->orWhereHas('products', function($q2) use ($kitProductIds) {
+                $q->orWhereHas('products', function ($q2) use ($kitProductIds) {
                     $q2->whereIn('products.id', $kitProductIds);
                 });
             }
@@ -440,8 +448,7 @@ class OrderController extends ApiAdminController
                         $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`$jsonColumn`, '$.\"$jsonKey\"')) <= ?", [$value]);
                         break;
                 }
-            }
-            // Handle regular columns
+            } // Handle regular columns
             else {
                 switch ($operator) {
                     case '=':
@@ -475,7 +482,7 @@ class OrderController extends ApiAdminController
         // Handle search
         $search = request('search', '');
         if ($search) {
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('id', 'like', '%' . $search . '%')
                     ->orWhere('tax_number', 'like', '%' . $search . '%')
                     ->orWhere('customer->name', 'like', '%' . $search . '%')
@@ -529,7 +536,7 @@ class OrderController extends ApiAdminController
             ->keyBy('order_id');
 
         // Format response
-        $formattedOrders = $orders->map(function($order) use ($directQuantities, $kitQuantities) {
+        $formattedOrders = $orders->map(function ($order) use ($directQuantities, $kitQuantities) {
             $directQty = $directQuantities->get($order->id)->quantity ?? 0;
             $kitQty = $kitQuantities->get($order->id)->total_kit_quantity ?? 0;
 
@@ -567,8 +574,7 @@ class OrderController extends ApiAdminController
         $q = request()->get('q');
         $models = $this->repository->autocomplete($q);
         $response = [];
-        foreach ($models as $model)
-        {
+        foreach ($models as $model) {
             $response[] = [
                 'id' => $model->id,
                 'tax_number' => $model->tax_number,
@@ -616,7 +622,7 @@ class OrderController extends ApiAdminController
         $order = $this->repository->findOrFail($id);
         $oldData = $order->toArray();
         $data = $this->validate();
-        if ($order->status != 'COMPLETED'){
+        if ($order->status != 'COMPLETED') {
 //            if (!$order->options->price_offer){
 
 
@@ -636,7 +642,7 @@ class OrderController extends ApiAdminController
             $order->syncMedia($data['attachments'] ?? []);
 //            }
 
-        }else{
+        } else {
             $order = $this->repository->saveOrder($id, $data);
             $order->syncMedia($data['attachments'] ?? []);
         }
@@ -647,29 +653,29 @@ class OrderController extends ApiAdminController
     {
         $order = $this->repository->findOrFail($id);
         $oldStatus = $order->status;
-        if ($order->status != 'COMPLETED'){
+        if ($order->status != 'COMPLETED') {
             $data = $this->validate();
-            if ($order->status == 'PROCESSING' && request()->get('status') == 'PENDING'){
+            if ($order->status == 'PROCESSING' && request()->get('status') == 'PENDING') {
                 $employee = Auth::user();
 //                return response()->json(!$employee->hasRole('super') && !$employee->hasRole('admin') && !$employee->hasRole('Manager'));
-                if (!$employee->hasRole('super') && !$employee->hasRole('admin') && $order->options->taxed){
+                if (!$employee->hasRole('super') && !$employee->hasRole('admin') && $order->options->taxed) {
                     throw new BadRequestException('You can\'t update the status please contact admin');
                 }
             }
 
-            if ($order->status == 'PENDING' &&  request()->get('status') != 'PENDING'){
-                if (isset($data['products'])){
-                    foreach ($data['products'] as $product){
+            if ($order->status == 'PENDING' && request()->get('status') != 'PENDING') {
+                if (isset($data['products'])) {
+                    foreach ($data['products'] as $product) {
                         $prod = Product::find($product['id']);
-                        if ($prod->stock < $product['quantity']){
+                        if ($prod->stock < $product['quantity']) {
                             throw new BadRequestException($prod->name . ' has insufficient quantity');
                         }
-                        if ($prod->options->kit == true){
+                        if ($prod->options->kit == true) {
                             $kits = $prod->kit()->get();
 //                        return response()->json($kits);
-                            foreach ($kits as $kit){
+                            foreach ($kits as $kit) {
 //                            return response()->json($kit->name);
-                                if ($kit->pivot->quantity * $product['quantity'] > $kit->stock){
+                                if ($kit->pivot->quantity * $product['quantity'] > $kit->stock) {
                                     throw new BadRequestException($kit->name . ' Which is kit has insufficient quantity');
                                 }
                             }
@@ -682,7 +688,7 @@ class OrderController extends ApiAdminController
             if ($data['shipping']['status'] == null) {
                 $data['shipping']['status'] = "WAITING";
             }
-            if (request()->get('status') == 'COMPLETED'){
+            if (request()->get('status') == 'COMPLETED') {
                 $data['completed_by'] = auth()->id();
 
             }
@@ -692,8 +698,8 @@ class OrderController extends ApiAdminController
                 $id, request()->get('status')
             );
 
-        }else{
-            if (request()->get('status') != null){
+        } else {
+            if (request()->get('status') != null) {
                 $this->repository->status(
                     $id, request()->get('status')
                 );
@@ -716,12 +722,12 @@ class OrderController extends ApiAdminController
 //                    'payment_method_id' => request()->get('payment_method')
 //                ]);
 //            }else{
-            if (request()->get('amount') > 0){
+            if (request()->get('amount') > 0) {
                 $transaction = $order->transactions()->create([
                     'transaction_id' => Str::uuid(),
-                    'transactionable_id'=>$order->id,
-                    'order_id'=>$order->id,
-                    'transactionable_type' =>Order::class,
+                    'transactionable_id' => $order->id,
+                    'order_id' => $order->id,
+                    'transactionable_type' => Order::class,
                     'note' => '',
                     'type' => 'deposit',
                     'amount' => request()->get('amount'),
@@ -731,12 +737,12 @@ class OrderController extends ApiAdminController
                     'payment_method_id' => request()->get('payment_method'),
                     'created_by' => auth()->id()
                 ]);
-            }elseif(request()->get('amount') < 0){
+            } elseif (request()->get('amount') < 0) {
                 $transaction = $order->transactions()->create([
                     'transaction_id' => Str::uuid(),
-                    'transactionable_id'=>$order->id,
-                    'order_id'=>$order->id,
-                    'transactionable_type' =>Order::class,
+                    'transactionable_id' => $order->id,
+                    'order_id' => $order->id,
+                    'transactionable_type' => Order::class,
                     'note' => '',
                     'type' => 'refund',
                     'amount' => request()->get('amount') * -1,
@@ -752,6 +758,7 @@ class OrderController extends ApiAdminController
         }
         return $this->success();
     }
+
     private function getChangedFields($oldData, $newData)
     {
         $changes = [];
@@ -775,19 +782,19 @@ class OrderController extends ApiAdminController
             ->with(['transactions']);
 
         // Calculate transaction total for each order
-        $orders = $query->get()->map(function($order) {
+        $orders = $query->get()->map(function ($order) {
             // Sum all transaction amounts
             $transactionTotal = $order->transactions->sum('amount');
 
             // Get order total
-            $orderTotal = (float) $order->total;
+            $orderTotal = (float)$order->total;
 
             // Get shipping info
             $shippingCost = 0;
             $shippingFree = false;
             if ($order->shipping && is_object($order->shipping)) {
-                $shippingCost = (float) ($order->shipping->cost ?? 0);
-                $shippingFree = (bool) ($order->shipping->free ?? false);
+                $shippingCost = (float)($order->shipping->cost ?? 0);
+                $shippingFree = (bool)($order->shipping->free ?? false);
             }
 
             // Calculate amount due (matching frontend logic)
@@ -809,20 +816,20 @@ class OrderController extends ApiAdminController
                 'taxed_at' => $order->taxed_at,
                 'customer_name' => $customerName,
                 'customer_phone' => $customerPhone,
-                'subtotal' => (float) $order->subtotal,
-                'discount' => (float) $order->discount,
+                'subtotal' => (float)$order->subtotal,
+                'discount' => (float)$order->discount,
                 'shipping_cost' => $shippingCost,
                 'shipping_free' => $shippingFree,
                 'order_total' => $orderTotal,
                 'amount_due' => $amountDue,
-                'transaction_total' => (float) $transactionTotal,
-                'remaining_amount' => (float) $remainingAmount,
-                'profit' => (float) $order->profit,
+                'transaction_total' => (float)$transactionTotal,
+                'remaining_amount' => (float)$remainingAmount,
+                'profit' => (float)$order->profit,
                 'created_at' => $order->created_at,
                 'has_transactions' => $order->transactions->count() > 0,
                 'transaction_count' => $order->transactions->count()
             ];
-        })->filter(function($order) {
+        })->filter(function ($order) {
             // Filter orders where remaining amount > 0
             return $order['remaining_amount'] > 0.001;
         })->values();
@@ -830,7 +837,7 @@ class OrderController extends ApiAdminController
         // Apply search if any
         if ($request->has('search') && $request->search) {
             $search = strtolower($request->search);
-            $orders = $orders->filter(function($order) use ($search) {
+            $orders = $orders->filter(function ($order) use ($search) {
                 return str_contains(strtolower($order['number']), $search) ||
                     str_contains(strtolower($order['customer_name']), $search) ||
                     str_contains(strtolower($order['customer_phone']), $search);
@@ -890,7 +897,7 @@ class OrderController extends ApiAdminController
     public function datatableSearchFields(): array
     {
         return [
-            'id', 'customer->name', 'customer->email', 'customer->phone','tax_number','status','shipping->status','total'
+            'id', 'customer->name', 'customer->email', 'customer->phone', 'tax_number', 'status', 'shipping->status', 'total'
         ];
     }
 
@@ -951,7 +958,7 @@ class OrderController extends ApiAdminController
         ]);
     }
 
-    public function orderToFatoraSystem( $id)
+    public function orderToFatoraSystem($id)
     {
         set_time_limit(300);
         $order = Order::find($id);
@@ -961,13 +968,13 @@ class OrderController extends ApiAdminController
         // 1. Generate XML
         $xml = $service->generate($orderToFatora);
 //        return config('app_phase');
-        if (config('jo_fotara.app_phase') == 'testing'){
+        if (config('jo_fotara.app_phase') == 'testing') {
             return response()->json([
                 'status' => 'fail',
                 'invoice_id' => $xml,
                 'phase' => config('jo_fotara.app_phase'),
                 'user-id' => auth()->id()
-            ],500);
+            ], 500);
         }
         $payload = $service->prepareForSubmission($xml);
 
@@ -975,7 +982,7 @@ class OrderController extends ApiAdminController
             'Client-Id' => config('jo_fotara.client_id'),
             'Secret-Key' => config('jo_fotara.secret_key'),
             'Content-Type' => 'application/json',
-        ])->post(config('jo_fotara.api_url').'/core/invoices/', $payload);
+        ])->post(config('jo_fotara.api_url') . '/core/invoices/', $payload);
 
         // 5. Handle Response
         if ($response->successful()) {
@@ -1001,7 +1008,7 @@ class OrderController extends ApiAdminController
 
         $errorCode = $response->json('errorCode');
         $errorMessage = $this->mapErrorCode($errorCode);
-        Log::error(['JoFotara Response failed'=> $response->body()]);
+        Log::error(['JoFotara Response failed' => $response->body()]);
         $oldOrder = Order::find($id);
         $responseData = $response->body();
         $oldOrder->update([
@@ -1036,10 +1043,10 @@ class OrderController extends ApiAdminController
         $is_taxed = $order->options->taxed;
         $is_exempt = $order->options->tax_exempt;
         $tax_zero = $order->options->tax_zero;
-        $taxChar = $this->tax($is_taxed,$is_exempt,$tax_zero);
+        $taxChar = $this->tax($is_taxed, $is_exempt, $tax_zero);
         $taxValue = ($taxChar == 'S') ? 0.16 : 0;
         $totalTax = ($order->total / (1 + $taxValue)) * $taxValue;
-        $totalBeforDiscount =$order->subtotal - ($order->subtotal / (1 + $taxValue)) * $taxValue;
+        $totalBeforDiscount = $order->subtotal - ($order->subtotal / (1 + $taxValue)) * $taxValue;
         $totalAfterDiscountAndTax = $order->total;
         $fixedOrder = $order;
         $fixedOrder->tax_char = $taxChar;
@@ -1048,69 +1055,68 @@ class OrderController extends ApiAdminController
         $fixedOrder->totalBeforDiscount = $totalBeforDiscount;
         $fixedOrder->totalAfterDiscountAndTax = $totalAfterDiscountAndTax;
 
-        $fixedOrder->final_discount = $this->calcFinalDiscount($order,$taxValue);
-        $fixedOrder->final_tax = $this->calcFinalTax($order,$taxValue);
-        $fixedOrder->final_total = $this->calcFinalTotal($order,$taxValue);
+        $fixedOrder->final_discount = $this->calcFinalDiscount($order, $taxValue);
+        $fixedOrder->final_tax = $this->calcFinalTax($order, $taxValue);
+        $fixedOrder->final_total = $this->calcFinalTotal($order, $taxValue);
 
         return $fixedOrder;
 
 
-
     }
 
-    private function tax($is_taxed,$is_exempt,$tax_zero)
+    private function tax($is_taxed, $is_exempt, $tax_zero)
     {
-        if ($is_taxed && !$is_exempt && !$tax_zero){
+        if ($is_taxed && !$is_exempt && !$tax_zero) {
             return 'S';
-        }elseif ($is_taxed && $is_exempt && !$tax_zero){
+        } elseif ($is_taxed && $is_exempt && !$tax_zero) {
             return 'Z';
-        }elseif ($is_taxed && $is_exempt && $tax_zero){
+        } elseif ($is_taxed && $is_exempt && $tax_zero) {
             return 'O';
-        }else{
+        } else {
             return null;
         }
 
     }
 
-    private function calcFinalDiscount($order,$taxValue)
+    private function calcFinalDiscount($order, $taxValue)
     {
         $discount = 0;
-        foreach ($order->products as $product){
-            $discount += number_format($product->pivot->discount / (1+$taxValue),9, '.', '');
+        foreach ($order->products as $product) {
+            $discount += number_format($product->pivot->discount / (1 + $taxValue), 9, '.', '');
         }
-        if ($order->extra_items != null && count($order->extra_items) > 0){
-            foreach ($order->extra_items as $product){
-                $discount += number_format($product->discount / (1+$taxValue),9, '.', '');
+        if ($order->extra_items != null && count($order->extra_items) > 0) {
+            foreach ($order->extra_items as $product) {
+                $discount += number_format($product->discount / (1 + $taxValue), 9, '.', '');
             }
         }
 
         return $discount;
     }
 
-    private function calcFinalTax($order,$taxValue)
+    private function calcFinalTax($order, $taxValue)
     {
         $tax = 0;
-        foreach ($order->products as $product){
-            $tax += number_format((($product->pivot->quantity *number_format(($product->pivot->price /(1+$taxValue)), 9, '.', '') ) - (number_format(($product->pivot->discount /(1+$taxValue)),9, '.', ''))) * $taxValue,9, '.', '');
+        foreach ($order->products as $product) {
+            $tax += number_format((($product->pivot->quantity * number_format(($product->pivot->price / (1 + $taxValue)), 9, '.', '')) - (number_format(($product->pivot->discount / (1 + $taxValue)), 9, '.', ''))) * $taxValue, 9, '.', '');
         }
-        if ($order->extra_items != null && count($order->extra_items) > 0){
-            foreach ($order->extra_items as $product){
-                $tax += number_format((($product->quantity *($product->price /(1+$taxValue)) ) - (number_format(($product->discount /(1+$taxValue)),9, '.', ''))) * $taxValue,9, '.', '');
+        if ($order->extra_items != null && count($order->extra_items) > 0) {
+            foreach ($order->extra_items as $product) {
+                $tax += number_format((($product->quantity * ($product->price / (1 + $taxValue))) - (number_format(($product->discount / (1 + $taxValue)), 9, '.', ''))) * $taxValue, 9, '.', '');
             }
         }
 
         return $tax;
     }
 
-    private function calcFinalTotal($order,$taxValue)
+    private function calcFinalTotal($order, $taxValue)
     {
         $total = 0;
-        foreach ($order->products as $product){
-            $total += number_format((number_format(($product->pivot->price / (1+$taxValue)), 9, '.', '') * $product->pivot->quantity), 9, '.', '');
+        foreach ($order->products as $product) {
+            $total += number_format((number_format(($product->pivot->price / (1 + $taxValue)), 9, '.', '') * $product->pivot->quantity), 9, '.', '');
         }
-        if ($order->extra_items != null && count($order->extra_items) > 0){
-            foreach ($order->extra_items as $product){
-                $total += number_format((number_format(($product->price / (1+$taxValue)), 9, '.', '') * $product->quantity), 9, '.', '');
+        if ($order->extra_items != null && count($order->extra_items) > 0) {
+            foreach ($order->extra_items as $product) {
+                $total += number_format((number_format(($product->price / (1 + $taxValue)), 9, '.', '') * $product->quantity), 9, '.', '');
             }
         }
 
@@ -1138,7 +1144,7 @@ class OrderController extends ApiAdminController
             ]);
         }
 
-        foreach ($orders as $key=>$order) {
+        foreach ($orders as $key => $order) {
             ProcessOrderToFatora::dispatch($order, $userId);  // Consider using a specific queue
 
 
@@ -1246,7 +1252,6 @@ class OrderController extends ApiAdminController
             ], 500);
         }
     }
-
 
 
 }

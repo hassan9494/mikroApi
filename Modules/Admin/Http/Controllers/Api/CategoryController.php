@@ -5,6 +5,7 @@ namespace Modules\Admin\Http\Controllers\Api;
 
 use App\Traits\Datatable;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 use Modules\Admin\Http\Resources\MediaResource;
 use Modules\Shop\Http\Resources\CategoryResource;
 use Modules\Shop\Http\Resources\SubCategoryResource;
@@ -92,6 +93,7 @@ class CategoryController extends ApiAdminController
     public function store(): JsonResponse
     {
         $data = $this->validate();
+        $data['slug'] = Str::slug($data['title'], '-');
         $model = $this->repository->create($data);
         $model->syncMedia($data['media'] ?? []);
         return $this->success(
@@ -102,6 +104,7 @@ class CategoryController extends ApiAdminController
     public function update($id): JsonResponse
     {
         $data = $this->validate();
+        $data['slug'] = Str::slug($data['title'], '-');
         $model = $this->repository->update($id, $data);
         $model->syncMedia($data['media'] ?? []);
         return $this->success(
@@ -158,7 +161,6 @@ class CategoryController extends ApiAdminController
     {
         return request()->validate([
             'title' => 'required|max:255',
-            'slug' => 'required|max:255',
             'icon' => 'nullable|max:255',
             'parent' => 'nullable',
             'order' => 'required',

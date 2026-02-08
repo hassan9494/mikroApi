@@ -742,4 +742,8 @@ class Order extends Model implements HasMedia
     }
 
 
+    public function bulkCompletions()
+    {
+        return $this->belongsToMany(BulkOrderCompletion::class, 'bulk_order_completion_orders');
+    }
 }

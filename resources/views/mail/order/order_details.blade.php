@@ -97,7 +97,11 @@
                         {{$order->shipping->address}}
                     @else
                         @if(isset($order->user))
-                            {{$order->user->primaryAddress->content}}
+                            @if(isset($order->user->primaryAddress))
+                            {{$order->user->primaryAddress?->content}}
+                            @else
+                                ------------
+                            @endif
                         @else
                             ------------
                         @endif
