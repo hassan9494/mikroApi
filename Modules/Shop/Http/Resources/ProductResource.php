@@ -116,6 +116,7 @@ class ProductResource extends JsonResource
                         'id' => $e->id,
                         'title' => $e->title,
                         'slug' => $e->slug,
+                        'parent_id' => $e->parent,
                     ];
                 }),
                 'brand'=>$this->brand != null ? $this->brand : null,

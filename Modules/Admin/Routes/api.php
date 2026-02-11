@@ -80,7 +80,32 @@ Route::prefix('admin')
         Route::get('stock-adjustments/all-requests', [StockAdjustmentController::class, 'getAllRequests']); // ADD THIS
         Route::get('stock-adjustments/my-requests/datatable', [StockAdjustmentController::class, 'myRequestsDatatable']);
         Route::get('stock-adjustments/{id}', [StockAdjustmentController::class, 'show']);
+        Route::put('stock-adjustments/{id}', [StockAdjustmentController::class, 'update']);
     });
+
+// Group 2: For users with specific roles (admin/manager/etc.)
+Route::prefix('admin')
+    ->middleware(['auth:sanctum' ,'role:admin|super|Manager|Cashier|Product Manager|Admin cash|Stock Manager'])
+    ->namespace('Api')
+    ->group(function () {
+        Route::prefix('stock-adjustments')->group(function () {
+            Route::get('/', [StockAdjustmentController::class, 'index']);
+            Route::get('/datatable', [StockAdjustmentController::class, 'datatable']);
+            Route::get('/statistics', [StockAdjustmentController::class, 'statistics']);
+            Route::get('/product/{productId}/history', [StockAdjustmentController::class, 'productHistory']);
+
+            // Remove duplicate approve/reject routes
+            Route::post('/{id}/approve', [StockAdjustmentController::class, 'approve']);
+            Route::post('/{id}/reject', [StockAdjustmentController::class, 'reject']);
+
+            // FIX: Add missing routes
+            Route::get('/{id}/edit', [StockAdjustmentController::class, 'edit']);       // Add this
+            Route::put('/{id}', [StockAdjustmentController::class, 'update']);          // Add this
+            Route::put('/{id}/status', [StockAdjustmentController::class, 'changeStatus']); // Already exists
+        });
+    });
+// ============ END FIXED ROUTES ============
+
 
 
 Route::prefix('admin')
@@ -146,15 +171,6 @@ Route::prefix('admin')
             });
         });
 
-
-        Route::prefix('stock-adjustments')->group(function () {
-            Route::get('/', [StockAdjustmentController::class, 'index']);
-            Route::get('/datatable', [StockAdjustmentController::class, 'datatable']);
-            Route::get('/statistics', [StockAdjustmentController::class, 'statistics']);
-            Route::get('/product/{productId}/history', [StockAdjustmentController::class, 'productHistory']);
-            Route::post('/{id}/approve', [StockAdjustmentController::class, 'approve']);
-            Route::post('/{id}/reject', [StockAdjustmentController::class, 'reject']);
-        });
 
 
 
@@ -297,6 +313,8 @@ Route::prefix('admin')
         Route::get('report/delivery', [ReportController::class, 'delivery']);
         Route::get('report/purchases-by-product', [ReportController::class, 'purchasesByProduct']);
         Route::get('report/product-purchases', [ReportController::class, 'productPurchases']);
+        Route::get('report/product-stock-movement', [ReportController::class, 'productStockMovement']);
+        Route::get('report/all-products-stock-movement-summary', [ReportController::class, 'allProductsStockMovementSummary']);
 
         Route::prefix( 'report')->group(function () {
             Route::get('coupon', [CouponReportController::class, 'index']);

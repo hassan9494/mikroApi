@@ -5,6 +5,7 @@ namespace Modules\Shop\Repositories\StockAdjustment;
 use App\Repositories\Base\EloquentRepository;
 use App\Models\StockAdjustment;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class StockAdjustmentRepository extends EloquentRepository implements StockAdjustmentRepositoryInterface
 {
@@ -451,6 +452,226 @@ class StockAdjustmentRepository extends EloquentRepository implements StockAdjus
                 ->where('adjustment_type', 'decrease')
                 ->sum('quantity')
         ];
+    }
+
+    public function updateRequest($id, $data)
+    {
+        DB::beginTransaction();
+
+        try {
+            $adjustment = $this->findOrFail($id);
+
+            // Check if adjustment can be edited
+            if ($adjustment->status !== 'pending') {
+                throw new \Exception('Only pending adjustments can be edited.');
+            }
+
+            // Check permissions
+            $user = auth()->user();
+            if ($adjustment->user_id !== $user->id && !$user->can('stock_adjustment_approve')) {
+                throw new \Exception('You are not authorized to edit this adjustment.');
+            }
+
+            // Check if product is being changed
+            if (isset($data['product_id']) && $data['product_id'] != $adjustment->product_id) {
+                // Verify new product exists
+                $product = \Modules\Shop\Entities\Product::find($data['product_id']);
+                if (!$product) {
+                    throw new \Exception('Selected product does not exist.');
+                }
+            }
+
+            // Handle transfer adjustments
+            if (isset($data['adjustment_type']) && $data['adjustment_type'] === 'transfer') {
+                $data['adjustment_location'] = 'transfer';
+            }
+
+            // Update the adjustment
+            $adjustment->update($data);
+
+            DB::commit();
+
+            return $adjustment;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+    /**
+     * Change the status of a stock adjustment
+     */
+    public function changeStatus($id, $status, $changedBy, $reason = null)
+    {
+        DB::beginTransaction();
+
+        try {
+            $adjustment = $this->findOrFail($id);
+            $oldStatus = $adjustment->status;
+
+            // Check if status is actually changing
+            if ($oldStatus === $status) {
+                throw new \Exception('Status is already set to ' . $status);
+            }
+
+            // Store previous status before updating
+            $adjustment->previous_status = $oldStatus;
+            $adjustment->status_changed_at = now();
+
+            // Handle stock changes based on status transition
+            if ($adjustment->needsStockReversal($status)) {
+                // Reverse stock adjustment (from approved to pending/rejected)
+                $this->reverseStockAdjustment($adjustment);
+            } elseif ($adjustment->needsStockApplication($status)) {
+                // Apply stock adjustment (from pending/rejected to approved)
+                $this->applyStockAdjustmentFromPending($adjustment, $changedBy);
+            }
+
+            // Update the adjustment status
+            $updateData = [
+                'status' => $status,
+                'previous_status' => $oldStatus,
+                'status_changed_at' => now()
+            ];
+
+            // Handle status-specific fields
+            if ($status === 'approved') {
+                $updateData['approved_by'] = $changedBy;
+                $updateData['approved_at'] = now();
+                $updateData['rejection_reason'] = null;
+            } elseif ($status === 'rejected') {
+                $updateData['approved_by'] = $changedBy;
+                $updateData['approved_at'] = now();
+                $updateData['rejection_reason'] = $reason;
+            } elseif ($status === 'pending') {
+                $updateData['approved_by'] = null;
+                $updateData['approved_at'] = null;
+                $updateData['rejection_reason'] = null;
+            }
+
+            $adjustment->update($updateData);
+
+            DB::commit();
+
+            return $adjustment;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to change stock adjustment status: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Reverse stock adjustment (when changing from approved to pending/rejected)
+     */
+    private function reverseStockAdjustment($adjustment)
+    {
+        $product = $adjustment->product()->lockForUpdate()->first();
+
+        if (!$product) {
+            throw new \Exception('Product not found.');
+        }
+
+        // Calculate reverse changes
+        if ($adjustment->adjustment_type === 'transfer') {
+            // For transfers, reverse the transfer
+            if ($adjustment->transfer_from_location === 'stock_available') {
+                // Original: stock_available -> store_available
+                // Reverse: store_available -> stock_available
+                $product->stock_available = $product->stock_available + $adjustment->quantity;
+                $product->store_available = max(0, $product->store_available - $adjustment->quantity);
+            } else {
+                // Original: store_available -> stock_available
+                // Reverse: stock_available -> store_available
+                $product->stock_available = max(0, $product->stock_available - $adjustment->quantity);
+                $product->store_available = $product->store_available + $adjustment->quantity;
+            }
+        } elseif ($adjustment->adjustment_type === 'increase') {
+            // For increases, reverse by decreasing
+            if ($adjustment->adjustment_location === 'total') {
+                $product->stock = max(0, $product->stock - $adjustment->quantity);
+                $product->store_available = max(0, $product->store_available - $adjustment->quantity);
+            } elseif ($adjustment->adjustment_location === 'stock_available') {
+                $product->stock = max(0, $product->stock - $adjustment->quantity);
+                $product->stock_available = max(0, $product->stock_available - $adjustment->quantity);
+            } else { // store_available
+                $product->stock = max(0, $product->stock - $adjustment->quantity);
+                $product->store_available = max(0, $product->store_available - $adjustment->quantity);
+            }
+        } else { // decrease
+            // For decreases, reverse by increasing
+            if ($adjustment->adjustment_location === 'total') {
+                $product->stock = $product->stock + $adjustment->quantity;
+                // Restore to original distribution (default to store_available)
+                $product->store_available = $product->store_available + $adjustment->quantity;
+            } elseif ($adjustment->adjustment_location === 'stock_available') {
+                $product->stock = $product->stock + $adjustment->quantity;
+                $product->stock_available = $product->stock_available + $adjustment->quantity;
+            } else { // store_available
+                $product->stock = $product->stock + $adjustment->quantity;
+                $product->store_available = $product->store_available + $adjustment->quantity;
+            }
+        }
+
+        $product->save();
+    }
+
+    /**
+     * Apply stock adjustment from pending state
+     */
+    private function applyStockAdjustmentFromPending($adjustment, $approvedBy)
+    {
+        // This is similar to approveRequest but without status checks
+        $product = $adjustment->product()->lockForUpdate()->first();
+
+        // Store historical stock values for all locations
+        $stockBefore = $product->stock;
+        $stockAvailableBefore = $product->stock_available ?? 0;
+        $storeAvailableBefore = $product->store_available ?? 0;
+
+        // Calculate new stock based on adjustment type
+        if ($adjustment->adjustment_type === 'transfer') {
+            $result = $this->handleTransferAdjustment($product, $adjustment);
+        } else {
+            $result = $this->handleRegularAdjustment($product, $adjustment);
+        }
+
+        $stockAfter = $result['stock_after'];
+        $stockAvailableAfter = $result['stock_available_after'];
+        $storeAvailableAfter = $result['store_available_after'];
+
+        // Update adjustment with historical data
+        $adjustment->update([
+            'approved_by' => $approvedBy,
+            'approved_at' => now(),
+            'stock_before' => $stockBefore,
+            'stock_after' => $stockAfter,
+            'stock_after_calculated' => $stockAfter,
+            'stock_available_before' => $stockAvailableBefore,
+            'stock_available_after' => $stockAvailableAfter,
+            'store_available_before' => $storeAvailableBefore,
+            'store_available_after' => $storeAvailableAfter
+        ]);
+
+        // Update product
+        $product->stock = $stockAfter;
+        $product->stock_available = $stockAvailableAfter;
+        $product->store_available = $storeAvailableAfter;
+        $product->save();
+    }
+
+    /**
+     * Get adjustment for editing
+     */
+    public function getForEditing($id)
+    {
+        $adjustment = $this->findOrFail($id, ['product', 'user']);
+
+        // Check if editable
+        if (!$adjustment->is_editable) {
+            throw new \Exception('This adjustment cannot be edited.');
+        }
+
+        return $adjustment;
     }
 
 }

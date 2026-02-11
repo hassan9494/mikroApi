@@ -39,6 +39,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use ZipArchive;
 use Illuminate\Http\Request;
 
+
 class ReportController extends Controller
 {
 
@@ -1486,5 +1487,423 @@ class ReportController extends Controller
         }
     }
 
+    /**
+     * Get stock movement for a specific product
+     */
+    public function productStockMovement(Request $request)
+    {
+        try {
+            $productId = $request->get('product_id');
+            $from = $request->get('from');
+            $to = $request->get('to');
+            $filterType = $request->get('filter_type', 'all');
+
+            if (!$productId) {
+                return response()->json([
+                    'message' => 'Product ID is required'
+                ], 400);
+            }
+
+            // Get product details
+            $product = Product::find($productId);
+            if (!$product) {
+                return response()->json([
+                    'message' => 'Product not found'
+                ], 404);
+            }
+
+            // Initialize queries array
+            $queries = [];
+            $dateExpr = DB::raw("COALESCE(o.taxed_at, o.completed_at, o.created_at)");
+
+            // 1. SALES QUERY - All columns must be present
+            if (in_array($filterType, ['all', 'sale'])) {
+                $salesQuery = DB::table('orders as o')
+                    ->join('order_products as op', 'o.id', '=', 'op.order_id')
+                    ->where('op.product_id', $productId)
+                    ->whereIn('o.status', ['COMPLETED', 'PROCESSING'])
+                    ->select(
+                        DB::raw("'sale' as type"),
+                        'o.id as reference_id',
+                        DB::raw('o.id as reference_number'),
+                        DB::raw("DATE_FORMAT({$dateExpr}, '%Y-%m-%dT%TZ') as date"),
+                        DB::raw('0 as increase_quantity'),
+                        DB::raw('0 as decrease_quantity'),
+                        DB::raw('0 as purchases_quantity'),
+                        'op.quantity as sales_quantity',
+                        'op.price as sale_price', // Sale price per unit
+                        'op.discount as discount', // Discount amount
+                        DB::raw('NULL as base_purchases_price'),
+                        DB::raw('NULL as exchange_factor'),
+                        DB::raw('NULL as distributer_price'),
+                        DB::raw('NULL as normal'),
+                        DB::raw('NULL as purchases_price'), // Real price for purchases
+                        DB::raw('(op.quantity * op.price) - op.discount as total_amount'),
+                        DB::raw("CONCAT('Order #', o.id, ' (', o.status, ')') as description"),
+                        DB::raw("'sale' as source_type"),
+                        'o.status as order_status'
+                    );
+
+                // Apply date filter
+                if ($from && $to) {
+                    $salesQuery->whereBetween('o.taxed_at', [$from, $to]);
+                } elseif ($from) {
+                    $salesQuery->where('o.taxed_at', '>=', $from);
+                } elseif ($to) {
+                    $salesQuery->where('o.taxed_at', '<=', $to);
+                }
+
+                $queries[] = $salesQuery;
+            }
+
+            // 2. PURCHASES QUERY - Must have same columns as sales query
+            if (in_array($filterType, ['all', 'purchase'])) {
+                $purchasesQuery = DB::table('invoices as i')
+                    ->join('invoice_products as ip', 'i.id', '=', 'ip.invoice_id')
+                    ->where('ip.product_id', $productId)
+                    ->where('i.status', 'COMPLETED')
+                    ->select(
+                        DB::raw("'purchase' as type"),
+                        'i.id as reference_id',
+                        'i.number as reference_number',
+                        'i.date as date',
+                        DB::raw('0 as increase_quantity'),
+                        DB::raw('0 as decrease_quantity'),
+                        'ip.quantity as purchases_quantity',
+                        DB::raw('0 as sales_quantity'),
+                        DB::raw('NULL as sale_price'), // Not applicable for purchases
+                        DB::raw('NULL as discount'), // Not applicable for purchases
+                        'ip.base_purchases_price', // Purchases price (base price)
+                        'ip.exchange_factor',
+                        'ip.distributer_price',
+                        'ip.normal',
+                        'ip.purchases_price as purchases_price', // Real price
+                        DB::raw('ip.quantity * ip.purchases_price as total_amount'),
+                        DB::raw("CONCAT('Invoice #', i.number) as description"),
+                        DB::raw("'purchase' as source_type"),
+                        DB::raw('NULL as order_status')
+                    );
+
+                // Apply date filter
+                if ($from && $to) {
+                    $purchasesQuery->whereBetween('i.date', [$from, $to]);
+                } elseif ($from) {
+                    $purchasesQuery->where('i.date', '>=', $from);
+                } elseif ($to) {
+                    $purchasesQuery->where('i.date', '<=', $to);
+                }
+
+                $queries[] = $purchasesQuery;
+            }
+
+            // 3. ADJUSTMENTS QUERY - Must have same columns as other queries
+            if (in_array($filterType, ['all', 'adjustment', 'adjustment-inc', 'adjustment-dec'])) {
+                $adjustmentsQuery = DB::table('stock_adjustments as sa')
+                    ->where('sa.product_id', $productId)
+                    ->whereIn('sa.status', ['approved']);
+
+                // Apply adjustment type filter
+                if ($filterType === 'adjustment-inc') {
+                    $adjustmentsQuery->where('sa.adjustment_type', 'increase');
+                } elseif ($filterType === 'adjustment-dec') {
+                    $adjustmentsQuery->where('sa.adjustment_type', 'decrease');
+                }
+
+                $adjustmentsQuery->select(
+                    DB::raw("'adjustment' as type"),
+                    'sa.id as reference_id',
+                    DB::raw('sa.id as reference_number'),
+                    'sa.created_at as date',
+                    DB::raw("CASE WHEN sa.adjustment_type = 'increase' THEN sa.quantity ELSE 0 END as increase_quantity"),
+                    DB::raw("CASE WHEN sa.adjustment_type = 'decrease' THEN sa.quantity ELSE 0 END as decrease_quantity"),
+                    DB::raw('0 as purchases_quantity'),
+                    DB::raw('0 as sales_quantity'),
+                    DB::raw('NULL as sale_price'),
+                    DB::raw('NULL as discount'),
+                    DB::raw('NULL as base_purchases_price'),
+                    DB::raw('NULL as exchange_factor'),
+                    DB::raw('NULL as distributer_price'),
+                    DB::raw('NULL as normal'),
+                    DB::raw('NULL as purchases_price'),
+                    DB::raw('NULL as total_amount'),
+                    DB::raw("CONCAT('Adjustment #', sa.id, ' - ', sa.adjustment_type, ' (', COALESCE(sa.reason, ''), ')') as description"),
+                    DB::raw("'adjustment' as source_type"),
+                    DB::raw('NULL as order_status')
+                );
+
+                // Apply date filter
+                if ($from && $to) {
+                    $adjustmentsQuery->whereBetween('sa.created_at', [$from, $to]);
+                } elseif ($from) {
+                    $adjustmentsQuery->where('sa.created_at', '>=', $from);
+                } elseif ($to) {
+                    $adjustmentsQuery->where('sa.created_at', '<=', $to);
+                }
+
+                $queries[] = $adjustmentsQuery;
+            }
+
+            // If no queries (shouldn't happen but just in case)
+            if (empty($queries)) {
+                return response()->json([
+                    'data' => [
+                        'items' => [],
+                        'total' => 0,
+                        'product' => [
+                            'id' => $product->id,
+                            'name' => $product->name,
+                            'sku' => $product->sku,
+                            'image' => $product->getFirstMediaUrl('default'),
+                            'stock' => $product->stock,
+                            'stock_available' => $product->stock_available,
+                            'store_available' => $product->store_available,
+                            'min_qty' => $product->min_qty,
+                            'price' => $product->price
+                        ]
+                    ]
+                ]);
+            }
+
+            // Build union query
+            $unionQuery = null;
+            foreach ($queries as $index => $query) {
+                if ($index === 0) {
+                    $unionQuery = $query;
+                } else {
+                    $unionQuery = $unionQuery->unionAll($query);
+                }
+            }
+
+            // Get total count
+            $totalQuery = DB::query()->fromSub($unionQuery, 'combined');
+            $total = $totalQuery->count();
+
+            // Apply sorting and pagination
+            $query = DB::query()->fromSub($unionQuery, 'combined')
+                ->orderBy('date', 'desc');
+
+            // Pagination
+            $page = $request->get('page', 0);
+            $limit = $request->get('limit', 20);
+            $offset = $page * $limit;
+
+            $items = $query->offset($offset)->limit($limit)->get();
+
+            // Transform items to include proper links
+            $items->transform(function ($item) {
+                $frontUrl = config('app.front_url');
+
+                // Set proper reference link based on source type
+                if ($item->source_type === 'sale') {
+                    $item->reference_link = $frontUrl . "/order/edit/{$item->reference_id}";
+                    $item->reference_text = "Order #{$item->reference_id}";
+                } elseif ($item->source_type === 'purchase') {
+                    $item->reference_link = $frontUrl . "/invoice/edit/{$item->reference_id}";
+                    $item->reference_text = "Invoice #{$item->reference_number}";
+                } elseif ($item->source_type === 'adjustment') {
+                    $item->reference_link = $frontUrl . "/stock-adjustment/edit/{$item->reference_id}";
+                    $item->reference_text = "Adjustment #{$item->reference_number}";
+                }
+
+                return $item;
+            });
+
+            return response()->json([
+                'data' => [
+                    'items' => $items,
+                    'total' => $total,
+                    'product' => [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'sku' => $product->sku,
+                        'image' => $product->getFirstMediaUrl('default'),
+                        'stock' => $product->stock,
+                        'stock_available' => $product->stock_available,
+                        'store_available' => $product->store_available,
+                        'min_qty' => $product->min_qty,
+                        'price' => $product->price
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in productStockMovement: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+
+            return response()->json([
+                'message' => 'Error fetching stock movement data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get stock movement summary for ALL products
+     */
+    public function allProductsStockMovementSummary(Request $request)
+    {
+        try {
+            $from = $request->get('from');
+            $to = $request->get('to');
+            $filterType = $request->get('filter_type', 'all');
+
+
+            $productsQuery = Product::query()->with(['source']);
+
+            // 1. Get all products with stock information
+            // $productsQuery = Product::query()
+            //     ->with(['source'])
+            //     ->where('is_retired', 0)
+            //     ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(`options`, '$.kit')) = 'false'");
+
+            // Apply search if provided
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $productsQuery->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('sku', 'like', "%{$search}%")
+                        ->orWhere('source_sku', 'like', "%{$search}%");
+                });
+            }
+
+            // Get total count
+            $total = $productsQuery->count();
+
+            // Pagination
+            $page = $request->get('page', 0);
+            $limit = $request->get('limit', 20);
+            $offset = $page * $limit;
+
+            $products = $productsQuery->offset($offset)->limit($limit)->get();
+
+            // 2. For each product, get stock movement totals
+            $items = [];
+            foreach ($products as $product) {
+                // Get purchases for this product
+                $purchasesQuery = DB::table('invoice_products as ip')
+                    ->join('invoices as i', 'ip.invoice_id', '=', 'i.id')
+                    ->where('ip.product_id', $product->id)
+                    ->where('i.status', 'COMPLETED');
+
+                // Get sales for this product
+                $salesQuery = DB::table('order_products as op')
+                    ->join('orders as o', 'op.order_id', '=', 'o.id')
+                    ->where('op.product_id', $product->id)
+                    ->whereIn('o.status', ['COMPLETED', 'PROCESSING']);
+
+                // Get adjustments for this product
+                $adjustmentsQuery = DB::table('stock_adjustments as sa')
+                    ->where('sa.product_id', $product->id)
+                    ->whereIn('sa.status', ['approved']);
+
+                // Apply date filters if provided
+                if ($from && $to) {
+                    $purchasesQuery->whereBetween('i.date', [$from, $to]);
+                    $salesQuery->whereBetween('o.taxed_at', [$from, $to]);
+                    $adjustmentsQuery->whereBetween('sa.created_at', [$from, $to]);
+                }
+
+                // Apply filter type if not 'all'
+                if ($filterType !== 'all') {
+                    switch ($filterType) {
+                        case 'purchase':
+                            // Only count purchases
+                            $salesQuery->whereRaw('1=0'); // Exclude sales
+                            $adjustmentsQuery->whereRaw('1=0'); // Exclude adjustments
+                            break;
+                        case 'sale':
+                            // Only count sales
+                            $purchasesQuery->whereRaw('1=0'); // Exclude purchases
+                            $adjustmentsQuery->whereRaw('1=0'); // Exclude adjustments
+                            break;
+                        case 'adjustment':
+                            // Only count adjustments
+                            $purchasesQuery->whereRaw('1=0'); // Exclude purchases
+                            $salesQuery->whereRaw('1=0'); // Exclude sales
+                            break;
+                        case 'adjustment-inc':
+                            // Only count increase adjustments
+                            $purchasesQuery->whereRaw('1=0');
+                            $salesQuery->whereRaw('1=0');
+                            $adjustmentsQuery->where('adjustment_type', 'increase');
+                            break;
+                        case 'adjustment-dec':
+                            // Only count decrease adjustments
+                            $purchasesQuery->whereRaw('1=0');
+                            $salesQuery->whereRaw('1=0');
+                            $adjustmentsQuery->where('adjustment_type', 'decrease');
+                            break;
+                    }
+                }
+
+                // Get totals
+                $purchasesTotal = $purchasesQuery->sum('ip.quantity');
+                $purchasesAmount = $purchasesQuery->sum(DB::raw('ip.quantity * ip.purchases_price'));
+
+                $salesTotal = $salesQuery->sum('op.quantity');
+                $salesAmount = $salesQuery->sum(DB::raw('(op.quantity * op.price) - op.discount'));
+                $totalDiscount = $salesQuery->sum('op.discount');
+
+                $increasesTotal = $adjustmentsQuery->clone()->where('adjustment_type', 'increase')->sum('quantity');
+                $decreasesTotal = $adjustmentsQuery->clone()->where('adjustment_type', 'decrease')->sum('quantity');
+
+                // Get latest activity date
+                $latestDates = [];
+                $latestPurchase = $purchasesQuery->clone()->max('i.date');
+                $latestSale = $salesQuery->clone()->max('o.taxed_at');
+                $latestAdjustment = $adjustmentsQuery->clone()->max('created_at');
+
+                if ($latestPurchase) $latestDates[] = $latestPurchase;
+                if ($latestSale) $latestDates[] = $latestSale;
+                if ($latestAdjustment) $latestDates[] = $latestAdjustment;
+
+                $latestDate = !empty($latestDates) ? max($latestDates) : null;
+
+                // Calculate net change
+                $netChange = $purchasesTotal + $increasesTotal - $salesTotal - $decreasesTotal;
+
+                // Add to items
+                $items[] = [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'product_sku' => $product->sku,
+                    'product_image' => $product->getFirstMediaUrl('default'),
+                    'totalPurchases' => (int)$purchasesTotal,
+                    'totalIncreases' => (int)$increasesTotal,
+                    'totalSales' => (int)$salesTotal,
+                    'totalDecreases' => (int)$decreasesTotal,
+                    'totalPurchaseAmount' => (float)$purchasesAmount,
+                    'totalSaleAmount' => (float)$salesAmount,      // AFTER discount
+                    'totalDiscount' => (float)$totalDiscount,
+                    'netChange' => (int)$netChange,
+                    'latest_date' => $latestDate,
+                    'current_stock' => $product->stock,
+                    'stock_available' => $product->stock_available,
+                    'store_available' => $product->store_available,
+                    'min_qty' => $product->min_qty,
+                    'source_name' => $product->source ? $product->source->name : null,
+                    'source_sku' => $product->source_sku,
+                    'location' => $product->location,
+                    'stock_location' => $product->stock_location,
+                ];
+            }
+
+            return response()->json([
+                'data' => [
+                    'items' => $items,
+                    'total' => $total
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in allProductsStockMovementSummary: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+
+            return response()->json([
+                'message' => 'Error fetching stock movement summary data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
 }

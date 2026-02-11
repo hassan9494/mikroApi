@@ -27,6 +27,7 @@ class OrderResource extends JsonResource
             'total' => $this->total,
             'date' => $this->created_at,
             'status' => $this->status,
+            'completed_at' => $this->completed_at,
         ];
     }
 
