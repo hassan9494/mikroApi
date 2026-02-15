@@ -1,5 +1,6 @@
 <?php
 
+use Modules\Admin\Http\Controllers\Api\AccountStatementController;
 use Modules\Admin\Http\Controllers\Api\ArticleController;
 use Modules\Admin\Http\Controllers\Api\AuthController;
 use Modules\Admin\Http\Controllers\Api\BoardController;
@@ -46,7 +47,6 @@ use Modules\Admin\Http\Controllers\Api\TaskController;
 use Modules\Admin\Http\Controllers\Api\TransferOrderController;
 
 
-
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -85,7 +85,7 @@ Route::prefix('admin')
 
 // Group 2: For users with specific roles (admin/manager/etc.)
 Route::prefix('admin')
-    ->middleware(['auth:sanctum' ,'role:admin|super|Manager|Cashier|Product Manager|Admin cash|Stock Manager'])
+    ->middleware(['auth:sanctum', 'role:admin|super|Manager|Cashier|Product Manager|Admin cash|Stock Manager'])
     ->namespace('Api')
     ->group(function () {
         Route::prefix('stock-adjustments')->group(function () {
@@ -107,9 +107,8 @@ Route::prefix('admin')
 // ============ END FIXED ROUTES ============
 
 
-
 Route::prefix('admin')
-    ->middleware(['auth:sanctum' ,'role:admin|super|Manager|Cashier|Product Manager|Admin cash'])
+    ->middleware(['auth:sanctum', 'role:admin|super|Manager|Cashier|Product Manager|Admin cash'])
     ->namespace('Api')
     ->group(function () {
         Route::post('order/{id}/record-edit-view', [OrderController::class, 'recordEditView']);
@@ -170,10 +169,6 @@ Route::prefix('admin')
                 Route::post('/reorder', [BoardController::class, 'reorder']);
             });
         });
-
-
-
-
 
 
         // Category Routes.
@@ -261,7 +256,6 @@ Route::prefix('admin')
         Route::resource('product', 'ProductController');
 
 
-
         // Variants Product Routes.
         Route::get('variant-product/datatable', [ProductVariantsController::class, 'datatable']);
         Route::resource('variant-product', 'ProductVariantsController');
@@ -316,7 +310,7 @@ Route::prefix('admin')
         Route::get('report/product-stock-movement', [ReportController::class, 'productStockMovement']);
         Route::get('report/all-products-stock-movement-summary', [ReportController::class, 'allProductsStockMovementSummary']);
 
-        Route::prefix( 'report')->group(function () {
+        Route::prefix('report')->group(function () {
             Route::get('coupon', [CouponReportController::class, 'index']);
             Route::get('coupon/{id}', [CouponReportController::class, 'show']);
             Route::get('coupon/{id}/statistics', [CouponReportController::class, 'usageStatistics']);
@@ -334,13 +328,21 @@ Route::prefix('admin')
             Route::get('/statistics/overview', [\Modules\Admin\Http\Controllers\Api\TransferOrderController::class, 'statistics']);
         });
 
-        Route::prefix('bulk-order-completion')->group( function () {
+        Route::prefix('bulk-order-completion')->group(function () {
             Route::get('/', [BulkOrderCompletionController::class, 'index']);
             Route::get('/payment-methods', [BulkOrderCompletionController::class, 'paymentMethods']);
             Route::post('/preview', [BulkOrderCompletionController::class, 'preview']);
             Route::post('/complete', [BulkOrderCompletionController::class, 'complete']);
             Route::get('/{id}', [BulkOrderCompletionController::class, 'show']);
         });
+
+
+        Route::get('account-statement/orders', [AccountStatementController::class, 'orders']);
+        Route::post('account-statement/preview', [AccountStatementController::class, 'preview']);
+        Route::get('account-statement/datatable', [AccountStatementController::class, 'datatable']);
+        Route::post('account-statement', [AccountStatementController::class, 'store']);
+        Route::get('account-statement/{id}', [AccountStatementController::class, 'show']);
+//        Route::resource('account-statement', AccountStatementController::class)->except(['update', 'destroy']);
 
 
         // Slide Routes.
@@ -388,7 +390,6 @@ Route::prefix('admin')
         Route::post('coupons/validate', [CouponController::class, 'validateCoupon']);
 
 
-
         // Article Routes.
         Route::get('article/datatable', [ArticleController::class, 'datatable']);
         Route::resource('article', 'ArticleController');
@@ -410,7 +411,7 @@ Route::prefix('admin')
 
 Route::prefix('admin')
     ->namespace('Api')
-    ->group(function (){
+    ->group(function () {
         Route::get('/reports/stock/export-images-zip', [ReportController::class, 'exportImagesZip']);
         Route::get('/reports/download-chunk/{exportId}/{chunkIndex}', [ReportController::class, 'downloadChunk']);
         Route::get('/reports/download-all/{exportId}', [ReportController::class, 'downloadAllChunks']);
@@ -418,9 +419,8 @@ Route::prefix('admin')
     });
 
 
-
 Route::prefix('admin')
-    ->middleware(['auth:sanctum' ,'role:super|admin|Manager'])
+    ->middleware(['auth:sanctum', 'role:super|admin|Manager'])
     ->namespace('Api')
     ->group(function () {
         Route::resource('user', 'UserController');
@@ -428,6 +428,6 @@ Route::prefix('admin')
 
         // Role Routes.
         Route::get('role/datatable', [RoleController::class, 'datatable']);
-        Route::get('role/employee', [RoleController::class,'employeeRoles']);
+        Route::get('role/employee', [RoleController::class, 'employeeRoles']);
         Route::resource('role', 'RoleController');
     });

@@ -77,6 +77,7 @@ class OrderResource extends JsonResource
             'qr_code' => $this->qr_code,
             'histories' => OrderHistoryResource::collection($this->whenLoaded('histories')),
             'transaction' => TransactionResource::collection($this->transactions),
+            'return_orders' => ReturnOrderResource::collection($this->returnOrders),
         ];
     }
 

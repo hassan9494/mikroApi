@@ -22,6 +22,8 @@ class BulkOrderCompletionResource extends JsonResource
             'notes' => $this->notes,
             'orders' => OrderResource::collection($this->orders),
             'created_at' => $this->created_at,
+            'delivery_date' => $this->delivery_date,
+            'delivery_number' => $this->delivery_number,
         ];
     }
 }

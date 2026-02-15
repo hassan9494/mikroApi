@@ -341,8 +341,8 @@ class ReportController extends Controller
 
         // Get orders
         $orders = Order::whereIn('status', ['COMPLETED','PROCESSING'])
-            ->whereDate('taxed_at', '>=', $from)
-            ->whereDate('taxed_at', '<=', $to)
+            ->whereDate('created_at', '>=', $from)
+            ->whereDate('created_at', '<=', $to)
             ->whereHas('products', function($q) use ($allProductIds) {
                 $q->whereIn('products.id', $allProductIds);
             })
@@ -350,7 +350,7 @@ class ReportController extends Controller
                 $query->whereIn('products.id', $allProductIds)
                     ->withPivot('quantity');
             }])
-            ->orderBy('taxed_at', 'desc')
+            ->orderBy('created_at', 'desc')
             ->get();
 
         // Get kit quantities from product_kit table
