@@ -188,6 +188,8 @@ class BulkOrderCompletionService
                 'total_calculated_commission' => $data['totals']['calculated_commission'] ?? 0,
                 'total_entered_commission' => $data['totals']['entered_commission'] ?? 0,
                 'notes' => $data['notes'] ?? null,
+                'delivery_number' => $data['delivery_number'] ?? null,
+                'delivery_date' => $data['delivery_date'] ?? null,
             ]);
 
             $orderDetails = [];

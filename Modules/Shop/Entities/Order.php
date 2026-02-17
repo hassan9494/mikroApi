@@ -228,7 +228,7 @@ class Order extends Model implements HasMedia
     /**
      * @return HasMany
      */
-    public function returnOrders(): BelongsTo
+    public function returnOrders(): HasMany
     {
         return $this->hasMany(ReturnOrder::class, 'order_id');
     }

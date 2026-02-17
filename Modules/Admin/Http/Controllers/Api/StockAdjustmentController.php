@@ -408,4 +408,85 @@ class StockAdjustmentController extends Controller
             ]
         ]);
     }
+    public function update($id, Request $request): JsonResponse
+    {
+        $adjustment = $this->repository->findOrFail($id);
+
+        // Check if user can edit this adjustment
+        $user = auth()->user();
+        if (!$adjustment->is_editable && $adjustment->user_id !== $user->id) {
+            abort(403, 'You are not authorized to edit this adjustment.');
+        }
+
+
+        $data = $request->validate([
+            'product_id' => 'sometimes|exists:products,id',
+            'adjustment_type' => 'sometimes|in:increase,decrease,transfer',
+            'adjustment_location' => 'nullable|in:total,stock_available,store_available',
+            'quantity' => 'sometimes|integer|min:1',
+            'reason' => 'nullable|string|max:500',
+            'transfer_from_location' => 'required_if:adjustment_type,transfer|in:1,2',
+            'transfer_to_location' => 'required_if:adjustment_type,transfer|in:1,2|different:transfer_from_location'
+        ]);
+
+        // Map integer values to string representations for transfer
+        $locationMap = [
+            1 => 'stock_available',
+            2 => 'store_available'
+        ];
+
+        if (isset($data['adjustment_type']) && $data['adjustment_type'] === 'transfer') {
+            $data['adjustment_location'] = 'transfer';
+            if (isset($data['transfer_from_location'])) {
+                $data['transfer_from_location'] = $locationMap[$data['transfer_from_location']] ?? null;
+            }
+            if (isset($data['transfer_to_location'])) {
+                $data['transfer_to_location'] = $locationMap[$data['transfer_to_location']] ?? null;
+            }
+        } else {
+            $data['adjustment_location'] = $data['adjustment_location'] ?? 'total';
+        }
+
+        $adjustment = $this->repository->updateRequest($id, $data);
+
+        return $this->success([
+            'message' => 'Stock adjustment updated successfully',
+            'data' => new StockAdjustmentResource($adjustment)
+        ]);
+    }
+    /**
+     * Change status of a stock adjustment
+     */
+    public function changeStatus($id, Request $request): JsonResponse
+    {
+        if (!Gate::allows('stock_adjustment_approve')) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'status' => 'required|in:pending,approved,rejected',
+            'reason' => 'nullable|string|max:500'
+        ]);
+
+        $adjustment = $this->repository->changeStatus(
+            $id,
+            $data['status'],
+            auth()->id(),
+            $data['reason'] ?? null
+        );
+
+        return $this->success([
+            'message' => 'Stock adjustment status changed successfully',
+            'data' => new StockAdjustmentResource($adjustment)
+        ]);
+    }
+    /**
+     * Get adjustment for editing
+     */
+    public function edit($id): JsonResponse
+    {
+        $adjustment = $this->repository->getForEditing($id);
+
+        return $this->success(new StockAdjustmentResource($adjustment));
+    }
 }

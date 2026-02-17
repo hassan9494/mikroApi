@@ -20,6 +20,8 @@ class BulkOrderCompletion extends Model
         'total_calculated_commission',
         'total_entered_commission',
         'notes',
+        'delivery_number',
+        'delivery_date',
     ];
 
     protected $casts = [

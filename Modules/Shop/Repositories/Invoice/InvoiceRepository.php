@@ -167,11 +167,31 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
             foreach ($products as $product) {
                 $stockAvailableQty = $product->pivot->stock_available_qty ?? 0;
                 $storeAvailableQty = $product->pivot->store_available_qty ?? $product->pivot->quantity;
-                $product->stock = $product->stock - $product->pivot->quantity;
-                $product->stock_available = max(0, $product->stock_available - $stockAvailableQty);
-                $product->store_available = max(0, $product->store_available - $storeAvailableQty);
+                $product->stock_available -= $stockAvailableQty;
+                $product->store_available -= $storeAvailableQty;
+                if ($product->store_available < 0 && $product->stock_available > 0) {
+                    // Calculate how much we can transfer
+                    $transferNeeded = abs($product->store_available); // How much store needs
+                    $transferAvailable = $product->stock_available; // How much stock has
+                    $transferAmount = min($transferNeeded, $transferAvailable);
+
+                    $product->stock_available -= $transferAmount;
+                    $product->store_available += $transferAmount;
+                }
+                if ($product->stock_available < 0 && $product->store_available > 0) {
+                    // Calculate how much we can transfer
+                    $transferNeeded = abs($product->stock_available); // How much stock needs
+                    $transferAvailable = $product->store_available; // How much store has
+                    $transferAmount = min($transferNeeded, $transferAvailable);
+
+                    $product->store_available -= $transferAmount;
+                    $product->stock_available += $transferAmount;
+                }
+
                 $product->stock = $product->stock_available + $product->store_available;
+
                 $product->save();
+
             }
         }
         else{
@@ -186,10 +206,12 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                 foreach ($products as $product) {
                     $stockAvailableQty = $product->pivot->stock_available_qty ?? 0;
                     $storeAvailableQty = $product->pivot->store_available_qty ?? $product->pivot->quantity;
-                    $product->stock = $product->stock + $product->pivot->quantity;
-                    $product->stock_available = $product->stock_available + $stockAvailableQty;
-                    $product->store_available = $product->store_available + $storeAvailableQty;
+                    // Add to original placements
+                    $product->stock_available += $stockAvailableQty;
+                    $product->store_available += $storeAvailableQty;
                     $product->stock = $product->stock_available + $product->store_available;
+
+                    // Update prices
                     $price = $product->price;
                     $price->real_price = $product->pivot->purchases_price;
                     $price->sale_price = $product->pivot->sale_price;
@@ -201,6 +223,10 @@ class InvoiceRepository extends EloquentRepository implements InvoiceRepositoryI
                     $product->base_purchases_price = $product->pivot->base_purchases_price;
                     $product->exchange_factor = $product->pivot->exchange_factor;
                     $product->price = $price;
+                    $product->source_sku = $product->pivot->source_sku;
+                    $product->source_id = $invoice->source_id;
+                    $product->save();
+
                     if ($invoice->source_type == 'air'){
                         if ($product->pivot->source_sku != '' && $product->pivot->source_sku != null){
                             $product->air_source_sku = $product->pivot->source_sku;

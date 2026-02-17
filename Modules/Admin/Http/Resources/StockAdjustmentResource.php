@@ -32,6 +32,13 @@ class StockAdjustmentResource extends JsonResource
             'is_transfer' => $this->isTransfer(),
             'transfer_description' => $this->transfer_description,
 
+            // Editable properties
+            'is_editable' => $this->is_editable,
+            'can_change_status' => $this->can_change_status,
+            'previous_status' => $this->previous_status,
+            'status_changed_at' => $this->status_changed_at,
+
+
             // For display purposes
             'historical_stock_before' => $this->stock_before ?? 'N/A',
             'historical_stock_after' => $this->stock_after ?? 'N/A',
@@ -70,6 +77,15 @@ class StockAdjustmentResource extends JsonResource
                     'image' => $this->product->getFirstMediaUrl()
                 ];
             }),
+
+            'edited_product' => $this->when($this->product_id != $this->getOriginal('product_id'), function () {
+                return [
+                    'id' => $this->product_id,
+                    'name' => $this->product->name,
+                    'sku' => $this->product->sku
+                ];
+            }),
+
 
             'user' => $this->whenLoaded('user', function () {
                 return [

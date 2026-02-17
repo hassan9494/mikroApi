@@ -29,7 +29,9 @@ class StockAdjustment extends Model
         'status',
         'approved_by',
         'rejection_reason',
-        'approved_at'
+        'approved_at',
+        'previous_status', // Add this for tracking status changes
+        'status_changed_at'
     ];
 
     protected $casts = [
@@ -42,6 +44,8 @@ class StockAdjustment extends Model
         'stock_available_after' => 'integer',
         'store_available_before' => 'integer',
         'store_available_after' => 'integer',
+        'previous_status' => 'string',
+        'status_changed_at' => 'datetime'
     ];
 
     public function product(): BelongsTo
@@ -157,4 +161,68 @@ class StockAdjustment extends Model
             " to " .
             ($this->transfer_to_location === 'stock_available' ? 'Stock Available' : 'Store Available');
     }
+    public function getIsEditableAttribute()
+    {
+        $user = auth()->user();
+
+        // Only pending adjustments can be edited
+        if ($this->status !== 'pending') {
+            return false;
+        }
+
+        // User can edit their own pending adjustments
+        if ($user && $user->id === $this->user_id) {
+            return true;
+        }
+
+        // Admin/approvers can edit any pending adjustment
+        if ($user && $user->can('stock_adjustment_approve')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if status can be changed
+     */
+    public function getCanChangeStatusAttribute()
+    {
+        $user = auth()->user();
+
+        // Only admin/approvers can change status
+        if (!$user || !$user->can('stock_adjustment_approve')) {
+            return false;
+        }
+
+        // Can change status from any state to any state
+        return true;
+    }
+
+    /**
+     * Check if stock needs to be reversed when changing status from approved
+     */
+    public function needsStockReversal($newStatus)
+    {
+        // If changing from approved to pending/rejected, stock needs to be reversed
+        if ($this->status === 'approved' && in_array($newStatus, ['pending', 'rejected'])) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if stock needs to be applied when changing to approved
+     */
+    public function needsStockApplication($newStatus)
+    {
+        // If changing to approved from pending/rejected, stock needs to be applied
+        if ($newStatus === 'approved' && in_array($this->status, ['pending', 'rejected'])) {
+            return true;
+        }
+
+        return false;
+    }
+
 }

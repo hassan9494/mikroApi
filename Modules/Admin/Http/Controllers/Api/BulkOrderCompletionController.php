@@ -256,15 +256,17 @@ class BulkOrderCompletionController extends Controller
         $request->validate([
             'order_ids' => 'required|array',
             'order_ids.*' => 'exists:orders,id',
+            'delivery_number' => 'nullable|string',
+            'delivery_date' => 'nullable|date',
             'payment_method_id' => 'required|exists:payment_methods,id',
             'totals' => 'required|array',
             'totals.entered_amount' => 'required|numeric|min:0',
             'totals.entered_shipping' => 'required|numeric|min:0',
-            'totals.entered_commission' => 'required|numeric|min:0',
+            'totals.entered_commission' => 'required|numeric',
             'orders_data' => 'required|array',
             'orders_data.*.entered_amount' => 'required|numeric',
             'orders_data.*.entered_shipping' => 'required|numeric|min:0',
-            'orders_data.*.entered_commission' => 'required|numeric|min:0',
+            'orders_data.*.entered_commission' => 'required|numeric',
         ]);
 
         $user = Auth::user();
