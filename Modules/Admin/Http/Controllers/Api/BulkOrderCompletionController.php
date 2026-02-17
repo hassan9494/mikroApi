@@ -36,6 +36,7 @@ class BulkOrderCompletionController extends Controller
         ]);
 
         $query = Order::with(['products', 'transactions', 'shippingProvider'])
+            ->where('options->dept',false)
             ->whereIn('status', ['PENDING', 'PROCESSING'])->Where('shipping_provider_id','>',0);
 
         // Filter by shipping provider
