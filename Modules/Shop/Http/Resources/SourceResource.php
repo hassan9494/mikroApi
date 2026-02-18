@@ -19,6 +19,10 @@ class SourceResource extends JsonResource
             'name' => $this->name,
             'slug' => $this->slug,
             'order' => $this->order,
+            'phone' => $this->phone,
+            'email' => $this->email,
+            'note'  => $this->note,
+
         ];
     }
 }

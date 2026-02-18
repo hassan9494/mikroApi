@@ -44,6 +44,10 @@ class SourceController extends ApiAdminController
             'name' => 'required|max:255',
             'slug' => 'required|max:255',
             'order' => 'required',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:255',
+            'note'  => 'nullable|string|max:1000',
+
         ]);
     }
 }

@@ -151,7 +151,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
     public function makeByEmployee(array $data, User $employee): Order
     {
         $city = $this->cities->findOrFail($data['city_id']);
-        $cart = $this->prepareUserProducts($data['products']);
+        $cart = $this->prepareUserProducts($data['products'], $employee, $data['coupon_id'] ?? null);
+        $data['discount'] = $cart['finalDiscount'];
 
         if ($city->id == 2){
             $isFreeShipping = true;
@@ -179,6 +180,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             'shipping' => $data['shipping'],
             'notes' => $data['notes'] ?? null,
             'coupon_id' => $data['coupon_id'] ?? null,
+            'discount' => $data['discount'] ?? null,
             'uuid' => Str::uuid(),
         ]);
 

@@ -39,7 +39,7 @@ class ProjectReceiptRepository extends EloquentRepository implements ProjectRece
             'payment_method_id' => $data['payment_method_id'],
             'total_amount' => $data['amount'],
             'amount' => $data['amount'],
-            'note' => $data['notes'],
+            'note' => $data['notes'] ?? '',
             'updated_by' => auth()->id(),
         ]);
         return $model;

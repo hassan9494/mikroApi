@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Source extends Model
 {
     protected $table = 'sources';
-    protected $fillable = ['id', 'name', 'slug', 'order'];
+    protected $fillable = ['id', 'name', 'slug', 'order', 'phone', 'email', 'note'];
 
 
     public function products()
