@@ -54,7 +54,7 @@ class ProjectReceiptController extends ApiAdminController
                 'transaction_id' => Str::uuid(),
                 'transactionable_id'=>$model->id,
                 'transactionable_type' =>ProjectReceipt::class,
-                'note' =>request()->get('notes'),
+                'note' =>request()->get('notes') ?? '',
                 'type' => 'deposit',
                 'amount' => request()->get('amount'),
                 'commission' => 0,

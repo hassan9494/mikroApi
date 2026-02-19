@@ -95,6 +95,10 @@ class RepositoryServiceProvider extends ServiceProvider
             'Modules\Shop\Repositories\TransferOrder\TransferOrderRepositoryInterface',
             'Modules\Shop\Repositories\TransferOrder\TransferOrderRepository'
         );
+        $this->app->singleton(
+            'Modules\Shop\Repositories\Contact\ContactRepositoryInterface',
+            'Modules\Shop\Repositories\Contact\ContactRepository'
+        );
 
     }
 

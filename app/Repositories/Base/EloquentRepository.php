@@ -149,4 +149,10 @@ class EloquentRepository implements BaseRepository
         return $this->model;
     }
 
+    public function all()
+    {
+        return $this->model->all();
+    }
+
+
 }

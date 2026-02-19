@@ -45,6 +45,7 @@ use Modules\Admin\Http\Controllers\Api\PromotionController;
 use Modules\Admin\Http\Controllers\Api\SlideController;
 use Modules\Admin\Http\Controllers\Api\TaskController;
 use Modules\Admin\Http\Controllers\Api\TransferOrderController;
+use Modules\Admin\Http\Controllers\Api\ContactController;
 
 
 /*
@@ -194,6 +195,10 @@ Route::prefix('admin')
         // Brand Routes.
         Route::get('source/datatable', [SourceController::class, 'datatable']);
         Route::resource('source', 'SourceController');
+
+        Route::get('contact/datatable', [ContactController::class, 'datatable']);
+        Route::resource('contact', 'ContactController');
+
 
         // Shipping Location Routes.
         Route::get('city/datatable', [CityController::class, 'datatable']);

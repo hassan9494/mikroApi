@@ -74,7 +74,10 @@ class StockAdjustmentResource extends JsonResource
                     'current_stock' => $this->product->stock,
                     'current_stock_available' => $this->product->stock_available,
                     'current_store_available' => $this->product->store_available,
-                    'image' => $this->product->getFirstMediaUrl()
+                    'image' => $this->product->getFirstMediaUrl(),
+                    'base_purchases_price' => $this->product->base_purchases_price, // add this
+                    'price' => $this->product->price, // ✅ full price object with real_price
+
                 ];
             }),
 
