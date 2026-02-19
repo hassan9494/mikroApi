@@ -28,6 +28,7 @@ class OrderResource extends JsonResource
             'date' => $this->created_at,
             'status' => $this->status,
             'completed_at' => $this->completed_at,
+            'taxed' => $this->options->taxed ?? false,
         ];
     }
 

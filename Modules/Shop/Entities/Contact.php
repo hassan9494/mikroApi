@@ -8,7 +8,7 @@ class Contact extends Model
 {
     protected $table = 'contacts';
     protected $fillable = [
-        'id', 'name', 'phone', 'email', 'fax', 'sub', 'address', 'other', 'note'
+        'id', 'name', 'phone', 'email','company', 'fax', 'sub', 'address', 'other', 'note'
     ];
 
     // Optional relationships (if needed later)
