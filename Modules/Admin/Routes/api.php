@@ -14,6 +14,7 @@ use Modules\Admin\Http\Controllers\Api\SettingController;
 use Modules\Admin\Http\Controllers\Api\ShortLinksController;
 use Modules\Admin\Http\Controllers\Api\ShortLinksSummaryController;
 use Modules\Admin\Http\Controllers\Api\StockAdjustmentController;
+use Modules\Admin\Http\Controllers\Api\StockCloseController;
 use Modules\Admin\Http\Controllers\Api\TaskAttachmentController;
 use Modules\Admin\Http\Controllers\Api\TaxExemptController;
 use Modules\Admin\Http\Controllers\Api\LocationController;
@@ -284,7 +285,13 @@ Route::prefix('admin')
         Route::post('return-order-with-status/{id}', [ReturnOrderController::class, 'updateWithStatus']);
         Route::resource('return-order', 'ReturnOrderController');
 
-        // Invoice Routes.
+        // StockClose Routes.
+        Route::get('stock-close/datatable', [StockCloseController::class, 'datatable']);
+        Route::get('stock-close-details/datatable', [StockCloseController::class, 'detailsDatatable']);
+        Route::post('stock-close/{id}/status', [StockCloseController::class, 'status']);
+        Route::resource('stock-close', 'StockCloseController');
+
+        //invoice  Routes.
         Route::get('invoice/datatable', [InvoiceController::class, 'datatable']);
         Route::post('invoice/{id}/status', [InvoiceController::class, 'status']);
         Route::resource('invoice', 'InvoiceController');
