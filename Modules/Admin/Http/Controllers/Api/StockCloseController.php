@@ -9,6 +9,7 @@ use http\Env\Response;
 use Illuminate\Http\JsonResponse;
 use Modules\Admin\Http\Resources\StockCloseDetailResource;
 use Modules\Admin\Http\Resources\StockCloseResource;
+use Modules\Shop\Entities\StockCloseDetail;
 use Modules\Shop\Repositories\StockClose\StockCloseRepositoryInterface;
 use Modules\Shop\Repositories\StockCloseDetail\StockCloseDetailRepositoryInterface;
 
@@ -51,16 +52,17 @@ class StockCloseController extends ApiAdminController
 
     public function detailsDatatable(): JsonResponse
     {
-        // Add the condition via request
-//        request()->merge([
-//            'conditions' => json_encode(['stock_close_id' => 1])
-//        ]);
-
-        // Get the model instance from the repository (no ->where() call)
         return Datatable::make($this->detailRepository->model())
             ->search($this->detailDatatableSearchFields())
             ->resource(StockCloseDetailResource::class)
             ->json();
+    }
+
+    public function details()
+    {
+        $stock_close_id = request('stock_close_id');
+        $data = StockCloseDetail::where('stock_close_id',$stock_close_id)->get();
+        return StockCloseDetailResource::collection($data);
     }
 
     /**

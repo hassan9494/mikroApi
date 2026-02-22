@@ -223,6 +223,8 @@ Route::prefix('admin')
 
         // ProjectReceipt Routes.
         Route::get('project-receipt/datatable', [ProjectReceiptController::class, 'datatable']);
+        Route::post('project-receipt-transaction', [ProjectReceiptController::class, 'storeTransaction']);
+        Route::delete('project-receipt-transaction/{id}', [ProjectReceiptController::class, 'destroyTransaction']);
         Route::resource('project-receipt', 'ProjectReceiptController');
 
         // Course Routes.
@@ -234,6 +236,7 @@ Route::prefix('admin')
         // GraduationProject Routes.
         Route::get('project/datatable', [GraduationProjectController::class, 'datatable']);
         Route::get('project/{id}/payments', [GraduationProjectController::class, 'payments']);
+        Route::get('project-transaction/payments/{id}', [GraduationProjectController::class, 'paymentTransaction']);
         Route::resource('project', 'GraduationProjectController');
 
         Route::resource('course-student', 'CourseStudentController');
@@ -288,6 +291,7 @@ Route::prefix('admin')
         // StockClose Routes.
         Route::get('stock-close/datatable', [StockCloseController::class, 'datatable']);
         Route::get('stock-close-details/datatable', [StockCloseController::class, 'detailsDatatable']);
+        Route::get('stock-close/details', [StockCloseController::class, 'details']);
         Route::post('stock-close/{id}/status', [StockCloseController::class, 'status']);
         Route::resource('stock-close', 'StockCloseController');
 

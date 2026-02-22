@@ -58,7 +58,7 @@ Route::namespace('Api')->group(function () {
     Route::get('allProducts', function () {
         ini_set('max_execution_time', 100);
         $data = [
-            'data' => Product::select(['id', 'slug'])->get(),
+            'data' => Product::select(['id', 'slug','sku'])->get(),
             'links' => [
                 "first" => "/?page=1",
                 "last" => "/?page=1",
