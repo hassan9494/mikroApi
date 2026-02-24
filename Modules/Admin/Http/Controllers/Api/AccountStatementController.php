@@ -43,10 +43,15 @@ class AccountStatementController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('id', 'LIKE', "%{$search}%")
-                    ->orWhere('number', 'LIKE', "%{$search}%")
-                    ->orWhereRaw('JSON_EXTRACT(customer, "$.name") LIKE ?', ["%{$search}%"])
-                    ->orWhereRaw('JSON_EXTRACT(customer, "$.phone") LIKE ?', ["%{$search}%"]);
+                $q->where('id', '=', $search)
+                    ->orWhereRaw('CAST(id AS CHAR) LIKE ?', ["%$search%"])
+                    ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.name"))) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.email"))) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(customer, "$.phone"))) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhere('tax_number', 'LIKE', "%$search%")
+                    ->orWhereRaw('LOWER(status) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(shipping, "$.status"))) LIKE ?', ['%' . strtolower($search) . '%'])
+                    ->orWhere('total', 'LIKE', "%$search%");
             });
         }
 
