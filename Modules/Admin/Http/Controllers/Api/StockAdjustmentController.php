@@ -8,8 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use Modules\Admin\Http\Resources\StockAdjustmentResource;
-use Modules\Shop\Repositories\StockAdjustment\StockAdjustmentRepositoryInterface;
 use App\Models\StockAdjustment;
+use Modules\Shop\Repositories\StockAdjustment\StockAdjustmentRepositoryInterface;
 
 class StockAdjustmentController extends Controller
 {
@@ -19,7 +19,7 @@ class StockAdjustmentController extends Controller
 
     public function __construct()
     {
-        $this->repository = app()->make(\Modules\Shop\Repositories\StockAdjustment\StockAdjustmentRepositoryInterface::class);
+        $this->repository = app()->make(StockAdjustmentRepositoryInterface::class);
     }
 
     public function index(Request $request): JsonResponse

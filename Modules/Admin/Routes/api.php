@@ -14,6 +14,7 @@ use Modules\Admin\Http\Controllers\Api\SettingController;
 use Modules\Admin\Http\Controllers\Api\ShortLinksController;
 use Modules\Admin\Http\Controllers\Api\ShortLinksSummaryController;
 use Modules\Admin\Http\Controllers\Api\StockAdjustmentController;
+use Modules\Admin\Http\Controllers\Api\StockCloseController;
 use Modules\Admin\Http\Controllers\Api\TaskAttachmentController;
 use Modules\Admin\Http\Controllers\Api\TaxExemptController;
 use Modules\Admin\Http\Controllers\Api\LocationController;
@@ -222,6 +223,8 @@ Route::prefix('admin')
 
         // ProjectReceipt Routes.
         Route::get('project-receipt/datatable', [ProjectReceiptController::class, 'datatable']);
+        Route::post('project-receipt-transaction', [ProjectReceiptController::class, 'storeTransaction']);
+        Route::delete('project-receipt-transaction/{id}', [ProjectReceiptController::class, 'destroyTransaction']);
         Route::resource('project-receipt', 'ProjectReceiptController');
 
         // Course Routes.
@@ -233,6 +236,7 @@ Route::prefix('admin')
         // GraduationProject Routes.
         Route::get('project/datatable', [GraduationProjectController::class, 'datatable']);
         Route::get('project/{id}/payments', [GraduationProjectController::class, 'payments']);
+        Route::get('project-transaction/payments/{id}', [GraduationProjectController::class, 'paymentTransaction']);
         Route::resource('project', 'GraduationProjectController');
 
         Route::resource('course-student', 'CourseStudentController');
@@ -284,7 +288,14 @@ Route::prefix('admin')
         Route::post('return-order-with-status/{id}', [ReturnOrderController::class, 'updateWithStatus']);
         Route::resource('return-order', 'ReturnOrderController');
 
-        // Invoice Routes.
+        // StockClose Routes.
+        Route::get('stock-close/datatable', [StockCloseController::class, 'datatable']);
+        Route::get('stock-close-details/datatable', [StockCloseController::class, 'detailsDatatable']);
+        Route::get('stock-close/details', [StockCloseController::class, 'details']);
+        Route::post('stock-close/{id}/status', [StockCloseController::class, 'status']);
+        Route::resource('stock-close', 'StockCloseController');
+
+        //invoice  Routes.
         Route::get('invoice/datatable', [InvoiceController::class, 'datatable']);
         Route::post('invoice/{id}/status', [InvoiceController::class, 'status']);
         Route::resource('invoice', 'InvoiceController');

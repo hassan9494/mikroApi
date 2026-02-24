@@ -71,6 +71,44 @@ class ProjectReceiptController extends ApiAdminController
     }
 
 
+    public function storeTransaction() : JsonResponse
+    {
+        $data = $this->validateTransaction();
+        if (isset($data['project_receipt_id'])){
+            $model = $this->repository->findOrFail($data['project_receipt_id']);
+            $model->transactions()->create([
+                'transaction_id' => Str::uuid(),
+                'transactionable_id'=>$model->id,
+                'transactionable_type' =>ProjectReceipt::class,
+                'note' =>request()->get('notes') ?? '',
+                'type' => $data['type'],
+                'amount' => request()->get('amount'),
+                'commission' => 0,
+                'shipping' => 0,
+                'total_amount' => request()->get('amount'),
+                'payment_method_id' => request()->get('payment_method_id'),
+                'created_by' => auth()->id()
+            ]);
+        }
+
+        return $this->success(
+            $model
+        );
+    }
+
+    /**
+     * @param $id
+     * @return JsonResponse
+     * @throws \Exception
+     */
+    public function destroyTransaction($id): JsonResponse
+    {
+        $transaction = Transaction::findOrFail($id);
+        $transaction->delete($id);
+        return $this->success();
+    }
+
+
 
 
     public function datatableSearchFields(): array
@@ -95,6 +133,20 @@ class ProjectReceiptController extends ApiAdminController
             'payment_method_id' => 'required',
             'transaction_id' => 'nullable',
             'check_number' => 'nullable'
+        ]);
+    }
+
+    /**
+     * @return array
+     */
+    public function validateTransaction(): array
+    {
+        return request()->validate([
+            'amount' => 'required',
+            'notes' => 'nullable',
+            'payment_method_id' => 'required',
+            'project_receipt_id' => 'required',
+            'type' => 'required',
         ]);
     }
 

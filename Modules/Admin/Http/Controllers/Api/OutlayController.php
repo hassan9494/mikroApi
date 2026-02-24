@@ -59,7 +59,7 @@ class OutlayController extends ApiAdminController
                 'transaction_id' => Str::uuid(),
                 'transactionable_id'=>$model->id,
                 'transactionable_type' =>Outlay::class,
-                'note' => $model->notes,
+                'note' => $model->notes ?? "",
                 'type' => 'withdraw',
                 'amount' => $model->amount,
                 'commission' => 0,
@@ -85,7 +85,7 @@ class OutlayController extends ApiAdminController
                     'transaction_id' => Str::uuid(),
                     'transactionable_id'=>$model->id,
                     'transactionable_type' =>Outlay::class,
-                    'note' => $model->notes,
+                    'note' => $model->notes ?? '',
                     'type' => 'withdraw',
                     'amount' => $model->amount,
                     'commission' => 0,
@@ -97,7 +97,7 @@ class OutlayController extends ApiAdminController
             }else{
                 $transcation = $model->transactions()->first();
                 $transcation->update([
-                    'note' => $model->notes,
+                    'note' => $model->notes ?? '',
                     'type' => 'withdraw',
                     'amount' => $model->amount,
                     'total_amount' => $model->amount,

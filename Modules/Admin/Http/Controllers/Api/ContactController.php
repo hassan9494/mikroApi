@@ -27,7 +27,7 @@ class ContactController extends ApiAdminController
      */
     public function datatableSearchFields(): array
     {
-        return ['id', 'name', 'phone', 'email'];
+        return ['id', 'name', 'phone', 'email', 'company'];
     }
 
     /**
@@ -39,6 +39,7 @@ class ContactController extends ApiAdminController
             'name'    => 'required|max:255',
             'phone'   => 'nullable|string|max:50',
             'email'   => 'nullable|email|max:255',
+            'company' => 'nullable|string|max:255',
             'fax'     => 'nullable|string|max:50',
             'sub'     => 'nullable|string|max:255',
             'address' => 'nullable|string|max:500',
