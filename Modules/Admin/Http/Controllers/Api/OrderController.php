@@ -737,6 +737,7 @@ class OrderController extends ApiAdminController
                     'payment_method_id' => request()->get('payment_method'),
                     'created_by' => auth()->id()
                 ]);
+                $order->recordPayment($transaction, request()->get('payment_method'));
             } elseif (request()->get('amount') < 0) {
                 $transaction = $order->transactions()->create([
                     'transaction_id' => Str::uuid(),
@@ -752,6 +753,7 @@ class OrderController extends ApiAdminController
                     'payment_method_id' => request()->get('payment_method'),
                     'created_by' => auth()->id()
                 ]);
+                $order->recordPayment($transaction, request()->get('payment_method'));
             }
 
 //        }

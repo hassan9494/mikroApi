@@ -48,6 +48,14 @@ class TransactionRepository extends EloquentRepository implements TransactionRep
         $data['note'] = '';
 
         $model = parent::create($data);
+        // Record payment in order history
+        if (isset($data['order_id']) && $data['order_id']) {
+            $order = Order::find($data['order_id']);
+            if ($order) {
+                $order->recordPayment($model, $data['payment_method_id'] ?? null);
+            }
+        }
+
         return $model;
     }
 

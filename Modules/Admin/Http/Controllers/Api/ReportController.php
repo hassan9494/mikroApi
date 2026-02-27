@@ -1505,7 +1505,7 @@ class ReportController extends Controller
             }
 
             // Get product details
-            $product = Product::find($productId);
+            $product = Product::with(['inKits', 'inKits.kit'])->find($productId);
             if (!$product) {
                 return response()->json([
                     'message' => 'Product not found'
@@ -1554,6 +1554,48 @@ class ReportController extends Controller
                 }
 
                 $queries[] = $salesQuery;
+            }
+
+            // 1b. KIT SALES QUERY - Orders where this product was sold as part of a kit
+            if (in_array($filterType, ['all', 'sale', 'kit_sale'])) {
+                $kitSalesQuery = DB::table('orders as o')
+                    ->join('order_products as op', 'o.id', '=', 'op.order_id')
+                    ->join('product_kit as pk', 'op.product_id', '=', 'pk.kit_id')
+                    ->join('products as kit_product', 'pk.kit_id', '=', 'kit_product.id')
+                    ->where('pk.product_id', $productId)
+                    ->whereIn('o.status', ['COMPLETED', 'PROCESSING'])
+                    ->select(
+                        DB::raw("'kit_sale' as type"),
+                        'o.id as reference_id',
+                        DB::raw('o.id as reference_number'),
+                        DB::raw("DATE_FORMAT({$dateExpr}, '%Y-%m-%dT%TZ') as date"),
+                        DB::raw('0 as increase_quantity'),
+                        DB::raw('0 as decrease_quantity'),
+                        DB::raw('0 as purchases_quantity'),
+                        DB::raw('op.quantity * pk.quantity as sales_quantity'),
+                        'op.price as sale_price',
+                        'op.discount as discount',
+                        DB::raw('NULL as base_purchases_price'),
+                        DB::raw('NULL as exchange_factor'),
+                        DB::raw('NULL as distributer_price'),
+                        DB::raw('NULL as normal'),
+                        DB::raw('NULL as purchases_price'),
+                        DB::raw('(op.quantity * pk.quantity * op.price) as total_amount'),
+                        DB::raw("CONCAT('Order #', o.id, ' (', o.status, ') - Kit: ', kit_product.name) as description"),
+                        DB::raw("'kit_sale' as source_type"),
+                        'o.status as order_status'
+                    );
+
+                // Apply date filter
+                if ($from && $to) {
+                    $kitSalesQuery->whereBetween('o.taxed_at', [$from, $to]);
+                } elseif ($from) {
+                    $kitSalesQuery->where('o.taxed_at', '>=', $from);
+                } elseif ($to) {
+                    $kitSalesQuery->where('o.taxed_at', '<=', $to);
+                }
+
+                $queries[] = $kitSalesQuery;
             }
 
             // 2. PURCHASES QUERY - Must have same columns as sales query
@@ -1698,7 +1740,8 @@ class ReportController extends Controller
                             'stock_available' => $product->stock_available,
                             'store_available' => $product->store_available,
                             'min_qty' => $product->min_qty,
-                            'price' => $product->price
+                            'price' => $product->price,
+                            'all_sales_with_kit' => $product->inKits->isEmpty() ? $product->allSales($from, $to) : $product->totalAllSalesWithKit($from, $to),
                         ]
                     ]
                 ]);
@@ -1734,7 +1777,7 @@ class ReportController extends Controller
                 $frontUrl = config('app.front_url');
 
                 // Set proper reference link based on source type
-                if ($item->source_type === 'sale') {
+                if ($item->source_type === 'sale' || $item->source_type === 'kit_sale') {
                     $item->reference_link = $frontUrl . "/order/edit/{$item->reference_id}";
                     $item->reference_text = "Order #{$item->reference_id}";
                 } elseif ($item->source_type === 'purchase') {
@@ -1765,7 +1808,8 @@ class ReportController extends Controller
                         'stock_available' => $product->stock_available,
                         'store_available' => $product->store_available,
                         'min_qty' => $product->min_qty,
-                        'price' => $product->price
+                        'price' => $product->price,
+                        'all_sales_with_kit' => $product->inKits->isEmpty() ? $product->allSales($from, $to) : $product->totalAllSalesWithKit($from, $to),
                     ]
                 ]
             ]);
@@ -1791,7 +1835,7 @@ class ReportController extends Controller
             $to = $request->get('to');
             $filterType = $request->get('filter_type', 'all');
 
-            $productsQuery = Product::query()->with(['source']);
+            $productsQuery = Product::query()->with(['source', 'inKits', 'inKits.kit']);
 
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
@@ -1931,6 +1975,7 @@ class ReportController extends Controller
                     'source_sku' => $product->source_sku,
                     'location' => $product->location,
                     'stock_location' => $product->stock_location,
+                    'all_sales_with_kit' => $product->inKits->isEmpty() ? $product->allSales($from, $to) : $product->totalAllSalesWithKit($from, $to),
                 ];
             }
 
@@ -1949,6 +1994,7 @@ class ReportController extends Controller
             ], 500);
         }
     }
+
 
 
 }

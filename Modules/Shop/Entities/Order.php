@@ -664,6 +664,43 @@ class Order extends Model implements HasMedia
         }
     }
 
+    public function recordPayment($transaction, $paymentMethod = null)
+    {
+        $user = auth()->user();
+        $paymentMethodName = null;
+
+        if ($paymentMethod) {
+            $paymentMethodName = $paymentMethod instanceof PaymentMethod
+                ? $paymentMethod->name
+                : PaymentMethod::find($paymentMethod)?->name;
+        } elseif ($transaction->payment_method_id) {
+            $paymentMethodName = $transaction->paymentMethod?->name;
+        }
+
+        $action = $transaction->type === 'refund' ? 'payment_refunded' : 'payment_added';
+
+        OrderHistory::create([
+            'order_id' => $this->id,
+            'action' => $action,
+            'field' => 'payment',
+            'old_value' => null,
+            'new_value' => json_encode([
+                'amount' => $transaction->amount,
+                'payment_method' => $paymentMethodName,
+                'commission' => $transaction->commission,
+                'shipping' => $transaction->shipping,
+                'total_amount' => $transaction->total_amount,
+                'transaction_id' => $transaction->transaction_id,
+                'type' => $transaction->type,
+            ]),
+            'notes' => ($transaction->type === 'refund' ? 'Refund' : 'Payment') .
+                " of {$transaction->amount}" .
+                ($paymentMethodName ? " via {$paymentMethodName}" : ''),
+            'user_id' => $user?->id,
+        ]);
+    }
+
+
     /**
      * Record print action
      */
