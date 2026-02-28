@@ -42,6 +42,9 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         if (isset($data['short_description'])) {
             $data['short_description'] = str_replace("\n", '<br>', $data['short_description']);
         }
+        if (!isset($data['exchange_factor'])) {
+            $data['exchange_factor'] = 1;
+        }
         if (isset($data['short_description_ar'])) {
             $data['short_description_ar'] = str_replace("\n", '<br>', $data['short_description_ar']);
         }
