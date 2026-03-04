@@ -11,6 +11,7 @@ use Modules\Shop\Http\Controllers\Api\EmailController;
 use Modules\Shop\Http\Controllers\Api\OrderController;
 use Modules\Shop\Http\Controllers\Api\ProductController;
 use Modules\Shop\Http\Controllers\Api\TagController;
+use Modules\Shop\Http\Controllers\Api\PointController;
 use Modules\Shop\Http\Resources\ProductShortResource;
 
 /*
@@ -43,6 +44,10 @@ Route::namespace('Api')
         Route::resource('address', 'AddressController');
         Route::post('address/primary/{id}', [AddressController::class, 'primary']);
 
+        // Points Routes
+        Route::get('user/points', [PointController::class, 'index']);
+        Route::get('user/points/balance', [PointController::class, 'balance']);
+        Route::post('checkout/calculate-points', [PointController::class, 'calculateForCheckout']);
     });
 
 
@@ -173,6 +178,9 @@ Route::namespace('Api')->group(function () {
     );
     Route::post('coupons/validate-for-cart', [CouponController::class, 'validateForCart'])->middleware(['auth:sanctum']);
     Route::post('coupons/validate-for-cart-guest', [CouponController::class, 'validateForCartGuest']);
+
+    // Public Points Settings Route
+    Route::get('points/settings', [PointController::class, 'settings']);
 
     Route::prefix('admin')->group(function () {
         Route::post(

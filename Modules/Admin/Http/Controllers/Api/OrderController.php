@@ -957,6 +957,9 @@ class OrderController extends ApiAdminController
             'commission' => 'nullable',
             'payment_method' => 'nullable',
             'shipping_amount' => 'nullable',
+
+            'points_to_use' => 'nullable|integer|min:0',
+            'points_discount' => 'nullable|numeric|min:0',
         ]);
     }
 

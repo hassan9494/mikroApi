@@ -76,6 +76,7 @@ class OrderController extends Controller
             'products.*.quantity' => 'numeric|min:1',
             'notes' => 'nullable|max:500',
             'coupon_id' => 'nullable|exists:coupons,id',
+            'points_to_use' => 'nullable|integer|min:0',
         ]);
 
         $data['user_id'] = Auth::user()->id;
@@ -194,7 +195,11 @@ class OrderController extends Controller
             'products.*.id' => 'exists:products',
             'products.*.quantity' => 'numeric|min:1',
             'coupon_id' => 'nullable|exists:coupons,id',
+            'points_to_use' => 'nullable|integer|min:0',
         ]);
+
+        // Log points data for debugging
+        \Log::info('Employee order points_to_use: ' . ($data['points_to_use'] ?? 'not provided'));
 
         // Fill empty email with employee's email or a placeholder
         if (empty($data['customer']['email'])) {

@@ -47,6 +47,7 @@ use Modules\Admin\Http\Controllers\Api\SlideController;
 use Modules\Admin\Http\Controllers\Api\TaskController;
 use Modules\Admin\Http\Controllers\Api\TransferOrderController;
 use Modules\Admin\Http\Controllers\Api\ContactController;
+use Modules\Admin\Http\Controllers\Api\PointController;
 
 
 /*
@@ -422,6 +423,17 @@ Route::prefix('admin')
 
         Route::post('order/{id}/record-print', [OrderController::class, 'recordPrint']);
         Route::post('order/{id}/record-export', [OrderController::class, 'recordExport']);
+
+        // Points Routes
+        Route::prefix('points')->group(function () {
+            Route::get('/datatable', [PointController::class, 'datatable']);
+            Route::get('/settings', [PointController::class, 'getSettings']);
+            Route::put('/settings', [PointController::class, 'updateSettings']);
+            Route::get('/stats', [PointController::class, 'stats']);
+            Route::post('/adjust', [PointController::class, 'adjust']);
+            Route::get('/user/{userId}', [PointController::class, 'userHistory']);
+            Route::get('/{id}', [PointController::class, 'show']);
+        });
 
     });
 

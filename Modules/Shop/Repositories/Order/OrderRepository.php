@@ -17,6 +17,7 @@ use Modules\Shop\Repositories\Product\ProductRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 use App\Traits\OrderHistoryTrait;
+use App\Services\PointService;
 
 /**
  * Class OrderRepository
@@ -131,14 +132,63 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         $data['city_id'] = $address->city_id;
         $data['uuid'] = Str::uuid();
 
+        // Handle points redemption
+        $pointsUsed = 0;
+        $pointsDiscount = 0;
+        if (isset($data['points_to_use']) && $data['points_to_use'] > 0) {
+            $pointService = app(PointService::class);
+
+            if ($pointService->isEnabled()) {
+                // Calculate order total before points discount
+                $shippingCost = ($data['shipping']['free'] ?? false) ? 0 : ($data['shipping']['cost'] ?? 0);
+                $orderTotal = $cart['subtotal'] - $data['discount'] + $shippingCost;
+
+                // Get user's available balance and calculate max usable points
+                $userBalance = $pointService->getAvailableBalance($user->id);
+                $maxUsable = $pointService->calculateMaxUsablePoints($orderTotal, $userBalance);
+
+                // Limit points to what's available and allowed
+                $pointsUsed = min($data['points_to_use'], $maxUsable);
+
+                if ($pointsUsed > 0) {
+                    $pointsDiscount = $pointService->calculateDiscount($pointsUsed);
+                }
+            }
+        }
+
+        $data['points_used'] = $pointsUsed;
+        $data['points_discount'] = $pointsDiscount;
+
+        // Distribute points discount across products proportionally
+        $productsWithPointsDiscount = $this->distributePointsDiscount(
+            $cart['products'],
+            $cart['subtotal'],
+            $pointsDiscount
+        );
+
         // Validate coupon before creating order
         if (isset($data['coupon_id']) && $data['coupon_id']) {
             $this->validateCoupon($data['coupon_id'], $user, $data['products'] ?? []);
         }
-//        dd($data['coupon_id']);
+
         $order = $this->model->create($data);
 
-        $order->products()->attach($cart['products']);
+        $order->products()->attach($productsWithPointsDiscount);
+
+        // Deduct points after order is created
+        if ($pointsUsed > 0) {
+            try {
+                $pointService = app(PointService::class);
+                $pointService->usePoints(
+                    $user->id,
+                    $pointsUsed,
+                    $order->id,
+                    "Redeemed for order #{$order->id}"
+                );
+            } catch (\Exception $e) {
+                Log::error('Failed to deduct points for order ' . $order->id . ': ' . $e->getMessage());
+            }
+        }
 
         return $this->update($order->id, []);
     }
@@ -173,6 +223,39 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $data['shipping']['status'] = 'WAITING';
         }
 
+        // Handle points redemption (from employee's account)
+        $pointsUsed = 0;
+        $pointsDiscount = 0;
+        if (isset($data['points_to_use']) && $data['points_to_use'] > 0) {
+            $pointService = app(PointService::class);
+
+            if ($pointService->isEnabled()) {
+                // Calculate order total before points discount
+                $shippingCostValue = ($data['shipping']['free'] ?? false) ? 0 : ($data['shipping']['cost'] ?? 0);
+                $orderTotal = $cart['subtotal'] - $data['discount'] + $shippingCostValue;
+
+                // Get employee's available balance and calculate max usable points
+                $userBalance = $pointService->getAvailableBalance($employee->id);
+                $maxUsable = $pointService->calculateMaxUsablePoints($orderTotal, $userBalance);
+
+                // Limit points to what's available and allowed
+                $pointsUsed = min($data['points_to_use'], $maxUsable);
+
+                if ($pointsUsed > 0) {
+                    $pointsDiscount = $pointService->calculateDiscount($pointsUsed);
+                }
+
+                Log::info("Employee order points: requested={$data['points_to_use']}, maxUsable=$maxUsable, used=$pointsUsed, discount=$pointsDiscount");
+            }
+        }
+
+        // Distribute points discount across products proportionally
+        $productsWithPointsDiscount = $this->distributePointsDiscount(
+            $cart['products'],
+            $cart['subtotal'],
+            $pointsDiscount
+        );
+
         $order = $this->model->create([
             'user_id' => $employee->id, // Store employee's ID
             'customer' => $data['customer'],
@@ -181,10 +264,27 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             'notes' => $data['notes'] ?? null,
             'coupon_id' => $data['coupon_id'] ?? null,
             'discount' => $data['discount'] ?? null,
+            'points_used' => $pointsUsed,
+            'points_discount' => $pointsDiscount,
             'uuid' => Str::uuid(),
         ]);
 
-        $order->products()->attach($cart['products']);
+        $order->products()->attach($productsWithPointsDiscount);
+
+        // Deduct points after order is created
+        if ($pointsUsed > 0) {
+            try {
+                $pointService = app(PointService::class);
+                $pointService->usePoints(
+                    $employee->id,
+                    $pointsUsed,
+                    $order->id,
+                    "Redeemed for employee order #{$order->id}"
+                );
+            } catch (\Exception $e) {
+                Log::error('Failed to deduct points for employee order ' . $order->id . ': ' . $e->getMessage());
+            }
+        }
 
         return $this->update($order->id, []);
     }
@@ -226,8 +326,55 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $this->validateCoupon($data['coupon_id'], $user, $data['products'] ?? []);
         }
 
+        // Handle points for admin order creation
+        if (isset($data['points_to_use']) && $data['points_to_use'] > 0 && isset($data['user_id'])) {
+            $pointService = app(PointService::class);
+            if ($pointService->isEnabled()) {
+                $user = User::find($data['user_id']);
+                if ($user) {
+                    $userBalance = $pointService->getAvailableBalance($user->id);
+                    $pointsToUse = min($data['points_to_use'], $userBalance);
+
+                    if ($pointsToUse > 0) {
+                        $data['points_used'] = $pointsToUse;
+                        $data['points_discount'] = $pointService->calculateDiscount($pointsToUse);
+                    }
+                }
+            }
+        }
+        // Map points_to_use to points_used if only points_discount is provided
+        if (isset($data['points_discount']) && $data['points_discount'] > 0 && !isset($data['points_used'])) {
+            $data['points_used'] = $data['points_to_use'] ?? 0;
+        }
+
+        // Distribute points discount across products proportionally
+        $pointsDiscount = $data['points_discount'] ?? 0;
+        $productsWithPointsDiscount = $this->distributePointsDiscount(
+            $cart['products'],
+            $cart['subtotal'],
+            (float) $pointsDiscount
+        );
+
         $order = $this->model->create($data);
-        $order->products()->attach($cart['products']);
+        $order->products()->attach($productsWithPointsDiscount);
+
+        // Deduct points after order is created
+        if (isset($data['points_used']) && $data['points_used'] > 0 && isset($data['user_id'])) {
+            try {
+                $pointService = app(PointService::class);
+                $user = User::find($data['user_id']);
+                if ($user) {
+                    $pointService->usePoints(
+                        $user->id,
+                        $data['points_used'],
+                        $order->id,
+                        "Redeemed for order #{$order->id}"
+                    );
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to deduct points for order ' . $order->id . ': ' . $e->getMessage());
+            }
+        }
 
         return $order;
     }
@@ -289,17 +436,83 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
                 ];
             }
 
+            // Calculate points_discount first if points are being used
+            $pointsDiscount = 0;
+            if (isset($data['points_to_use']) && $data['points_to_use'] > 0) {
+                if (!isset($data['points_discount']) || $data['points_discount'] === null) {
+                    $pointService = app(PointService::class);
+                    $pointsDiscount = $pointService->calculateDiscount((int) $data['points_to_use']);
+                    $data['points_discount'] = $pointsDiscount;
+                } else {
+                    $pointsDiscount = (float) $data['points_discount'];
+                }
+            } elseif (isset($data['points_discount'])) {
+                $pointsDiscount = (float) $data['points_discount'];
+            }
+
             if ($model->isPending) {
                 // If order is in PENDING status, then we can upgrade products and subtotal according to products
                 $cart = $this->prepareCartProducts($data['products'] ?? [], $model);
+
+                // Distribute points discount across products proportionally
+                $productsWithPointsDiscount = $this->distributePointsDiscount(
+                    $cart['products'],
+                    $cart['subtotal'],
+                    $pointsDiscount
+                );
+
                 // must be before update, see onSaving inside Order model.
-                $model->products()->sync($cart['products']);
+                $model->products()->sync($productsWithPointsDiscount);
             }
 
             if ($model->options->taxed == true) {
                 $data['options']['taxed'] = true;
             } elseif ($model->tax_number !== null) {
                 $data['options']['taxed'] = true;
+            }
+
+            // Handle points for order update
+            if (isset($data['points_to_use'])) {
+                $newPointsToUse = (int) $data['points_to_use'];
+                $oldPointsUsed = (int) ($model->points_used ?? 0);
+
+                // Map points_to_use to points_used
+                $data['points_used'] = $newPointsToUse;
+
+                // points_discount was already calculated above
+
+                // Handle points transaction changes
+                if ($newPointsToUse !== $oldPointsUsed && $model->user_id) {
+                    $pointService = app(PointService::class);
+
+                    // If old points were used, refund them first
+                    if ($oldPointsUsed > 0) {
+                        try {
+                            $pointService->refundPoints(
+                                $model->user_id,
+                                $oldPointsUsed,
+                                $model->id,
+                                "Refund for order #{$model->id} update"
+                            );
+                        } catch (\Exception $e) {
+                            Log::error('Failed to refund points for order ' . $model->id . ': ' . $e->getMessage());
+                        }
+                    }
+
+                    // If new points are being used, deduct them
+                    if ($newPointsToUse > 0) {
+                        try {
+                            $pointService->usePoints(
+                                $model->user_id,
+                                $newPointsToUse,
+                                $model->id,
+                                "Redeemed for order #{$model->id}"
+                            );
+                        } catch (\Exception $e) {
+                            Log::error('Failed to deduct points for order ' . $model->id . ': ' . $e->getMessage());
+                        }
+                    }
+                }
             }
 
             $model->update($data);
@@ -603,6 +816,46 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         }
 
         return compact('products', 'subtotal');
+    }
+
+    /**
+     * Distribute points discount across products proportionally based on their price
+     *
+     * @param array $products The products array with pivot data
+     * @param float $subtotal The order subtotal
+     * @param float $pointsDiscount The total points discount to distribute
+     * @return array The products array with points_discount added
+     */
+    private function distributePointsDiscount(array $products, float $subtotal, float $pointsDiscount): array
+    {
+        if ($pointsDiscount <= 0 || $subtotal <= 0) {
+            // Add 0 points_discount to each product
+            foreach ($products as $productId => $pivotData) {
+                $products[$productId]['points_discount'] = 0;
+            }
+            return $products;
+        }
+
+        $distributedTotal = 0;
+        $productKeys = array_keys($products);
+        $lastKey = end($productKeys);
+
+        foreach ($products as $productId => $pivotData) {
+            $productTotal = $pivotData['price'] * $pivotData['quantity'];
+
+            if ($productId === $lastKey) {
+                // Last product gets the remainder to avoid rounding issues
+                $productPointsDiscount = round($pointsDiscount - $distributedTotal, 2);
+            } else {
+                // Calculate proportional discount
+                $productPointsDiscount = round(($productTotal / $subtotal) * $pointsDiscount, 2);
+                $distributedTotal += $productPointsDiscount;
+            }
+
+            $products[$productId]['points_discount'] = $productPointsDiscount;
+        }
+
+        return $products;
     }
 
     /**

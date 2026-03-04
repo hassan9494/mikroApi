@@ -64,6 +64,9 @@ class Order extends Model implements HasMedia
         'discount',
         'total',
         'profit',
+        'points_earned',
+        'points_used',
+        'points_discount',
         'options',
         'tax_number',
         'completed_at',
@@ -185,7 +188,7 @@ class Order extends Model implements HasMedia
             'order_products',
             'order_id',
             'product_id'
-        )->withTrashed()->withPivot('price', 'quantity', 'real_price','product_name','number','discount','is_color','color_id');
+        )->withTrashed()->withPivot('price', 'quantity', 'real_price','product_name','number','discount','points_discount','is_color','color_id');
     }
 
     /**
@@ -382,12 +385,13 @@ class Order extends Model implements HasMedia
     }
 
     /**
-     * Calc Order Profit.
+     * Calc Order Total.
      */
     public function calcTotal()
     {
         $shippingCost = ($this->shipping?->free ?? false) ? 0 : $this->shipping?->cost  ?? 0;
-        $this->total = $this->subtotal + $shippingCost - $this->discount;
+        $pointsDiscount = $this->points_discount ?? 0;
+        $this->total = $this->subtotal + $shippingCost - $this->discount - $pointsDiscount;
     }
 
     /**
