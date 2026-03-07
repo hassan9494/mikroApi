@@ -268,7 +268,7 @@ class StockAdjustmentRepository extends EloquentRepository implements StockAdjus
         if ($adjustment->adjustment_type === 'increase') {
             $product->stock  += $adjustment->quantity;
         } else {
-            $product->stock  = max(0, $product->stock  - $adjustment->quantity);
+            $product->stock  -= $adjustment->quantity;
         }
 
         return $product->save();
@@ -304,7 +304,7 @@ class StockAdjustmentRepository extends EloquentRepository implements StockAdjus
         if ($adjustment->adjustment_type === 'increase') {
             $stockAfter = $stockBefore + $adjustment->quantity;
         } else {
-            $stockAfter = max(0, $stockBefore - $adjustment->quantity);
+            $stockAfter = $stockBefore - $adjustment->quantity;
         }
 
         $adjustment->update([
@@ -578,24 +578,24 @@ class StockAdjustmentRepository extends EloquentRepository implements StockAdjus
                 // Original: stock_available -> store_available
                 // Reverse: store_available -> stock_available
                 $product->stock_available = $product->stock_available + $adjustment->quantity;
-                $product->store_available = max(0, $product->store_available - $adjustment->quantity);
+                $product->store_available = $product->store_available - $adjustment->quantity;
             } else {
                 // Original: store_available -> stock_available
                 // Reverse: stock_available -> store_available
-                $product->stock_available = max(0, $product->stock_available - $adjustment->quantity);
+                $product->stock_available = $product->stock_available - $adjustment->quantity;
                 $product->store_available = $product->store_available + $adjustment->quantity;
             }
         } elseif ($adjustment->adjustment_type === 'increase') {
-            // For increases, reverse by decreasing
+            // For increases, reverse by decreasing (allow negative values)
             if ($adjustment->adjustment_location === 'total') {
-                $product->stock = max(0, $product->stock - $adjustment->quantity);
-                $product->store_available = max(0, $product->store_available - $adjustment->quantity);
+                $product->stock = $product->stock - $adjustment->quantity;
+                $product->store_available = $product->store_available - $adjustment->quantity;
             } elseif ($adjustment->adjustment_location === 'stock_available') {
-                $product->stock = max(0, $product->stock - $adjustment->quantity);
-                $product->stock_available = max(0, $product->stock_available - $adjustment->quantity);
+                $product->stock = $product->stock - $adjustment->quantity;
+                $product->stock_available = $product->stock_available - $adjustment->quantity;
             } else { // store_available
-                $product->stock = max(0, $product->stock - $adjustment->quantity);
-                $product->store_available = max(0, $product->store_available - $adjustment->quantity);
+                $product->stock = $product->stock - $adjustment->quantity;
+                $product->store_available = $product->store_available - $adjustment->quantity;
             }
         } else { // decrease
             // For decreases, reverse by increasing

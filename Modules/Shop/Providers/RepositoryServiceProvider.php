@@ -111,7 +111,10 @@ class RepositoryServiceProvider extends ServiceProvider
             'Modules\Shop\Repositories\PointTransaction\PointTransactionRepositoryInterface',
             'Modules\Shop\Repositories\PointTransaction\PointTransactionRepository'
         );
-
+        $this->app->singleton(
+            'Modules\Shop\Repositories\StockCount\StockCountRepositoryInterface',
+            'Modules\Shop\Repositories\StockCount\StockCountRepository'
+        );
     }
 
 }

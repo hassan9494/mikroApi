@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Modules\Admin\Http\Resources\MediaResource;
 use Modules\Admin\Http\Resources\TransactionResource;
 use Modules\Shop\Entities\ClosePoint;
+use Modules\Shop\Entities\Order;
 use Modules\Shop\Entities\Transaction;
 use Modules\Shop\Http\Resources\CategoryResource;
 use Modules\Shop\Repositories\Transaction\TransactionRepositoryInterface;
@@ -363,10 +364,15 @@ class TransactionController extends ApiAdminController
      */
     public function destroy($id): JsonResponse
     {
-        $transaction = Transaction::find($id);
+        $transaction = Transaction::with('paymentMethod')->find($id);
         $transaction->update([
             'deleted_by' => auth()->id()
         ]);
+        if ($transaction->order_id) {
+            $order = Order::find($transaction->order_id);
+            $order?->recordPaymentDeleted($transaction);
+        }
+
         $this->repository->delete($id);
         return $this->success();
     }

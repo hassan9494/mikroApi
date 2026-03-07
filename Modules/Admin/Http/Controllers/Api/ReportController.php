@@ -1526,7 +1526,7 @@ class ReportController extends Controller
                         DB::raw("'sale' as type"),
                         'o.id as reference_id',
                         DB::raw('o.id as reference_number'),
-                        DB::raw("DATE_FORMAT({$dateExpr}, '%Y-%m-%dT%TZ') as date"),
+                        DB::raw("DATE_FORMAT(o.created_at, '%Y-%m-%dT%TZ') as date"),
                         DB::raw('0 as increase_quantity'),
                         DB::raw('0 as decrease_quantity'),
                         DB::raw('0 as purchases_quantity'),
@@ -1546,11 +1546,11 @@ class ReportController extends Controller
 
                 // Apply date filter
                 if ($from && $to) {
-                    $salesQuery->whereBetween('o.taxed_at', [$from, $to]);
+                    $salesQuery->whereBetween('o.created_at', [$from, $to]);
                 } elseif ($from) {
-                    $salesQuery->where('o.taxed_at', '>=', $from);
+                    $salesQuery->where('o.created_at', '>=', $from);
                 } elseif ($to) {
-                    $salesQuery->where('o.taxed_at', '<=', $to);
+                    $salesQuery->where('o.created_at', '<=', $to);
                 }
 
                 $queries[] = $salesQuery;
@@ -1568,7 +1568,7 @@ class ReportController extends Controller
                         DB::raw("'kit_sale' as type"),
                         'o.id as reference_id',
                         DB::raw('o.id as reference_number'),
-                        DB::raw("DATE_FORMAT({$dateExpr}, '%Y-%m-%dT%TZ') as date"),
+                        DB::raw("DATE_FORMAT(o.created_at, '%Y-%m-%dT%TZ') as date"),
                         DB::raw('0 as increase_quantity'),
                         DB::raw('0 as decrease_quantity'),
                         DB::raw('0 as purchases_quantity'),
@@ -1588,11 +1588,11 @@ class ReportController extends Controller
 
                 // Apply date filter
                 if ($from && $to) {
-                    $kitSalesQuery->whereBetween('o.taxed_at', [$from, $to]);
+                    $kitSalesQuery->whereBetween('o.created_at', [$from, $to]);
                 } elseif ($from) {
-                    $kitSalesQuery->where('o.taxed_at', '>=', $from);
+                    $kitSalesQuery->where('o.created_at', '>=', $from);
                 } elseif ($to) {
-                    $kitSalesQuery->where('o.taxed_at', '<=', $to);
+                    $kitSalesQuery->where('o.created_at', '<=', $to);
                 }
 
                 $queries[] = $kitSalesQuery;
@@ -1725,6 +1725,53 @@ class ReportController extends Controller
                 $queries[] = $returnsQuery;
             }
 
+            // 5. STOCK COUNTS QUERY - Only approved counts with total_difference != 0
+            if (in_array($filterType, ['all', 'stock_count', 'stock_count-inc', 'stock_count-dec'])) {
+                $stockCountQuery = DB::table('stock_count_products as scp')
+                    ->join('stock_counts as sc', 'scp.stock_count_id', '=', 'sc.id')
+                    ->where('scp.product_id', $productId)
+                    ->where('sc.status', 'approved')
+                    ->where('scp.total_difference', '!=', 0);
+
+                if ($filterType === 'stock_count-inc') {
+                    $stockCountQuery->where('scp.total_difference', '>', 0);
+                } elseif ($filterType === 'stock_count-dec') {
+                    $stockCountQuery->where('scp.total_difference', '<', 0);
+                }
+
+                $stockCountQuery->select(
+                    DB::raw("'stock_count' as type"),
+                    'sc.id as reference_id',
+                    'sc.reference_number as reference_number',
+                    DB::raw("DATE_FORMAT(sc.created_at, '%Y-%m-%dT%TZ') as date"),
+                    DB::raw("CASE WHEN scp.total_difference > 0 THEN scp.total_difference ELSE 0 END as increase_quantity"),
+                    DB::raw("CASE WHEN scp.total_difference < 0 THEN ABS(scp.total_difference) ELSE 0 END as decrease_quantity"),
+                    DB::raw('0 as purchases_quantity'),
+                    DB::raw('0 as sales_quantity'),
+                    DB::raw('NULL as sale_price'),
+                    DB::raw('NULL as discount'),
+                    DB::raw('NULL as base_purchases_price'),
+                    DB::raw('NULL as exchange_factor'),
+                    DB::raw('NULL as distributer_price'),
+                    DB::raw('NULL as normal'),
+                    DB::raw('NULL as purchases_price'),
+                    DB::raw('NULL as total_amount'),
+                    DB::raw("CONCAT('Stock Count ', sc.reference_number, ' (diff: ', scp.total_difference, ')') as description"),
+                    DB::raw("'stock_count' as source_type"),
+                    DB::raw('NULL as order_status')
+                );
+
+                if ($from && $to) {
+                    $stockCountQuery->whereBetween('sc.created_at', [$from, $to]);
+                } elseif ($from) {
+                    $stockCountQuery->where('sc.created_at', '>=', $from);
+                } elseif ($to) {
+                    $stockCountQuery->where('sc.created_at', '<=', $to);
+                }
+
+                $queries[] = $stockCountQuery;
+            }
+
             // If no queries (shouldn't happen but just in case)
             if (empty($queries)) {
                 return response()->json([
@@ -1789,6 +1836,9 @@ class ReportController extends Controller
                 } elseif ($item->source_type === 'return') {   // <-- ADD THIS
                     $item->reference_link = $frontUrl . "/return-order/edit/{$item->reference_id}";
                     $item->reference_text = "Return Order #{$item->reference_number}";
+                } elseif ($item->source_type === 'stock_count') {
+                    $item->reference_link = $frontUrl . "/stock-count/{$item->reference_id}";
+                    $item->reference_text = $item->reference_number;
                 }
 
 
@@ -1877,12 +1927,21 @@ class ReportController extends Controller
                     ->where('rop.product_id', $product->id)
                     ->where('ro.status', 'COMPLETED');
 
+                // Stock Counts - only approved with total_difference != 0
+                $stockCountQuery = DB::table('stock_count_products as scp')
+                    ->join('stock_counts as sc', 'scp.stock_count_id', '=', 'sc.id')
+                    ->where('scp.product_id', $product->id)
+                    ->where('sc.status', 'approved')
+                    ->where('scp.total_difference', '!=', 0)
+                    ->whereNull('sc.deleted_at');
+
                 // Apply date filters if provided
                 if ($from && $to) {
                     $purchasesQuery->whereBetween('i.date', [$from, $to]);
                     $salesQuery->whereBetween('o.taxed_at', [$from, $to]);
                     $adjustmentsQuery->whereBetween('sa.created_at', [$from, $to]);
                     $returnsQuery->whereBetween('ro.created_at', [$from, $to]);
+                    $stockCountQuery->whereBetween('sc.created_at', [$from, $to]);
                 }
 
                 // Apply filter type
@@ -1892,33 +1951,59 @@ class ReportController extends Controller
                             $salesQuery->whereRaw('1=0');
                             $adjustmentsQuery->whereRaw('1=0');
                             $returnsQuery->whereRaw('1=0');
+                            $stockCountQuery->whereRaw('1=0');
                             break;
                         case 'sale':
                             $purchasesQuery->whereRaw('1=0');
                             $adjustmentsQuery->whereRaw('1=0');
                             $returnsQuery->whereRaw('1=0');
+                            $stockCountQuery->whereRaw('1=0');
                             break;
                         case 'return':
                             $purchasesQuery->whereRaw('1=0');
                             $salesQuery->whereRaw('1=0');
                             $adjustmentsQuery->whereRaw('1=0');
+                            $stockCountQuery->whereRaw('1=0');
                             break;
                         case 'adjustment':
                             $purchasesQuery->whereRaw('1=0');
                             $salesQuery->whereRaw('1=0');
                             $returnsQuery->whereRaw('1=0');
+                            $stockCountQuery->whereRaw('1=0');
                             break;
                         case 'adjustment-inc':
                             $purchasesQuery->whereRaw('1=0');
                             $salesQuery->whereRaw('1=0');
                             $returnsQuery->whereRaw('1=0');
+                            $stockCountQuery->whereRaw('1=0');
                             $adjustmentsQuery->where('adjustment_type', 'increase');
                             break;
                         case 'adjustment-dec':
                             $purchasesQuery->whereRaw('1=0');
                             $salesQuery->whereRaw('1=0');
                             $returnsQuery->whereRaw('1=0');
+                            $stockCountQuery->whereRaw('1=0');
                             $adjustmentsQuery->where('adjustment_type', 'decrease');
+                            break;
+                        case 'stock_count':
+                            $purchasesQuery->whereRaw('1=0');
+                            $salesQuery->whereRaw('1=0');
+                            $adjustmentsQuery->whereRaw('1=0');
+                            $returnsQuery->whereRaw('1=0');
+                            break;
+                        case 'stock_count-inc':
+                            $purchasesQuery->whereRaw('1=0');
+                            $salesQuery->whereRaw('1=0');
+                            $adjustmentsQuery->whereRaw('1=0');
+                            $returnsQuery->whereRaw('1=0');
+                            $stockCountQuery->where('scp.total_difference', '>', 0);
+                            break;
+                        case 'stock_count-dec':
+                            $purchasesQuery->whereRaw('1=0');
+                            $salesQuery->whereRaw('1=0');
+                            $adjustmentsQuery->whereRaw('1=0');
+                            $returnsQuery->whereRaw('1=0');
+                            $stockCountQuery->where('scp.total_difference', '<', 0);
                             break;
                     }
                 }
@@ -1937,19 +2022,25 @@ class ReportController extends Controller
                 $returnsTotal = $returnsQuery->sum('rop.returned_quantity');
                 $returnsAmount = $returnsQuery->sum(DB::raw('(rop.returned_quantity * rop.price) - rop.discount'));
 
+                // Stock Counts
+                $stockCountIncrease = (int)$stockCountQuery->clone()->where('scp.total_difference', '>', 0)->sum('scp.total_difference');
+                $stockCountDecrease = (int)abs($stockCountQuery->clone()->where('scp.total_difference', '<', 0)->sum('scp.total_difference'));
+
                 // Latest activity date
                 $latestDates = [];
                 $latestPurchase = $purchasesQuery->clone()->max('i.date');
                 $latestSale = $salesQuery->clone()->max('o.taxed_at');
                 $latestAdjustment = $adjustmentsQuery->clone()->max('created_at');
                 $latestReturn = $returnsQuery->clone()->max('ro.created_at');
+                $latestStockCount = $stockCountQuery->clone()->max('sc.created_at');
                 if ($latestPurchase) $latestDates[] = $latestPurchase;
                 if ($latestSale) $latestDates[] = $latestSale;
                 if ($latestAdjustment) $latestDates[] = $latestAdjustment;
                 if ($latestReturn) $latestDates[] = $latestReturn;
+                if ($latestStockCount) $latestDates[] = $latestStockCount;
                 $latestDate = !empty($latestDates) ? max($latestDates) : null;
 
-                $netChange = $purchasesTotal + $increasesTotal + $returnsTotal - $salesTotal - $decreasesTotal;
+                $netChange = $purchasesTotal + $increasesTotal + $returnsTotal + $stockCountIncrease - $salesTotal - $decreasesTotal - $stockCountDecrease;
 
                 $items[] = [
                     'product_id' => $product->id,
@@ -1961,6 +2052,8 @@ class ReportController extends Controller
                     'totalReturns' => (int)$returnsTotal,
                     'totalSales' => (int)$salesTotal,
                     'totalDecreases' => (int)$decreasesTotal,
+                    'totalStockCountIncrease' => $stockCountIncrease,
+                    'totalStockCountDecrease' => $stockCountDecrease,
                     'totalPurchaseAmount' => (float)$purchasesAmount,
                     'totalSaleAmount' => (float)$salesAmount,
                     'totalDiscount' => (float)$totalDiscount,
@@ -1994,7 +2087,6 @@ class ReportController extends Controller
             ], 500);
         }
     }
-
 
 
 }
