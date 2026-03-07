@@ -700,6 +700,63 @@ class Order extends Model implements HasMedia
         ]);
     }
 
+    public function recordPaymentDeleted($transaction)
+    {
+        $paymentMethodName = $transaction->paymentMethod?->name;
+
+        OrderHistory::create([
+            'order_id' => $this->id,
+            'action' => 'payment_deleted',
+            'field' => 'payment',
+            'old_value' => json_encode([
+                'amount' => $transaction->amount,
+                'payment_method' => $paymentMethodName,
+                'commission' => $transaction->commission,
+                'shipping' => $transaction->shipping,
+                'total_amount' => $transaction->total_amount,
+                'transaction_id' => $transaction->transaction_id,
+                'type' => $transaction->type,
+            ]),
+            'new_value' => null,
+            'notes' => 'Deleted ' . ($transaction->type === 'refund' ? 'refund' : 'payment') .
+                " of {$transaction->amount}" .
+                ($paymentMethodName ? " via {$paymentMethodName}" : ''),
+            'user_id' => auth()->id(),
+        ]);
+    }
+
+    public function recordPaymentUpdated($oldTransaction, $newTransaction)
+    {
+        $oldMethodName = $oldTransaction->paymentMethod?->name;
+        $newMethodName = $newTransaction->paymentMethod?->name;
+
+        OrderHistory::create([
+            'order_id' => $this->id,
+            'action' => 'payment_updated',
+            'field' => 'payment',
+            'old_value' => json_encode([
+                'amount' => $oldTransaction->amount,
+                'payment_method' => $oldMethodName,
+                'commission' => $oldTransaction->commission,
+                'shipping' => $oldTransaction->shipping,
+                'total_amount' => $oldTransaction->total_amount,
+                'type' => $oldTransaction->type,
+            ]),
+            'new_value' => json_encode([
+                'amount' => $newTransaction->amount,
+                'payment_method' => $newMethodName,
+                'commission' => $newTransaction->commission,
+                'shipping' => $newTransaction->shipping,
+                'total_amount' => $newTransaction->total_amount,
+                'type' => $newTransaction->type,
+            ]),
+            'notes' => 'Payment updated to ' . $newTransaction->amount .
+                ($newMethodName ? " via {$newMethodName}" : ''),
+            'user_id' => auth()->id(),
+        ]);
+    }
+
+
 
     /**
      * Record print action

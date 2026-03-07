@@ -107,6 +107,11 @@ class RepositoryServiceProvider extends ServiceProvider
             'Modules\Shop\Repositories\Contact\ContactRepositoryInterface',
             'Modules\Shop\Repositories\Contact\ContactRepository'
         );
+        $this->app->singleton(
+            'Modules\Shop\Repositories\StockCount\StockCountRepositoryInterface',
+            'Modules\Shop\Repositories\StockCount\StockCountRepository'
+        );
+
 
     }
 
