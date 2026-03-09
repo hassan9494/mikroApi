@@ -53,6 +53,8 @@ class NeedStocksReportResource extends JsonResource
                 'slug' => $this->slug,
                 'location' => $this->location,
                 'stock_location' => $this->stock_location,
+                'stock_available' => $this->stock_available,
+                'store_available' => $this->store_available,
             ];
 
 

@@ -2,11 +2,17 @@
 
 namespace Modules\Admin\Http\Controllers\Api;
 
+use App\Models\User;
+use App\Services\PointService;
 use Illuminate\Http\JsonResponse;
 use App\Repositories\User\UserRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Modules\Shop\Entities\Order;
+use Modules\Shop\Entities\PointTransaction;
+use Modules\Shop\Http\Resources\OrderResource;
+use Modules\Shop\Http\Resources\PointTransactionResource;
 
 class UserController extends ApiAdminController
 {
@@ -36,8 +42,10 @@ class UserController extends ApiAdminController
             $whereDosntHas =  ['super','admin','Admin cash'];
         }
 
+        $withCounts = ['orders', 'pointTransactions'];
+
         return $this->success(
-            $this->repository->datatable($search, ['roles'],$whereDosntHas,[])
+            $this->repository->datatable($search, ['roles'], $whereDosntHas, [], $withCounts)
         );
     }
 
@@ -58,8 +66,10 @@ class UserController extends ApiAdminController
             $whereHas =  ['Admin cash','Distributer','Cashier','Product Manager','Manager', 'Stock Manager'];
         }
 
+        $withCounts = ['orders', 'pointTransactions'];
+
         return $this->success(
-            $this->repository->datatable($search, ['roles'],[],$whereHas)
+            $this->repository->datatable($search, ['roles'], [], $whereHas, $withCounts)
         );
     }
 
@@ -220,6 +230,118 @@ class UserController extends ApiAdminController
             'password'=> Hash::make($request->password)
         ]);
         return $this->success();
+    }
+
+    /**
+     * Get user details with summary statistics
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function details(int $id): JsonResponse
+    {
+        $user = User::with(['roles'])
+            ->withCount(['orders', 'pointTransactions'])
+            ->findOrFail($id);
+
+        // Calculate order totals
+        $orderStats = Order::where('user_id', $id)
+            ->selectRaw('COUNT(*) as total_orders')
+            ->selectRaw('COALESCE(SUM(total), 0) as orders_total')
+            ->selectRaw('COALESCE(SUM(CASE WHEN status = "completed" THEN total ELSE 0 END), 0) as completed_total')
+            ->first();
+
+        // Get points summary using PointService
+        $pointService = app(PointService::class);
+        $pointsSummary = $pointService->getUserSummary($id);
+
+        return $this->success([
+            'user' => $user,
+            'stats' => [
+                'orders_count' => $orderStats->total_orders ?? 0,
+                'orders_total' => $orderStats->orders_total ?? 0,
+                'completed_orders_total' => $orderStats->completed_total ?? 0,
+                'points_balance' => $pointsSummary['available_balance'] ?? 0,
+                'points_earned' => $pointsSummary['total_earned'] ?? 0,
+                'points_spent' => $pointsSummary['total_spent'] ?? 0,
+            ],
+        ]);
+    }
+
+    /**
+     * Get user orders with pagination
+     *
+     * @param int $id
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function userOrders(int $id, Request $request): JsonResponse
+    {
+        $perPage = $request->get('limit', 10);
+        $page = $request->get('page', 0) + 1;
+        $status = $request->get('status');
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+
+        $query = Order::where('user_id', $id)->with(['products']);
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        if ($dateFrom) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        $orders = $query->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return $this->success([
+            'items' => OrderResource::collection($orders->items()),
+            'total' => $orders->total(),
+        ]);
+    }
+
+    /**
+     * Get user point transactions with pagination
+     *
+     * @param int $id
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function userPoints(int $id, Request $request): JsonResponse
+    {
+        $perPage = $request->get('limit', 10);
+        $page = $request->get('page', 0) + 1;
+        $type = $request->get('type');
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+
+        $query = PointTransaction::where('user_id', $id)->with(['order:id,status,total']);
+
+        if ($type) {
+            $query->where('type', $type);
+        }
+
+        if ($dateFrom) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        $transactions = $query->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return $this->success([
+            'items' => PointTransactionResource::collection($transactions->items()),
+            'total' => $transactions->total(),
+        ]);
     }
 
 }

@@ -32,7 +32,7 @@ class PointController extends Controller
     }
 
     /**
-     * Get current user's points summary and transaction history
+     * Get current user's points summary and transaction history grouped by order
      *
      * GET /api/user/points
      *
@@ -48,21 +48,105 @@ class PointController extends Controller
         }
 
         $summary = $this->pointService->getUserSummary($user->id);
-        $transactions = $this->pointService->getTransactionHistory(
-            $user->id,
-            $request->get('limit', 20)
-        );
+
+        // Get pagination parameters
+        $perPage = (int) $request->get('per_page', 10);
+        $page = (int) $request->get('page', 1);
+
+        // Get transactions grouped by order with server-side pagination
+        $groupedTransactions = $this->getOrderGroupedTransactions($user->id, $perPage, $page);
 
         return $this->success([
             'summary' => $summary,
-            'transactions' => PointTransactionResource::collection($transactions),
+            'transactions' => $groupedTransactions['data'],
             'pagination' => [
-                'current_page' => $transactions->currentPage(),
-                'last_page' => $transactions->lastPage(),
-                'per_page' => $transactions->perPage(),
-                'total' => $transactions->total(),
+                'current_page' => $groupedTransactions['current_page'],
+                'last_page' => $groupedTransactions['last_page'],
+                'per_page' => $groupedTransactions['per_page'],
+                'total' => $groupedTransactions['total'],
+                'from' => $groupedTransactions['from'],
+                'to' => $groupedTransactions['to'],
             ],
         ]);
+    }
+
+    /**
+     * Get transactions grouped by order_id with pagination
+     *
+     * @param int $userId
+     * @param int $perPage
+     * @param int $page
+     * @return array
+     */
+    private function getOrderGroupedTransactions(int $userId, int $perPage = 10, int $page = 1): array
+    {
+        // Get all transactions for user (order ASC so EARN is processed before ADJUST)
+        $transactions = \Modules\Shop\Entities\PointTransaction::forUser($userId)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        // Group transactions by order_id
+        $orderMap = [];
+
+        foreach ($transactions as $tx) {
+            $orderId = $tx->order_id ?? 'other';
+
+            if (!isset($orderMap[$orderId])) {
+                $orderMap[$orderId] = [
+                    'order_id' => $orderId === 'other' ? null : $orderId,
+                    'earned' => 0,
+                    'spent' => 0,
+                    'refund' => 0,
+                    'date' => $tx->created_at->toISOString(),
+                ];
+            }
+
+            switch ($tx->type) {
+                case 'earn':
+                    $orderMap[$orderId]['earned'] += abs($tx->points);
+                    break;
+                case 'spend':
+                    $orderMap[$orderId]['spent'] += abs($tx->points);
+                    break;
+                case 'refund':
+                    $orderMap[$orderId]['refund'] += abs($tx->points);
+                    break;
+                case 'adjust':
+                    // Negative adjust = reversal of earned points
+                    if ($tx->points < 0) {
+                        $orderMap[$orderId]['earned'] = max(0, $orderMap[$orderId]['earned'] - abs($tx->points));
+                    }
+                    break;
+            }
+
+            // Keep the most recent date
+            if ($tx->created_at->toISOString() > $orderMap[$orderId]['date']) {
+                $orderMap[$orderId]['date'] = $tx->created_at->toISOString();
+            }
+        }
+
+        // Convert to array and sort by date descending
+        $groupedData = array_values($orderMap);
+        usort($groupedData, function ($a, $b) {
+            return strcmp($b['date'], $a['date']);
+        });
+
+        // Apply pagination
+        $total = count($groupedData);
+        $lastPage = (int) ceil($total / $perPage);
+        $page = max(1, min($page, $lastPage));
+        $offset = ($page - 1) * $perPage;
+        $paginatedData = array_slice($groupedData, $offset, $perPage);
+
+        return [
+            'data' => $paginatedData,
+            'current_page' => $page,
+            'last_page' => max(1, $lastPage),
+            'per_page' => $perPage,
+            'total' => $total,
+            'from' => $total > 0 ? $offset + 1 : 0,
+            'to' => min($offset + $perPage, $total),
+        ];
     }
 
     /**

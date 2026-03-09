@@ -11,6 +11,8 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Modules\Shop\Entities\Address;
 use Modules\Shop\Entities\Coupon;
+use Modules\Shop\Entities\Order;
+use Modules\Shop\Entities\PointTransaction;
 use Modules\Shop\Entities\TaxExempt;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -87,6 +89,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function coupons(): BelongsToMany
     {
         return $this->belongsToMany(Coupon::class, 'coupon_users', 'user_id', 'coupon_id')->withPivot('order_id','used_at');
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class, 'user_id');
+    }
+
+    public function pointTransactions()
+    {
+        return $this->hasMany(PointTransaction::class, 'user_id');
     }
 
 }

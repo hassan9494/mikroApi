@@ -6,8 +6,10 @@ namespace Modules\Shop\Observers;
 use App\Services\PointService;
 use Modules\Shop\Entities\Coupon;
 use Modules\Shop\Entities\Order;
+use Modules\Shop\Entities\PointTransaction;
 use Modules\Shop\Repositories\Coupon\CouponRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderShippingStatus;
+use Modules\Shop\Support\Enums\OrderStatus;
 
 class OrderObserver
 {
@@ -54,20 +56,161 @@ class OrderObserver
             $this->checkCoupon($order->coupon_id);
         }
 
-        if (
-            $order->shipping &&
-            $order->isCompleted &&
-            $order->isDirty('status')
-        ) {
-            $shipping = json_decode(json_encode($order->shipping), true);
-            $shipping['status'] = OrderShippingStatus::DELIVERED();
-            $order->shipping = $shipping;
+        if ($order->isDirty('status')) {
+            $oldStatus = $order->getOriginal('status');
+            $newStatus = $order->status;
 
-            // Award points when order is completed (only for registered users)
-            $this->awardPointsOnCompletion($order);
+            // Order is becoming COMPLETED
+            if ($order->isCompleted) {
+                if ($order->shipping) {
+                    $shipping = json_decode(json_encode($order->shipping), true);
+                    $shipping['status'] = OrderShippingStatus::DELIVERED();
+                    $order->shipping = $shipping;
+                }
+
+                // Award points when order is completed (only for registered users)
+                $this->awardPointsOnCompletion($order);
+
+                // Deduct used points when order is completed
+                $this->deductPointsOnCompletion($order);
+            }
+
+            // Order is changing FROM COMPLETED to another status
+            if ($oldStatus === OrderStatus::COMPLETED()->value && !$order->isCompleted) {
+                // Refund spent points and reverse earned points
+                $this->handlePointsOnStatusChangeFromCompleted($order);
+            }
         }
 
         $order->onSaving();
+    }
+
+    /**
+     * Deduct points when order is completed (for points_used)
+     *
+     * @param Order $order
+     * @return void
+     */
+    private function deductPointsOnCompletion(Order $order): void
+    {
+        // Only deduct points if user has points to use
+        if (!$order->user_id || !$order->points_used || $order->points_used <= 0) {
+            return;
+        }
+
+        // Only deduct points for regular users (not employees)
+        $user = \App\Models\User::find($order->user_id);
+        if (!$user) {
+            return;
+        }
+
+        $userRoles = $user->getRoleNames();
+        if ($userRoles->count() !== 1 || !$userRoles->contains('user')) {
+            return;
+        }
+
+        try {
+            $pointService = app(PointService::class);
+
+            // Check if points system is enabled
+            if (!$pointService->isEnabled()) {
+                return;
+            }
+
+            // Check if points have already been deducted for this order (and not refunded)
+            // This prevents duplicate deduction when status changes to COMPLETED multiple times
+            // Count SPEND transactions vs REFUND transactions for this order
+            $spendCount = PointTransaction::where('order_id', $order->id)
+                ->where('type', PointTransaction::TYPE_SPEND)
+                ->count();
+            $refundCount = PointTransaction::where('order_id', $order->id)
+                ->where('type', PointTransaction::TYPE_REFUND)
+                ->count();
+
+            // If there are more SPENDs than REFUNDs, points are already deducted for this order
+            if ($spendCount > $refundCount) {
+                // Points already deducted and not refunded, skip
+                return;
+            }
+
+            // Deduct points
+            $pointService->usePoints(
+                $order->user_id,
+                $order->points_used,
+                $order->id,
+                "Redeemed for order #{$order->id}"
+            );
+        } catch (\Exception $e) {
+            // Log error but don't fail the order completion
+            \Log::error('Failed to deduct points for order ' . $order->id . ': ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Handle points when order status changes from COMPLETED to another status
+     * Refunds spent points and reverses earned points
+     *
+     * @param Order $order
+     * @return void
+     */
+    private function handlePointsOnStatusChangeFromCompleted(Order $order): void
+    {
+        if (!$order->user_id) {
+            return;
+        }
+
+        // Only process for regular users (not employees)
+        $user = \App\Models\User::find($order->user_id);
+        if (!$user) {
+            return;
+        }
+
+        $userRoles = $user->getRoleNames();
+        if ($userRoles->count() !== 1 || !$userRoles->contains('user')) {
+            return;
+        }
+
+        try {
+            $pointService = app(PointService::class);
+
+            if (!$pointService->isEnabled()) {
+                return;
+            }
+
+            // 1. Refund spent points (return points_used to user)
+            // Only refund if there are more SPENDs than REFUNDs (active spend exists)
+            if ($order->points_used && $order->points_used > 0) {
+                $spendCount = PointTransaction::where('order_id', $order->id)
+                    ->where('type', PointTransaction::TYPE_SPEND)
+                    ->count();
+                $refundCount = PointTransaction::where('order_id', $order->id)
+                    ->where('type', PointTransaction::TYPE_REFUND)
+                    ->count();
+
+                if ($spendCount > $refundCount) {
+                    $pointService->refundSpentPointsForOrder($order->id);
+                }
+            }
+
+            // 2. Reverse earned points (remove points_earned from user)
+            // Only reverse if there are more EARNs than ADJUSTs (active earn exists)
+            if ($order->points_earned && $order->points_earned > 0) {
+                $earnCount = PointTransaction::where('order_id', $order->id)
+                    ->where('type', PointTransaction::TYPE_EARN)
+                    ->count();
+                $adjustCount = PointTransaction::where('order_id', $order->id)
+                    ->where('type', PointTransaction::TYPE_ADJUST)
+                    ->count();
+
+                if ($earnCount > $adjustCount) {
+                    $pointService->reverseEarnedPointsForOrder($order->id);
+                    // Reset points_earned on the order
+                    $order->points_earned = 0;
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to handle points on status change for order ' . $order->id . ': ' . $e->getMessage());
+        }
     }
 
     /**
@@ -83,11 +226,39 @@ class OrderObserver
             return;
         }
 
+        // Only award points to users with ONLY the 'user' role (not employees)
+        // If user has any other role (admin, cashier, etc.), they should not earn points
+        $user = \App\Models\User::find($order->user_id);
+        if (!$user) {
+            return;
+        }
+
+        $userRoles = $user->getRoleNames();
+        if ($userRoles->count() !== 1 || !$userRoles->contains('user')) {
+            return;
+        }
+
         try {
             $pointService = app(PointService::class);
 
             // Check if points system is enabled
             if (!$pointService->isEnabled()) {
+                return;
+            }
+
+            // Check if points have already been awarded for this order (and not reversed)
+            // This prevents duplicate awarding when status changes to COMPLETED multiple times
+            // Count EARN transactions vs ADJUST (reversal) transactions for this order
+            $earnCount = PointTransaction::where('order_id', $order->id)
+                ->where('type', PointTransaction::TYPE_EARN)
+                ->count();
+            $adjustCount = PointTransaction::where('order_id', $order->id)
+                ->where('type', PointTransaction::TYPE_ADJUST)
+                ->count();
+
+            // If there are more EARNs than ADJUSTs, points are already active for this order
+            if ($earnCount > $adjustCount) {
+                // Points already awarded and not reversed, skip
                 return;
             }
 

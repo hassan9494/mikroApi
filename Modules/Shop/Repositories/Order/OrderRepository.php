@@ -175,20 +175,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
         $order->products()->attach($productsWithPointsDiscount);
 
-        // Deduct points after order is created
-        if ($pointsUsed > 0) {
-            try {
-                $pointService = app(PointService::class);
-                $pointService->usePoints(
-                    $user->id,
-                    $pointsUsed,
-                    $order->id,
-                    "Redeemed for order #{$order->id}"
-                );
-            } catch (\Exception $e) {
-                Log::error('Failed to deduct points for order ' . $order->id . ': ' . $e->getMessage());
-            }
-        }
+        // Note: Points are NOT deducted here - they will be deducted when order is COMPLETED
+        // This prevents points from being deducted for cancelled/pending orders
 
         return $this->update($order->id, []);
     }
@@ -271,20 +259,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
         $order->products()->attach($productsWithPointsDiscount);
 
-        // Deduct points after order is created
-        if ($pointsUsed > 0) {
-            try {
-                $pointService = app(PointService::class);
-                $pointService->usePoints(
-                    $employee->id,
-                    $pointsUsed,
-                    $order->id,
-                    "Redeemed for employee order #{$order->id}"
-                );
-            } catch (\Exception $e) {
-                Log::error('Failed to deduct points for employee order ' . $order->id . ': ' . $e->getMessage());
-            }
-        }
+        // Note: Points are NOT deducted here - they will be deducted when order is COMPLETED
+        // This prevents points from being deducted for cancelled/pending orders
 
         return $this->update($order->id, []);
     }
@@ -358,23 +334,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
         $order = $this->model->create($data);
         $order->products()->attach($productsWithPointsDiscount);
 
-        // Deduct points after order is created
-        if (isset($data['points_used']) && $data['points_used'] > 0 && isset($data['user_id'])) {
-            try {
-                $pointService = app(PointService::class);
-                $user = User::find($data['user_id']);
-                if ($user) {
-                    $pointService->usePoints(
-                        $user->id,
-                        $data['points_used'],
-                        $order->id,
-                        "Redeemed for order #{$order->id}"
-                    );
-                }
-            } catch (\Exception $e) {
-                Log::error('Failed to deduct points for order ' . $order->id . ': ' . $e->getMessage());
-            }
-        }
+        // Note: Points are NOT deducted here - they will be deducted when order is COMPLETED
+        // This prevents points from being deducted for cancelled/pending orders
 
         return $order;
     }
@@ -481,8 +442,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
                 // points_discount was already calculated above
 
-                // Handle points transaction changes
-                if ($newPointsToUse !== $oldPointsUsed && $model->user_id) {
+                // Only process point transactions if order is already COMPLETED
+                // For non-completed orders, points will be deducted when status changes to COMPLETED
+                if ($model->isCompleted && $newPointsToUse !== $oldPointsUsed && $model->user_id) {
                     $pointService = app(PointService::class);
 
                     // If old points were used, refund them first

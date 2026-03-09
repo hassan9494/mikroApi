@@ -118,7 +118,7 @@ class SettingController extends ApiAdminController
         }elseif ($id == 3){
             $data = $this->validate3();
             $setting = Setting::find($id);
-            $setting->value = $data;
+            $setting->value = json_encode($data);
         }
 
         $setting->save();
@@ -207,6 +207,7 @@ class SettingController extends ApiAdminController
             'company_id' => 'required|string',
             'seller_income_source' => 'required|string',
             'seller_name' => 'required|string',
+            'auto_migrate' => 'nullable|boolean',
         ]);
     }
 

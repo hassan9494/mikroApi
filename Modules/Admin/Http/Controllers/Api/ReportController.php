@@ -1130,7 +1130,9 @@ class ReportController extends Controller
             'source',
             'Air_source',
             'Sea_source',
-            'Local_source'
+            'Local_source',
+            'Stock_available',
+            'Store_available'
         ];
 
         $sheet->fromArray($headers, null, 'A1');
@@ -1181,7 +1183,9 @@ class ReportController extends Controller
                 $product->source ? $product->source->name : '',
                 $product->airSource ? $product->airSource->name : '',
                 $product->seaSource ? $product->seaSource->name : '',
-                $product->localSource ? $product->localSource->name : ''
+                $product->localSource ? $product->localSource->name : '',
+                $product->stock_available > 0 ? $product->stock_available :'0',
+                $product->store_available > 0 ? $product->store_available :'0'
             ], null, "A{$row}");
 
             // Add image as the second column (Column B)

@@ -115,7 +115,7 @@ class PointService
             })
             ->sum('points');
 
-        // Get sum of spent/expired/refunded points
+        // Get sum of spent/expired points (these are negative values)
         $used = PointTransaction::forUser($userId)
             ->whereIn('type', [
                 PointTransaction::TYPE_SPEND,
@@ -123,12 +123,19 @@ class PointService
             ])
             ->sum('points');
 
-        // Refunded points add back to balance
+        // Refunded points add back to balance (positive values)
         $refunded = PointTransaction::forUser($userId)
             ->where('type', PointTransaction::TYPE_REFUND)
             ->sum('points');
 
-        return max(0, $earned - abs($used) + $refunded);
+        // Adjusted points can be positive or negative
+        // Negative adjust = reversal of earned points (reduces balance)
+        // Positive adjust = admin adjustment (increases balance)
+        $adjusted = PointTransaction::forUser($userId)
+            ->where('type', PointTransaction::TYPE_ADJUST)
+            ->sum('points');
+
+        return max(0, $earned - abs($used) + $refunded + $adjusted);
     }
 
     /**
@@ -139,9 +146,18 @@ class PointService
      */
     public function getTotalEarned(int $userId): int
     {
-        return (int) PointTransaction::forUser($userId)
+        // Get total earned
+        $earned = (int) PointTransaction::forUser($userId)
             ->where('type', PointTransaction::TYPE_EARN)
             ->sum('points');
+
+        // Subtract negative adjustments (reversals of earned points)
+        $negativeAdjustments = (int) abs(PointTransaction::forUser($userId)
+            ->where('type', PointTransaction::TYPE_ADJUST)
+            ->where('points', '<', 0)
+            ->sum('points'));
+
+        return max(0, $earned - $negativeAdjustments);
     }
 
     /**
@@ -286,12 +302,12 @@ class PointService
     }
 
     /**
-     * Refund points for a cancelled/returned order (auto-detect from order)
+     * Refund spent points for an order (return points_used to user)
      *
      * @param int $orderId
      * @return PointTransaction|null
      */
-    public function refundPointsForOrder(int $orderId): ?PointTransaction
+    public function refundSpentPointsForOrder(int $orderId): ?PointTransaction
     {
         // Find the spend transaction for this order
         $spendTransaction = PointTransaction::where('order_id', $orderId)
@@ -305,7 +321,70 @@ class PointService
         $pointsToRefund = abs($spendTransaction->points);
         $userId = $spendTransaction->user_id;
 
-        return $this->refundPoints($userId, $pointsToRefund, $orderId);
+        return $this->refundPoints($userId, $pointsToRefund, $orderId, "Refunded spent points for order #{$orderId}");
+    }
+
+    /**
+     * Reverse earned points for an order (remove points_earned from user)
+     * Used when order status changes from COMPLETED back to another status
+     *
+     * @param int $orderId
+     * @return PointTransaction|null
+     */
+    public function reverseEarnedPointsForOrder(int $orderId): ?PointTransaction
+    {
+        // Find the earn transaction for this order
+        $earnTransaction = PointTransaction::where('order_id', $orderId)
+            ->where('type', PointTransaction::TYPE_EARN)
+            ->first();
+
+        if (!$earnTransaction) {
+            return null;
+        }
+
+        $pointsToReverse = $earnTransaction->points;
+        $userId = $earnTransaction->user_id;
+        $currentBalance = $this->getAvailableBalance($userId);
+
+        // Only reverse if user has enough balance
+        $pointsToDeduct = min($pointsToReverse, $currentBalance);
+
+        if ($pointsToDeduct <= 0) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($userId, $pointsToDeduct, $orderId, $currentBalance) {
+            $newBalance = $currentBalance - $pointsToDeduct;
+
+            // Create a negative adjustment to reverse the earned points
+            $transaction = PointTransaction::create([
+                'user_id' => $userId,
+                'order_id' => $orderId,
+                'type' => PointTransaction::TYPE_ADJUST,
+                'points' => -$pointsToDeduct,
+                'balance_after' => $newBalance,
+                'expires_at' => null,
+                'source' => PointTransaction::SOURCE_ORDER,
+                'description' => "Reversed earned points for order #{$orderId} (order status changed)",
+            ]);
+
+            // Update user's cached balance
+            $this->updateUserBalance($userId, $newBalance);
+
+            return $transaction;
+        });
+    }
+
+    /**
+     * Refund points for a cancelled/returned order (auto-detect from order)
+     * @deprecated Use refundSpentPointsForOrder instead
+     *
+     * @param int $orderId
+     * @return PointTransaction|null
+     */
+    public function refundPointsForOrder(int $orderId): ?PointTransaction
+    {
+        return $this->refundSpentPointsForOrder($orderId);
     }
 
     /**

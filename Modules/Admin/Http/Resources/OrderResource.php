@@ -24,6 +24,7 @@ class OrderResource extends JsonResource
                 'name' => $this->user?->name,
                 'email' => $this->user?->email,
                 'phone' => $this->user?->phone,
+                'roles' => $this->user?->getRoleNames() ?? [],
             ],
             'taxExempt' => [
                 'id' => $this->taxExempt?->id,

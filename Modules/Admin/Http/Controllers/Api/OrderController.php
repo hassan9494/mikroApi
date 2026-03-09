@@ -21,6 +21,7 @@ use Modules\Admin\Http\Services\UblInvoiceService;
 use Modules\Shop\Entities\Order;
 use Modules\Shop\Entities\OrderHistory;
 use Modules\Shop\Entities\Product;
+use Modules\Shop\Entities\Setting;
 use Modules\Shop\Entities\Transaction;
 use Modules\Shop\Repositories\Order\OrderRepositoryInterface;
 use Modules\Shop\Support\Enums\OrderStatus;
@@ -972,7 +973,24 @@ class OrderController extends ApiAdminController
 
         // 1. Generate XML
         $xml = $service->generate($orderToFatora);
-//        return config('app_phase');
+
+        // Check auto_migrate setting from database
+        $fatoraSetting = Setting::find(3);
+        $fatoraConfig = $fatoraSetting ? json_decode($fatoraSetting->value, true) : [];
+        $autoMigrate = $fatoraConfig['auto_migrate'] ?? true;
+
+        // If auto_migrate is disabled, return XML for preview without sending to Fatora
+        if (!$autoMigrate) {
+            return response()->json([
+                'status' => 'preview',
+                'xml' => $xml,
+                'order_id' => $order->id,
+                'order_number' => $order->number,
+                'message' => 'XML preview mode - Auto migrate is disabled'
+            ]);
+        }
+
+        // Check app phase for testing mode
         if (config('jo_fotara.app_phase') == 'testing') {
             return response()->json([
                 'status' => 'fail',

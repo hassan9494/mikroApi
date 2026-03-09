@@ -274,6 +274,9 @@ Route::prefix('admin')
         Route::get('user/autocompleteUserForTaxExempt', [UserController::class, 'autocompleteUserForTaxExempt']);
         Route::get('user/autocompletecashier', [UserController::class, 'autocompletecashier']);
         Route::get('user/autocompleteTaxExempt', [TaxExemptController::class, 'autocomplete']);
+        Route::get('user/{id}/details', [UserController::class, 'details']);
+        Route::get('user/{id}/orders', [UserController::class, 'userOrders']);
+        Route::get('user/{id}/points', [UserController::class, 'userPoints']);
 
         // Product Routes.
         Route::get('product/datatable', [ProductController::class, 'datatable']);
@@ -451,9 +454,13 @@ Route::prefix('admin')
         // Points Routes
         Route::prefix('points')->group(function () {
             Route::get('/datatable', [PointController::class, 'datatable']);
+            Route::get('/grouped', [PointController::class, 'groupedByOrder']);
+            Route::get('/order/{orderId}/{userId?}', [PointController::class, 'orderTransactions']);
             Route::get('/settings', [PointController::class, 'getSettings']);
             Route::put('/settings', [PointController::class, 'updateSettings']);
             Route::get('/stats', [PointController::class, 'stats']);
+            Route::get('/report', [PointController::class, 'report']);
+            Route::get('/daily/{date}', [PointController::class, 'dailyTransactions']);
             Route::post('/adjust', [PointController::class, 'adjust']);
             Route::get('/user/{userId}', [PointController::class, 'userHistory']);
             Route::get('/{id}', [PointController::class, 'show']);
