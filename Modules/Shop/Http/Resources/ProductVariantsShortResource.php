@@ -30,9 +30,14 @@ class ProductVariantsShortResource extends JsonResource
             }
         }
         $user = auth()->user();
-        $media = $this->variant->getMedia();
-        $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
-        $replacement_item = Product::where('id', $this->variant->replacement_item)->first();
+        $media = $this->variant?->getMedia();
+        if($media){
+            $image = count($media) > 0 ? $media[0]->getFullUrl() : '';
+        }else{
+            $image = '';
+        }
+
+        $replacement_item = Product::where('id', $this->variant?->replacement_item)->first();
         if (isset($user) && $user->hasRole(['Distributer'])){
             return [
                 'id' => $this->id,
@@ -52,17 +57,17 @@ class ProductVariantsShortResource extends JsonResource
         }else {
             return [
                 'id' => $this->id,
-                'color_id' => $this->variant->id,
+                'color_id' => $this->variant?->id,
                 'title' => $this->name,
-                'name' => $this->variant->name,
-                'availableQty' => $this->variant->stock,
-                'location' => $this->variant->location,
-                'is_available' => $this->variant->options->available,
-                'is_retired' => $this->variant->is_retired,
-                'price' => $this->variant->price->normal_price,
-                'sale_price' => $this->variant->price->sale_price ?: null,
-                'short_description' => $this->variant->short_description,
-                'short_description_ar' => $this->variant->short_description_ar,
+                'name' => $this->variant?->name,
+                'availableQty' => $this->variant?->stock,
+                'location' => $this->variant?->location,
+                'is_available' => $this->variant?->options?->available,
+                'is_retired' => $this->variant?->is_retired,
+                'price' => $this->variant?->price?->normal_price,
+                'sale_price' => $this->variant?->price?->sale_price ?: null,
+                'short_description' => $this->variant?->short_description,
+                'short_description_ar' => $this->variant?->short_description_ar,
                 'image' => $image,
             ];
         }

@@ -4,6 +4,7 @@ namespace Modules\Shop\Repositories\Order;
 
 use App\Models\User;
 use App\Repositories\Base\EloquentRepository;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Shop\Entities\Address;
@@ -139,13 +140,14 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $pointService = app(PointService::class);
 
             if ($pointService->isEnabled()) {
-                // Calculate order total before points discount
+                // Calculate order total before points discount (subtotal + shipping)
                 $shippingCost = ($data['shipping']['free'] ?? false) ? 0 : ($data['shipping']['cost'] ?? 0);
-                $orderTotal = $cart['subtotal'] - $data['discount'] + $shippingCost;
+                $orderTotal = $cart['subtotal'] + $shippingCost;
 
                 // Get user's available balance and calculate max usable points
+                // Pass existing discount so min_order_total accounts for all discounts
                 $userBalance = $pointService->getAvailableBalance($user->id);
-                $maxUsable = $pointService->calculateMaxUsablePoints($orderTotal, $userBalance);
+                $maxUsable = $pointService->calculateMaxUsablePoints($orderTotal, $userBalance, (float) $data['discount']);
 
                 // Limit points to what's available and allowed
                 $pointsUsed = min($data['points_to_use'], $maxUsable);
@@ -158,6 +160,7 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
         $data['points_used'] = $pointsUsed;
         $data['points_discount'] = $pointsDiscount;
+        $data['total_discount'] = $data['discount'] + $pointsDiscount;
 
         // Distribute points discount across products proportionally
         $productsWithPointsDiscount = $this->distributePointsDiscount(
@@ -166,19 +169,27 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $pointsDiscount
         );
 
+        // Add total_discount to each product
+        $productsWithPointsDiscount = $this->addTotalDiscount($productsWithPointsDiscount);
+
         // Validate coupon before creating order
         if (isset($data['coupon_id']) && $data['coupon_id']) {
             $this->validateCoupon($data['coupon_id'], $user, $data['products'] ?? []);
         }
 
-        $order = $this->model->create($data);
+        return DB::transaction(function () use ($data, $productsWithPointsDiscount, $pointsUsed, $user) {
+            $order = $this->model->create($data);
 
-        $order->products()->attach($productsWithPointsDiscount);
+            // Deduct points immediately on order creation
+            if ($pointsUsed > 0) {
+                $pointService = app(PointService::class);
+                $pointService->usePoints($user->id, $pointsUsed, $order->id, "Redeemed for order #{$order->id}");
+            }
 
-        // Note: Points are NOT deducted here - they will be deducted when order is COMPLETED
-        // This prevents points from being deducted for cancelled/pending orders
+            $order->products()->attach($productsWithPointsDiscount);
 
-        return $this->update($order->id, []);
+            return $this->update($order->id, []);
+        });
     }
 
     /**
@@ -218,13 +229,14 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $pointService = app(PointService::class);
 
             if ($pointService->isEnabled()) {
-                // Calculate order total before points discount
+                // Calculate order total before points discount (subtotal + shipping)
                 $shippingCostValue = ($data['shipping']['free'] ?? false) ? 0 : ($data['shipping']['cost'] ?? 0);
-                $orderTotal = $cart['subtotal'] - $data['discount'] + $shippingCostValue;
+                $orderTotal = $cart['subtotal'] + $shippingCostValue;
 
                 // Get employee's available balance and calculate max usable points
+                // Pass existing discount so min_order_total accounts for all discounts
                 $userBalance = $pointService->getAvailableBalance($employee->id);
-                $maxUsable = $pointService->calculateMaxUsablePoints($orderTotal, $userBalance);
+                $maxUsable = $pointService->calculateMaxUsablePoints($orderTotal, $userBalance, (float) $data['discount']);
 
                 // Limit points to what's available and allowed
                 $pointsUsed = min($data['points_to_use'], $maxUsable);
@@ -244,25 +256,36 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             $pointsDiscount
         );
 
-        $order = $this->model->create([
-            'user_id' => $employee->id, // Store employee's ID
-            'customer' => $data['customer'],
-            'city_id' => $data['city_id'],
-            'shipping' => $data['shipping'],
-            'notes' => $data['notes'] ?? null,
-            'coupon_id' => $data['coupon_id'] ?? null,
-            'discount' => $data['discount'] ?? null,
-            'points_used' => $pointsUsed,
-            'points_discount' => $pointsDiscount,
-            'uuid' => Str::uuid(),
-        ]);
+        // Add total_discount to each product
+        $productsWithPointsDiscount = $this->addTotalDiscount($productsWithPointsDiscount);
 
-        $order->products()->attach($productsWithPointsDiscount);
+        $totalDiscount = ($data['discount'] ?? 0) + $pointsDiscount;
 
-        // Note: Points are NOT deducted here - they will be deducted when order is COMPLETED
-        // This prevents points from being deducted for cancelled/pending orders
+        return DB::transaction(function () use ($data, $productsWithPointsDiscount, $pointsUsed, $pointsDiscount, $totalDiscount, $employee) {
+            $order = $this->model->create([
+                'user_id' => $employee->id, // Store employee's ID
+                'customer' => $data['customer'],
+                'city_id' => $data['city_id'],
+                'shipping' => $data['shipping'],
+                'notes' => $data['notes'] ?? null,
+                'coupon_id' => $data['coupon_id'] ?? null,
+                'discount' => $data['discount'] ?? null,
+                'points_used' => $pointsUsed,
+                'points_discount' => $pointsDiscount,
+                'total_discount' => $totalDiscount,
+                'uuid' => Str::uuid(),
+            ]);
 
-        return $this->update($order->id, []);
+            // Deduct points immediately on order creation
+            if ($pointsUsed > 0) {
+                $pointService = app(PointService::class);
+                $pointService->usePoints($employee->id, $pointsUsed, $order->id, "Redeemed for order #{$order->id}");
+            }
+
+            $order->products()->attach($productsWithPointsDiscount);
+
+            return $this->update($order->id, []);
+        });
     }
 
 
@@ -331,13 +354,26 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
             (float) $pointsDiscount
         );
 
-        $order = $this->model->create($data);
-        $order->products()->attach($productsWithPointsDiscount);
+        // Add total_discount to each product
+        $productsWithPointsDiscount = $this->addTotalDiscount($productsWithPointsDiscount);
 
-        // Note: Points are NOT deducted here - they will be deducted when order is COMPLETED
-        // This prevents points from being deducted for cancelled/pending orders
+        // Set total_discount on order
+        $data['total_discount'] = ($data['discount'] ?? 0) + (float) $pointsDiscount;
 
-        return $order;
+        return DB::transaction(function () use ($data, $productsWithPointsDiscount) {
+            $order = $this->model->create($data);
+
+            // Deduct points immediately on order creation
+            $pointsUsed = (int) ($data['points_used'] ?? 0);
+            if ($pointsUsed > 0 && isset($data['user_id'])) {
+                $pointService = app(PointService::class);
+                $pointService->usePoints($data['user_id'], $pointsUsed, $order->id, "Redeemed for order #{$order->id}");
+            }
+
+            $order->products()->attach($productsWithPointsDiscount);
+
+            return $order;
+        });
     }
 
     /**
@@ -422,6 +458,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
                     $pointsDiscount
                 );
 
+                // Add total_discount to each product
+                $productsWithPointsDiscount = $this->addTotalDiscount($productsWithPointsDiscount);
+
                 // must be before update, see onSaving inside Order model.
                 $model->products()->sync($productsWithPointsDiscount);
             }
@@ -442,9 +481,8 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
                 // points_discount was already calculated above
 
-                // Only process point transactions if order is already COMPLETED
-                // For non-completed orders, points will be deducted when status changes to COMPLETED
-                if ($model->isCompleted && $newPointsToUse !== $oldPointsUsed && $model->user_id) {
+                // Process point transactions when points change (points are now spent at creation time)
+                if ($newPointsToUse !== $oldPointsUsed && $model->user_id) {
                     $pointService = app(PointService::class);
 
                     // If old points were used, refund them first
@@ -476,6 +514,9 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
                     }
                 }
             }
+
+            // Compute total_discount = discount + points_discount
+            $data['total_discount'] = ((float) ($data['discount'] ?? 0)) + ((float) ($data['points_discount'] ?? 0));
 
             $model->update($data);
 
@@ -788,6 +829,16 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
      * @param float $pointsDiscount The total points discount to distribute
      * @return array The products array with points_discount added
      */
+    private function addTotalDiscount(array $products): array
+    {
+        foreach ($products as $productId => $pivotData) {
+            $discount = (float) ($pivotData['discount'] ?? 0);
+            $pointsDiscount = (float) ($pivotData['points_discount'] ?? 0);
+            $products[$productId]['total_discount'] = round($discount + $pointsDiscount, 3);
+        }
+        return $products;
+    }
+
     private function distributePointsDiscount(array $products, float $subtotal, float $pointsDiscount): array
     {
         if ($pointsDiscount <= 0 || $subtotal <= 0) {
@@ -807,10 +858,10 @@ class OrderRepository extends EloquentRepository implements OrderRepositoryInter
 
             if ($productId === $lastKey) {
                 // Last product gets the remainder to avoid rounding issues
-                $productPointsDiscount = round($pointsDiscount - $distributedTotal, 2);
+                $productPointsDiscount = round($pointsDiscount - $distributedTotal, 3);
             } else {
                 // Calculate proportional discount
-                $productPointsDiscount = round(($productTotal / $subtotal) * $pointsDiscount, 2);
+                $productPointsDiscount = round(($productTotal / $subtotal) * $pointsDiscount, 3);
                 $distributedTotal += $productPointsDiscount;
             }
 

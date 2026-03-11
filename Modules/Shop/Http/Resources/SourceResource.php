@@ -17,6 +17,8 @@ class SourceResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'invoice_name' => $this->invoice_name,
+            'tax_number' => $this->tax_number,
             'slug' => $this->slug,
             'order' => $this->order,
             'phone' => $this->phone,

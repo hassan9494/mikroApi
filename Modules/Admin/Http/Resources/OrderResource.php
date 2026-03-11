@@ -62,6 +62,7 @@ class OrderResource extends JsonResource
             'points_used' => $this->points_used ?? 0,
             'points_discount' => $this->points_discount ?? 0,
             'points_to_use' => $this->points_used ?? 0,
+            'total_discount' => $this->total_discount ?? 0,
 
             'options' => $this->options,
 
@@ -146,6 +147,7 @@ class OrderResource extends JsonResource
                     'price' => $pivot->price,
                     'discount' => $pivot->discount,
                     'points_discount' => $pivot->points_discount ?? 0,
+                    'total_discount' => $pivot->total_discount ?? 0,
                     'real_price' => $pivot->real_price,
                     'image' => $variant ? asset($variant->variant->getFirstMediaUrl()) : $product->getFirstMediaUrl(),
                     'brand_id' =>$variant ? $variant->variant->brand_id : $product->brand_id,
@@ -169,6 +171,7 @@ class OrderResource extends JsonResource
                     'price' => $pivot->price,
                     'discount' => $pivot->discount,
                     'points_discount' => $pivot->points_discount ?? 0,
+                    'total_discount' => $pivot->total_discount ?? 0,
                     'real_price' => $pivot->real_price,
                     'normal_price' => $product->calcPrice(),
                     'min_price' => $product->calcMinPrice(),

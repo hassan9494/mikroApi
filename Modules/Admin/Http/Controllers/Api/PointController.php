@@ -147,7 +147,7 @@ class PointController extends ApiAdminController
     public function updateSettings(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'earning_percentage' => 'nullable|numeric|min:0|max:100',
+            'earning_percentage' => 'nullable|numeric|min:0',
             'expiry_days' => 'nullable|integer|min:1',
             'exchange_rate' => 'nullable|numeric|min:0.01',
             'min_order_total' => 'nullable|numeric|min:0',

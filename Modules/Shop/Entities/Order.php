@@ -67,6 +67,7 @@ class Order extends Model implements HasMedia
         'points_earned',
         'points_used',
         'points_discount',
+        'total_discount',
         'options',
         'tax_number',
         'completed_at',
@@ -188,7 +189,7 @@ class Order extends Model implements HasMedia
             'order_products',
             'order_id',
             'product_id'
-        )->withTrashed()->withPivot('price', 'quantity', 'real_price','product_name','number','discount','points_discount','is_color','color_id');
+        )->withTrashed()->withPivot('price', 'quantity', 'real_price','product_name','number','discount','points_discount','total_discount','is_color','color_id');
     }
 
     /**
@@ -391,7 +392,29 @@ class Order extends Model implements HasMedia
     {
         $shippingCost = ($this->shipping?->free ?? false) ? 0 : $this->shipping?->cost  ?? 0;
         $pointsDiscount = $this->points_discount ?? 0;
-        $this->total = $this->subtotal + $shippingCost - $this->discount - $pointsDiscount;
+        $this->total_discount = $this->discount + $pointsDiscount;
+        $this->total = $this->subtotal + $shippingCost - $this->total_discount;
+
+        // Enforce minimum order total only when there is a discount
+        if ($this->total_discount > 0) {
+            $minOrderTotal = $this->getMinOrderTotal();
+            if ($this->total < $minOrderTotal) {
+                $maxAllowedDiscount = max(0, $this->subtotal + $shippingCost - $minOrderTotal);
+                $this->total_discount = $maxAllowedDiscount;
+                $this->total = $this->subtotal + $shippingCost - $this->total_discount;
+            }
+        }
+    }
+
+    private function getMinOrderTotal(): float
+    {
+        try {
+            $pointService = app(\App\Services\PointService::class);
+            $settings = $pointService->getSettings();
+            return (float) ($settings['min_order_total'] ?? 1.00);
+        } catch (\Exception $e) {
+            return 1.00;
+        }
     }
 
     /**

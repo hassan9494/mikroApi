@@ -71,14 +71,18 @@ class OrderObserver
                 // Award points when order is completed (only for registered users)
                 $this->awardPointsOnCompletion($order);
 
-                // Deduct used points when order is completed
-                $this->deductPointsOnCompletion($order);
+                // Note: Points spending now happens at order creation time, not here
             }
 
             // Order is changing FROM COMPLETED to another status
             if ($oldStatus === OrderStatus::COMPLETED()->value && !$order->isCompleted) {
-                // Refund spent points and reverse earned points
+                // Reverse earned points (earn logic unchanged)
                 $this->handlePointsOnStatusChangeFromCompleted($order);
+            }
+
+            // Order is being CANCELLED - refund spent points (from any previous status)
+            if ($newStatus === OrderStatus::CANCELED()->value && $oldStatus !== OrderStatus::CANCELED()->value) {
+                $this->refundSpentPointsOnCancel($order);
             }
         }
 
@@ -177,22 +181,10 @@ class OrderObserver
                 return;
             }
 
-            // 1. Refund spent points (return points_used to user)
-            // Only refund if there are more SPENDs than REFUNDs (active spend exists)
-            if ($order->points_used && $order->points_used > 0) {
-                $spendCount = PointTransaction::where('order_id', $order->id)
-                    ->where('type', PointTransaction::TYPE_SPEND)
-                    ->count();
-                $refundCount = PointTransaction::where('order_id', $order->id)
-                    ->where('type', PointTransaction::TYPE_REFUND)
-                    ->count();
+            // Note: Spent points are NOT refunded here - they were deducted at order creation
+            // and will be refunded when the order is cancelled (see refundSpentPointsOnCancel).
 
-                if ($spendCount > $refundCount) {
-                    $pointService->refundSpentPointsForOrder($order->id);
-                }
-            }
-
-            // 2. Reverse earned points (remove points_earned from user)
+            // Reverse earned points (remove points_earned from user)
             // Only reverse if there are more EARNs than ADJUSTs (active earn exists)
             if ($order->points_earned && $order->points_earned > 0) {
                 $earnCount = PointTransaction::where('order_id', $order->id)
@@ -322,6 +314,42 @@ class OrderObserver
     public function forceDeleted(Order $order)
     {
         //
+    }
+
+    /**
+     * Refund spent points when an order is cancelled.
+     * Points were deducted at order creation time and need to be returned on cancellation.
+     *
+     * @param Order $order
+     * @return void
+     */
+    private function refundSpentPointsOnCancel(Order $order): void
+    {
+        if (!$order->user_id || !$order->points_used || $order->points_used <= 0) {
+            return;
+        }
+
+        try {
+            $pointService = app(PointService::class);
+
+            if (!$pointService->isEnabled()) {
+                return;
+            }
+
+            // Check if points have already been refunded (prevent double refund)
+            $spendCount = PointTransaction::where('order_id', $order->id)
+                ->where('type', PointTransaction::TYPE_SPEND)
+                ->count();
+            $refundCount = PointTransaction::where('order_id', $order->id)
+                ->where('type', PointTransaction::TYPE_REFUND)
+                ->count();
+
+            if ($spendCount > $refundCount) {
+                $pointService->refundSpentPointsForOrder($order->id);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to refund spent points on order cancellation ' . $order->id . ': ' . $e->getMessage());
+        }
     }
 
     /**

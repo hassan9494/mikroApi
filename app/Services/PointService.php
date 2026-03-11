@@ -83,7 +83,7 @@ class PointService
     public function calculateDiscount(int $points): float
     {
         $settings = $this->getSettings();
-        return round($points * $settings['exchange_rate'], 2);
+        return round($points * $settings['exchange_rate'], 3);
     }
 
     /**
@@ -180,7 +180,7 @@ class PointService
      * @param int $userBalance User's available points
      * @return int Maximum usable points
      */
-    public function calculateMaxUsablePoints(float $orderTotal, int $userBalance): int
+    public function calculateMaxUsablePoints(float $orderTotal, int $userBalance, float $existingDiscount = 0): int
     {
         if (!$this->isEnabled() || $orderTotal <= 0 || $userBalance <= 0) {
             return 0;
@@ -188,8 +188,8 @@ class PointService
 
         $settings = $this->getSettings();
 
-        // Calculate max discount allowed (order total - minimum order total)
-        $maxDiscount = $orderTotal - $settings['min_order_total'];
+        // Calculate max discount allowed (order total - existing discount - minimum order total)
+        $maxDiscount = $orderTotal - $existingDiscount - $settings['min_order_total'];
         if ($maxDiscount <= 0) {
             return 0;
         }

@@ -2111,9 +2111,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     $q->orWhere('name', 'LIKE', '%' . $term . '%')
                         ->orWhere('sku', 'LIKE', '%' . $term . '%')
                         ->orWhere('source_sku', 'LIKE', '%' . $term . '%')
+                        ->orWhere('location', 'LIKE', '%' . $term . '%')
+                        ->orWhere('stock_location', 'LIKE', '%' . $term . '%')
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title')) LIKE ?", ['%' . $term . '%'])
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords')) LIKE ?", ['%' . $term . '%'])
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description')) LIKE ?", ['%' . $term . '%']);
+
                 }
             });
 
