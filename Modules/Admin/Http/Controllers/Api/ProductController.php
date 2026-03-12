@@ -433,6 +433,10 @@ class ProductController extends Controller
             'local_min_qty' => 'numeric|nullable',
             'local_order_qty' => 'numeric|nullable',
 
+            'min_capacity' => 'nullable|integer|min:0',
+            'max_capacity' => 'nullable|integer|min:0',
+
+
         ]);
     }
 

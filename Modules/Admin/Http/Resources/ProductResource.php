@@ -111,6 +111,9 @@ class ProductResource extends JsonResource
             'local_order_qty' => $this->local_order_qty,
             'is_show_for_search' => $this->is_show_for_search,
             'is_color_sun' => $this->is_color_sun,
+            'min_capacity' => $this->min_capacity ?? 0,
+            'max_capacity' => $this->max_capacity ?? 0,
+
 
         ];
     }
