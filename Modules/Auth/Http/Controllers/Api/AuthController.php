@@ -106,6 +106,7 @@ class AuthController extends Controller
         $data['password'] = bcrypt($data['password']);
 
         $user = $this->repository->create($data);
+        $user->assignRole('user');
 
         $token = $user->createToken('web')->plainTextToken;
 

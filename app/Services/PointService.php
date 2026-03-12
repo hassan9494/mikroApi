@@ -70,8 +70,8 @@ class PointService
         $settings = $this->getSettings();
         $percentage = $settings['earning_percentage'];
 
-        // Calculate points: floor(total * percentage / 100)
-        return (int) floor($orderTotal * $percentage / 100);
+        // Calculate points: floor the total first (ignore cents), then multiply by percentage
+        return (int) (floor($orderTotal) * $percentage / 100);
     }
 
     /**
