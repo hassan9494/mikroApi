@@ -78,6 +78,8 @@ class Product extends Model implements HasMedia
         'stock_available',
         'stock_location',
         'store_location',
+        'min_capacity',
+        'max_capacity',
         'purchases_qty',
         'is_show_for_search',
         'search_factor',
@@ -114,9 +116,9 @@ class Product extends Model implements HasMedia
         'options' => 'object',
         'stock' => 'integer',
         'stock_available' => 'integer',
-        'store_available' => 'integer'
-
-
+        'store_available' => 'integer',
+        'min_capacity' => 'integer',
+        'max_capacity' => 'integer',
     ];
 
     /**

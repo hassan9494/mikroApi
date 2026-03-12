@@ -48,7 +48,7 @@ use Modules\Admin\Http\Controllers\Api\TaskController;
 use Modules\Admin\Http\Controllers\Api\TransferOrderController;
 use Modules\Admin\Http\Controllers\Api\StockCountController;
 use Modules\Admin\Http\Controllers\Api\ContactController;
-
+use Modules\Admin\Http\Controllers\Api\ShelfFillingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -471,3 +471,30 @@ Route::prefix('admin')
         Route::get('role/employee', [RoleController::class, 'employeeRoles']);
         Route::resource('role', 'RoleController');
     });
+
+// Shelf Filling Routes - separate permission groups
+Route::prefix('admin/shelf-filling')
+    ->middleware(['auth:sanctum'])
+    ->namespace('Api')
+    ->group(function () {
+        // View shelf filling list - all authenticated users
+        Route::get('/', [ShelfFillingController::class, 'index']);
+        Route::post('/save-capacity', [ShelfFillingController::class, 'saveCapacity']);
+    });
+
+Route::prefix('admin/shelf-filling')
+    ->middleware(['auth:sanctum', 'role:admin|super|Product Manager|Admin cash|Stock Manager'])
+    ->namespace('Api')
+    ->group(function () {
+        // Create transfer - all except Cashier and Manager
+        Route::post('/create-transfer', [ShelfFillingController::class, 'createTransfer']);
+    });
+
+Route::prefix('admin/shelf-filling')
+    ->middleware(['auth:sanctum', 'role:super|admin'])
+    ->namespace('Api')
+    ->group(function () {
+        // Export Excel - only super and admin
+        Route::get('/export', [ShelfFillingController::class, 'export']);
+    });
+
