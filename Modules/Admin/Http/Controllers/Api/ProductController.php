@@ -219,6 +219,7 @@ class ProductController extends Controller
                 'sea_source_sku' => $product->sea_source_sku,
                 'local_source_sku' => $product->local_source_sku,
                 'location' => $product->location,
+                'stock_location' => $product->getAttributes()['stock_location'] ?? null,
                 'purchases_price'=>(float)$product->price->real_price,
                 'base_purchases_price'=>(float)$product->base_purchases_price,
                 'exchange_factor'=>(float)$product->exchange_factor,

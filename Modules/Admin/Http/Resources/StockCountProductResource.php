@@ -38,6 +38,7 @@ class StockCountProductResource extends JsonResource
                     'id' => $this->product->id,
                     'name' => $this->product->name,
                     'sku' => $this->product->sku,
+                    'base_purchases_price' => $this->product->base_purchases_price,
                     'current_stock' => $this->product->stock,
                     'current_stock_available' => $this->product->stock_available,
                     'current_store_available' => $this->product->store_available,

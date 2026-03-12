@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\UnauthorizedException;
 use Modules\Admin\Http\Resources\DatatableProductResource;
 use Modules\Admin\Http\Resources\InvoiceResource;
+use Modules\Shop\Entities\Source;
 use Modules\Shop\Repositories\Invoice\InvoiceRepositoryInterface;
 use Modules\Shop\Support\Enums\InvoiceStatus;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
@@ -74,6 +75,14 @@ class InvoiceController extends ApiAdminController
 
         $data = $this->validate();
 
+        if (!empty($data['source_id'])) {
+            $source = Source::find($data['source_id']);
+            if ($source) {
+                $data['name'] = $source->invoice_name ?? $source->name;
+                $data['tax_number'] = $source->tax_number;
+            }
+        }
+
         $invoice = $this->repository->make($data);
         // Mark as processing
         $this->repository->status($invoice->id, InvoiceStatus::DRAFT()->value);
@@ -93,6 +102,15 @@ class InvoiceController extends ApiAdminController
     public function update($id): JsonResponse
     {
         $data = $this->validate();
+
+        if (!empty($data['source_id'])) {
+            $source = Source::find($data['source_id']);
+            if ($source) {
+                $data['name'] = $source->invoice_name ?? $source->name;
+                $data['tax_number'] = $source->tax_number;
+            }
+        }
+
         $invoice = $this->repository->saveInvoice($id, $data);
         $invoice->syncMedia($data['attachments'] ?? []);
         return $this->success();

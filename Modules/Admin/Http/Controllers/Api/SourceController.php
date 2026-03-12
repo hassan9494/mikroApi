@@ -21,7 +21,14 @@ class SourceController extends ApiAdminController
      */
     public function select(): JsonResponse
     {
-        $data = $this->repository->pluck('name');
+        $data = $this->repository->get()->map(function ($source) {
+            return [
+                'id' => $source->id,
+                'name' => $source->name,
+                'invoice_name' => $source->invoice_name,
+                'tax_number' => $source->tax_number,
+            ];
+        });
         return response()->json([
             'data' => $data
         ]);
@@ -42,12 +49,13 @@ class SourceController extends ApiAdminController
     {
         return request()->validate([
             'name' => 'required|max:255',
+            'invoice_name' => 'nullable|max:255',
+            'tax_number' => 'nullable|integer',
             'slug' => 'required|max:255',
             'order' => 'required',
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'note'  => 'nullable|string|max:1000',
-
         ]);
     }
 }
