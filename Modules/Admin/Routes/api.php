@@ -46,6 +46,7 @@ use Modules\Admin\Http\Controllers\Api\PromotionController;
 use Modules\Admin\Http\Controllers\Api\SlideController;
 use Modules\Admin\Http\Controllers\Api\TaskController;
 use Modules\Admin\Http\Controllers\Api\TransferOrderController;
+use Modules\Admin\Http\Controllers\Api\StockCountController;
 use Modules\Admin\Http\Controllers\Api\ContactController;
 
 
@@ -83,6 +84,22 @@ Route::prefix('admin')
         Route::get('stock-adjustments/my-requests/datatable', [StockAdjustmentController::class, 'myRequestsDatatable']);
         Route::get('stock-adjustments/{id}', [StockAdjustmentController::class, 'show']);
         Route::put('stock-adjustments/{id}', [StockAdjustmentController::class, 'update']);
+
+        // Stock Counts - All Authenticated Users
+        Route::prefix('stock-counts')->group(function () {
+            Route::get('/my-counts', [StockCountController::class, 'myCounts']);
+            Route::get('/datatable', [StockCountController::class, 'datatable']);
+            Route::post('/', [StockCountController::class, 'store']);
+            Route::get('/', [StockCountController::class, 'index']);
+            Route::get('/{id}', [StockCountController::class, 'show']);
+            Route::put('/{id}', [StockCountController::class, 'update']);
+            Route::post('/{id}/products', [StockCountController::class, 'addProducts']);
+            Route::put('/{id}/products/{productId}', [StockCountController::class, 'updateProduct']);
+            Route::delete('/{id}/products/{productId}', [StockCountController::class, 'removeProduct']);
+            Route::post('/{id}/submit', [StockCountController::class, 'submit']);
+            Route::get('/{id}/history', [StockCountController::class, 'history']);
+        });
+
     });
 
 // Group 2: For users with specific roles (admin/manager/etc.)
@@ -105,6 +122,13 @@ Route::prefix('admin')
             Route::put('/{id}', [StockAdjustmentController::class, 'update']);          // Add this
             Route::put('/{id}/status', [StockAdjustmentController::class, 'changeStatus']); // Already exists
         });
+        // Stock Counts - Approval Routes (super/admin/Stock Manager only)
+        Route::prefix('stock-counts')->group(function () {
+            Route::post('/{id}/approve', [StockCountController::class, 'approve']);
+            Route::post('/{id}/reject', [StockCountController::class, 'reject']);
+            Route::post('/{id}/change-status', [StockCountController::class, 'changeStatus']);
+        });
+
     });
 // ============ END FIXED ROUTES ============
 

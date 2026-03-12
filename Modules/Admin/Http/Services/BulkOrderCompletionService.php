@@ -242,6 +242,7 @@ class BulkOrderCompletionService
                         'payment_method_id' => $paymentMethod->id,
                         'created_by' => $user->id,
                     ]);
+                    $order->recordPayment($transaction, $paymentMethod);
                 }
 
                 // Update stock if order was PENDING

@@ -42,6 +42,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
         if (isset($data['short_description'])) {
             $data['short_description'] = str_replace("\n", '<br>', $data['short_description']);
         }
+        if (!isset($data['exchange_factor'])) {
+            $data['exchange_factor'] = 1;
+        }
+        if (!isset($data['base_purchases_price'])) {
+            $data['base_purchases_price'] = 0;
+        }
         if (isset($data['short_description_ar'])) {
             $data['short_description_ar'] = str_replace("\n", '<br>', $data['short_description_ar']);
         }
@@ -927,14 +933,18 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                             COALESCE((
                                 SELECT SUM(op.quantity)
                                 FROM order_products op
+                                INNER JOIN orders o ON op.order_id = o.id
                                 WHERE op.product_id = products.id
+                                AND o.status IN ('PROCESSING', 'COMPLETED')
                             ), 0)
                             +
                             COALESCE((
                                 SELECT SUM(op2.quantity * pk.quantity)
                                 FROM product_kit pk
                                 INNER JOIN order_products op2 ON op2.product_id = pk.kit_id
+                                INNER JOIN orders o2 ON op2.order_id = o2.id
                                 WHERE pk.product_id = products.id
+                                AND o2.status IN ('PROCESSING', 'COMPLETED')
                             ), 0)
                         ) as all_sales_with_kit
                     ")->orderBy('all_sales_with_kit', 'desc');
@@ -1141,14 +1151,18 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                             COALESCE((
                                 SELECT SUM(op.quantity)
                                 FROM order_products op
+                                INNER JOIN orders o ON op.order_id = o.id
                                 WHERE op.product_id = products.id
+                                AND o.status IN ('PROCESSING', 'COMPLETED')
                             ), 0)
                             +
                             COALESCE((
                                 SELECT SUM(op2.quantity * pk.quantity)
                                 FROM product_kit pk
                                 INNER JOIN order_products op2 ON op2.product_id = pk.kit_id
+                                INNER JOIN orders o2 ON op2.order_id = o2.id
                                 WHERE pk.product_id = products.id
+                                AND o2.status IN ('PROCESSING', 'COMPLETED')
                             ), 0)
                         ) as all_sales_with_kit
                     ")->orderBy('all_sales_with_kit', 'desc');
@@ -2097,9 +2111,12 @@ class ProductRepository extends EloquentRepository implements ProductRepositoryI
                     $q->orWhere('name', 'LIKE', '%' . $term . '%')
                         ->orWhere('sku', 'LIKE', '%' . $term . '%')
                         ->orWhere('source_sku', 'LIKE', '%' . $term . '%')
+                        ->orWhere('location', 'LIKE', '%' . $term . '%')
+                        ->orWhere('stock_location', 'LIKE', '%' . $term . '%')
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.title')) LIKE ?", ['%' . $term . '%'])
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.keywords')) LIKE ?", ['%' . $term . '%'])
                         ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.description')) LIKE ?", ['%' . $term . '%']);
+
                 }
             });
 

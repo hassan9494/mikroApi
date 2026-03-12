@@ -94,6 +94,7 @@ class ProductShortResource extends JsonResource
                     'image' => $image,
                     'replacement_item' =>  new ProductResource($replacement_item),
                     'hasVariants' =>  $this->hasVariants,
+                    'all_sales_with_kit' => $this->all_sales_with_kit ?? null,
                     'colors' => ProductVariantsShortResource::collection($this->product_variants)
 
                 ];
@@ -113,6 +114,7 @@ class ProductShortResource extends JsonResource
                     'sale_price' => $this->price->sale_price ?: null,
                     'image' => $image,
                     'hasVariants' =>  $this->hasVariants,
+                    'all_sales_with_kit' => $this->all_sales_with_kit ?? null,
                     'colors' => ProductVariantsShortResource::collection($this->product_variants)
 
                 ];

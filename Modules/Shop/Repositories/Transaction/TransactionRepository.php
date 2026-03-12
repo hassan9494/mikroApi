@@ -48,11 +48,20 @@ class TransactionRepository extends EloquentRepository implements TransactionRep
         $data['note'] = '';
 
         $model = parent::create($data);
+        // Record payment in order history
+        if (isset($data['order_id']) && $data['order_id']) {
+            $order = Order::find($data['order_id']);
+            if ($order) {
+                $order->recordPayment($model, $data['payment_method_id'] ?? null);
+            }
+        }
+
         return $model;
     }
 
     public function update($id,$data)
     {
+        $oldTransaction = Transaction::with('paymentMethod')->find($id);
         if (isset($data['commission'])){
             $data['total_amount'] = $data['amount'] - $data['commission'];
         }else{
@@ -60,6 +69,13 @@ class TransactionRepository extends EloquentRepository implements TransactionRep
         }
 
         $model = parent::update($id, $data);
+        $model->load('paymentMethod');
+
+        if ($oldTransaction?->order_id) {
+        $order = Order::find($oldTransaction->order_id);
+        $order?->recordPaymentUpdated($oldTransaction, $model);
+        }
+
         return $model;
     }
 
